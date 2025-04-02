@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import io.jsonwebtoken.Jwts;
@@ -75,7 +76,7 @@ public class UserController {
             // Assign a default role if the user doesn't have one
             if (user.getRole() == null || user.getRole().isEmpty()) {
                 logger.info("Assigning default role to user: {}", email);
-                user.setRole("USER"); // Default role
+                user.setRole("ROLE_USER"); // Add ROLE_ prefix
                 userv.postUserRecord(user); // Save the updated user with the role
             }
 
@@ -181,6 +182,26 @@ public class UserController {
     @DeleteMapping("/deleteuserdetails/{userId}")
     public String deleteUser(@PathVariable int userId) {
         return userv.deleteUser(userId);
+    }
+
+    @GetMapping("/admin/dashboard")
+    public ResponseEntity<String> adminDashboard() {
+        return ResponseEntity.ok("Welcome to the Admin Dashboard");
+    }
+
+    @GetMapping("/teacher/dashboard")
+    public ResponseEntity<String> teacherDashboard() {
+        return ResponseEntity.ok("Welcome to the Teacher Dashboard");
+    }
+
+    @GetMapping("/student/dashboard")
+    public ResponseEntity<String> studentDashboard() {
+        return ResponseEntity.ok("Welcome to the Student Dashboard");
+    }
+
+    @GetMapping("/debug/roles")
+    public ResponseEntity<?> debugRoles() {
+        return ResponseEntity.ok(SecurityContextHolder.getContext().getAuthentication().getAuthorities());
     }
 
     private Map<String, Object> getUserResponseMap(UserEntity user) {

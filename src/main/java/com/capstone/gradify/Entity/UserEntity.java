@@ -41,7 +41,7 @@ public class UserEntity {
         this.createdAt = createdAt;
         this.lastLogin = lastLogin;
         this.failedLoginAttempts = failedLoginAttempts;
-        this.role = role;
+        this.role = role != null ? role.toUpperCase() : null;
     }
     public int getUserId() {
         return userId;
@@ -107,8 +107,9 @@ public class UserEntity {
         return role;
     }
     public void setRole(String role) {
-        this.role = role;
+        this.role = role != null ? role.toUpperCase() : null;
     }
-
-    
+    public boolean hasRole(String role) {
+        return this.role != null && this.role.equalsIgnoreCase(role);
+    }
 }
