@@ -50,6 +50,55 @@ public class UserController {
         return ResponseEntity.ok("API is running on port 8080.");
     }
 
+    @GetMapping("/oauth2-success")
+    public ResponseEntity<?> oauth2LoginSuccess() {
+        try {
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            Map<String, Object> userDetails = (Map<String, Object>) authentication.getPrincipal();
+
+            String email = (String) userDetails.get("email");
+            if (email == null || email.isEmpty()) {
+                logger.warn("OAuth2 login failed: Email is missing");
+                return ResponseEntity.badRequest().body("Email is required for OAuth2 login");
+            }
+
+            UserEntity user = userv.findByEmail(email);
+
+            if (user == null) {
+                // Create a new user
+                user = new UserEntity();
+                user.setEmail(email);
+                user.setFirstName((String) userDetails.get("given_name"));
+                user.setLastName((String) userDetails.get("family_name"));
+
+                // Validate and assign role
+                String role = (String) userDetails.getOrDefault("role", "STUDENT"); // Default to STUDENT if no role is provided
+                List<String> allowedRoles = List.of("ADMIN", "TEACHER", "STUDENT");
+                if (!allowedRoles.contains(role.toUpperCase())) {
+                    logger.warn("Invalid role provided for OAuth2 user: {}", role);
+                    return ResponseEntity.badRequest().body("Invalid role. Allowed roles are: ADMIN, TEACHER, STUDENT");
+                }
+                user.setRole(role.toUpperCase());
+
+                // Set default values for other fields
+                user.setCreatedAt(new Date());
+                user.setLastLogin(new Date());
+                user.setIsActive(true);
+                user.setFailedLoginAttempts(0);
+
+                // Save the user to the database
+                userv.postUserRecord(user);
+            }
+
+            logger.info("OAuth2 login successful for user: {}", email);
+            return ResponseEntity.ok(user);
+
+        } catch (Exception e) {
+            logger.error("OAuth2 login error: ", e);
+            return ResponseEntity.status(500).body("An unexpected error occurred during OAuth2 login");
+        }
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
         try {
