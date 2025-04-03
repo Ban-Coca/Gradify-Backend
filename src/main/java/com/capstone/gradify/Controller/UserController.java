@@ -63,8 +63,6 @@ public class UserController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email and password cannot be null"));
             }
 
-            logger.info("Login attempt for email: {}", email);
-
             // Find user by email
             UserEntity user = userv.findByEmail(email);
             if (user == null) {
@@ -73,8 +71,6 @@ public class UserController {
                         .body(Map.of("error", "Invalid email or password"));
             }
 
-            logger.info("User found: {}", user);
-
             // Check password
             if (!passwordEncoder.matches(password, user.getPassword())) {
                 logger.warn("Invalid password for email: {}", email);
@@ -82,6 +78,14 @@ public class UserController {
                         .body(Map.of("error", "Invalid email or password"));
             }
 
+            // Validate user role
+            List<String> allowedRoles = List.of("ADMIN", "TEACHER", "STUDENT");
+            if (user.getRole() == null || !allowedRoles.contains(user.getRole().toUpperCase())) {
+                logger.warn("Unauthorized role for email: {}, role: {}", email, user.getRole());
+                return ResponseEntity.status(403)
+                        .body(Map.of("error", "Access denied: Unauthorized role"));
+            }
+            
             // Generate JWT token
             String token = generateToken(user);
             logger.info("Successfully generated token for user: {}", email);
@@ -112,18 +116,37 @@ public class UserController {
             if (user.getPassword() == null || user.getPassword().isEmpty()) {
                 return ResponseEntity.badRequest().body("Password is required");
             }
+            if (user.getRole() == null || user.getRole().isEmpty()) {
+                return ResponseEntity.badRequest().body("Role is required");
+            }
+
+            // Validate the role
+            List<String> allowedRoles = List.of("ADMIN", "TEACHER", "STUDENT");
+            String role = user.getRole().toUpperCase();
+            if (!allowedRoles.contains(role)) {
+                logger.warn("Invalid role provided: {}", role);
+                return ResponseEntity.badRequest().body("Invalid role. Allowed roles are: ADMIN, TEACHER, STUDENT");
+            }
+
+            // Check if a user with the same email already exists
+            UserEntity existingUser = userv.findByEmail(user.getEmail());
+            if (existingUser != null) {
+                logger.warn("User with email {} already exists", user.getEmail());
+                return ResponseEntity.status(409).body("A user with this email already exists");
+            }
 
             // Encrypt the password
             String encryptedPassword = passwordEncoder.encode(user.getPassword());
             user.setPassword(encryptedPassword);
 
             // Set default values for other fields
+            user.setRole(role); // Assign the validated role
             user.setCreatedAt(new Date());
             user.setLastLogin(new Date());
             user.setIsActive(true);
             user.setFailedLoginAttempts(0);
-            user.setRole(user.getRole() != null ? user.getRole() : "USER");
 
+            // Save the user to the database
             UserEntity savedUser = userv.postUserRecord(user);
 
             // Generate a JWT token for the user
@@ -183,25 +206,25 @@ public class UserController {
         return userv.deleteUser(userId);
     }
 
-    // @GetMapping("/admin/dashboard")
-    // public ResponseEntity<String> adminDashboard() {
-    //     return ResponseEntity.ok("Welcome to the Admin Dashboard");
-    // }
+    @GetMapping("/admin/dashboard")
+    public ResponseEntity<String> adminDashboard() {
+        return ResponseEntity.ok("Welcome to the Admin Dashboard");
+    }
 
-    // @GetMapping("/teacher/dashboard")
-    // public ResponseEntity<String> teacherDashboard() {
-    //     return ResponseEntity.ok("Welcome to the Teacher Dashboard");
-    // }
+    @GetMapping("/teacher/dashboard")
+    public ResponseEntity<String> teacherDashboard() {
+        return ResponseEntity.ok("Welcome to the Teacher Dashboard");
+    }
 
-    // @GetMapping("/student/dashboard")
-    // public ResponseEntity<String> studentDashboard() {
-    //     return ResponseEntity.ok("Welcome to the Student Dashboard");
-    // }
+    @GetMapping("/student/dashboard")
+    public ResponseEntity<String> studentDashboard() {
+        return ResponseEntity.ok("Welcome to the Student Dashboard");
+    }
 
-    // @GetMapping("/debug/roles")
-    // public ResponseEntity<?> debugRoles() {
-    //     return ResponseEntity.ok(SecurityContextHolder.getContext().getAuthentication().getAuthorities());
-    // }
+    @GetMapping("/debug/roles")
+    public ResponseEntity<?> debugRoles() {
+        return ResponseEntity.ok(SecurityContextHolder.getContext().getAuthentication().getAuthorities());
+    }
 
     private Map<String, Object> getUserResponseMap(UserEntity user) {
         Map<String, Object> userMap = new HashMap<>();
@@ -220,6 +243,7 @@ public class UserController {
         return Jwts.builder()
                 .setSubject(String.valueOf(user.getUserId()))
                 .claim("email", user.getEmail())
+                .claim("role", user.getRole())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(SignatureAlgorithm.HS256, jwtSecret)
