@@ -18,7 +18,6 @@ public class UserEntity {
     private String lastName;
     private String email;
     private String password;
-    private String salt;
     private boolean isActive;
     private Date createdAt;
     private Date lastLogin;
@@ -29,14 +28,13 @@ public class UserEntity {
         // Default constructor
     }
     
-    public UserEntity(int userId, String firstName, String lastName, String email, String password, String salt, boolean isActive,
+    public UserEntity(int userId, String firstName, String lastName, String email, String password, boolean isActive,
             Date createdAt, Date lastLogin, int failedLoginAttempts, String role) {
         this.userId = userId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.password = password;
-        this.salt = salt;
         this.isActive = isActive;
         this.createdAt = createdAt;
         this.lastLogin = lastLogin;
@@ -72,12 +70,6 @@ public class UserEntity {
     }
     public void setPassword(String password) {
         this.password = password;
-    }
-    public String getSalt() {
-        return salt;
-    }
-    public void setSalt(String salt) {
-        this.salt = salt;
     }
     public boolean IsActive() {
         return isActive;

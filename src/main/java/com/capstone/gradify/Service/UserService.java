@@ -47,9 +47,9 @@ public class UserService {
 		return urepo.findAll();
 	}
 	
-	public List<UserEntity> getUsersByRole(String role) {
-	    return urepo.findByRole(role);
-	}
+	// public List<UserEntity> getUsersByRole(String role) {
+	//     return urepo.findByRole(role);
+	// }
 	
 	//Update of CRUD
 	@SuppressWarnings("finally")

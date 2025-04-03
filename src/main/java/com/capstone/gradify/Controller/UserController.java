@@ -53,8 +53,15 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
         try {
+            logger.info("Login request received: {}", loginRequest);
+
             String email = loginRequest.get("email");
             String password = loginRequest.get("password");
+
+            if (email == null || password == null) {
+                logger.warn("Email or password is null: email={}, password={}", email, password);
+                return ResponseEntity.badRequest().body(Map.of("error", "Email and password cannot be null"));
+            }
 
             logger.info("Login attempt for email: {}", email);
 
@@ -63,21 +70,16 @@ public class UserController {
             if (user == null) {
                 logger.warn("No user found with email: {}", email);
                 return ResponseEntity.status(401)
-                    .body(Map.of("error", "Invalid email or password"));
+                        .body(Map.of("error", "Invalid email or password"));
             }
+
+            logger.info("User found: {}", user);
 
             // Check password
             if (!passwordEncoder.matches(password, user.getPassword())) {
                 logger.warn("Invalid password for email: {}", email);
                 return ResponseEntity.status(401)
-                    .body(Map.of("error", "Invalid email or password"));
-            }
-
-            // Assign a default role if the user doesn't have one
-            if (user.getRole() == null || user.getRole().isEmpty()) {
-                logger.info("Assigning default role to user: {}", email);
-                user.setRole("ROLE_USER"); // Add ROLE_ prefix
-                userv.postUserRecord(user); // Save the updated user with the role
+                        .body(Map.of("error", "Invalid email or password"));
             }
 
             // Generate JWT token
@@ -94,7 +96,7 @@ public class UserController {
         } catch (Exception e) {
             logger.error("Login error: ", e);
             return ResponseEntity.badRequest()
-                .body(Map.of("error", "Login failed: " + e.getMessage()));
+                    .body(Map.of("error", "Login failed: " + e.getMessage()));
         }
     }
 
@@ -111,11 +113,9 @@ public class UserController {
                 return ResponseEntity.badRequest().body("Password is required");
             }
 
-            // Encrypt the password and generate a salt
-            String salt = generateSalt();
-            String encryptedPassword = passwordEncoder.encode(user.getPassword() + salt);
+            // Encrypt the password
+            String encryptedPassword = passwordEncoder.encode(user.getPassword());
             user.setPassword(encryptedPassword);
-            user.setSalt(salt);
 
             // Set default values for other fields
             user.setCreatedAt(new Date());
@@ -129,9 +129,8 @@ public class UserController {
             // Generate a JWT token for the user
             String token = generateToken(savedUser);
 
-            // Don't send the encrypted password or salt back in the response
+            // Don't send the encrypted password back in the response
             savedUser.setPassword(null);
-            savedUser.setSalt(null);
 
             // Include the token in the response
             Map<String, Object> response = new HashMap<>();
@@ -184,25 +183,25 @@ public class UserController {
         return userv.deleteUser(userId);
     }
 
-    @GetMapping("/admin/dashboard")
-    public ResponseEntity<String> adminDashboard() {
-        return ResponseEntity.ok("Welcome to the Admin Dashboard");
-    }
+    // @GetMapping("/admin/dashboard")
+    // public ResponseEntity<String> adminDashboard() {
+    //     return ResponseEntity.ok("Welcome to the Admin Dashboard");
+    // }
 
-    @GetMapping("/teacher/dashboard")
-    public ResponseEntity<String> teacherDashboard() {
-        return ResponseEntity.ok("Welcome to the Teacher Dashboard");
-    }
+    // @GetMapping("/teacher/dashboard")
+    // public ResponseEntity<String> teacherDashboard() {
+    //     return ResponseEntity.ok("Welcome to the Teacher Dashboard");
+    // }
 
-    @GetMapping("/student/dashboard")
-    public ResponseEntity<String> studentDashboard() {
-        return ResponseEntity.ok("Welcome to the Student Dashboard");
-    }
+    // @GetMapping("/student/dashboard")
+    // public ResponseEntity<String> studentDashboard() {
+    //     return ResponseEntity.ok("Welcome to the Student Dashboard");
+    // }
 
-    @GetMapping("/debug/roles")
-    public ResponseEntity<?> debugRoles() {
-        return ResponseEntity.ok(SecurityContextHolder.getContext().getAuthentication().getAuthorities());
-    }
+    // @GetMapping("/debug/roles")
+    // public ResponseEntity<?> debugRoles() {
+    //     return ResponseEntity.ok(SecurityContextHolder.getContext().getAuthentication().getAuthorities());
+    // }
 
     private Map<String, Object> getUserResponseMap(UserEntity user) {
         Map<String, Object> userMap = new HashMap<>();
@@ -221,15 +220,9 @@ public class UserController {
         return Jwts.builder()
                 .setSubject(String.valueOf(user.getUserId()))
                 .claim("email", user.getEmail())
-                .claim("role", user.getRole())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(SignatureAlgorithm.HS256, jwtSecret)
                 .compact();
-    }
-    
-    private String generateSalt() {
-        // Generate a random salt (for simplicity, using a UUID here)
-        return UUID.randomUUID().toString();
-    }
+    }  
 }
