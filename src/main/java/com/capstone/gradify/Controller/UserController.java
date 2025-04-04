@@ -20,6 +20,9 @@ import io.jsonwebtoken.SignatureAlgorithm;
 
 import com.capstone.gradify.Entity.UserEntity;
 import com.capstone.gradify.Service.UserService;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 @RestController
 @RequestMapping("api/user")
@@ -182,6 +185,57 @@ public class UserController {
     public String deleteUser(@PathVariable int userId) {
         return userv.deleteUser(userId);
     }
+
+    @PostMapping("/forget1")
+    public ResponseEntity<?> verifyEmail(@RequestBody Map<String, String> request) {
+        try {
+            String email = request.get("email");
+
+            UserEntity user = userv.findByEmail(email);
+
+            if (email == null || email.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+            }
+
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+            }
+
+            return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
+
+        } catch (Exception e) {
+            logger.error("Error in password reset: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "Error in password reset: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/forgot2")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        try {
+            String email = request.get("email");
+            String newPassword = request.get("NewPassword");
+
+            logger.info("Password reset request for email: {}", email);
+
+            if (email == null || email.isEmpty() || newPassword == null || newPassword.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email and new password are required"));
+            }
+
+            UserEntity user = userv.findByEmail(email);
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+            }
+            String encryptedPassword = passwordEncoder.encode(newPassword);
+            user.setPassword(encryptedPassword);
+
+            userv.postUserRecord(user);
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+        } catch (Exception e) {
+            logger.error("Error in password reset: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "Error in password reset: " + e.getMessage()));
+        }
+    }
+    
 
     // @GetMapping("/admin/dashboard")
     // public ResponseEntity<String> adminDashboard() {
