@@ -186,7 +186,7 @@ public class UserController {
         return userv.deleteUser(userId);
     }
 
-    @PostMapping("/forget1")
+    @PostMapping("/verify-email")
     public ResponseEntity<?> verifyEmail(@RequestBody Map<String, String> request) {
         try {
             String email = request.get("email");
@@ -209,7 +209,7 @@ public class UserController {
         }
     }
 
-    @PostMapping("/forgot2")
+    @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
         try {
             String email = request.get("email");
