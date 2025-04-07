@@ -1,11 +1,13 @@
 package com.capstone.gradify.Config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -16,6 +18,9 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -24,11 +29,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
-            );
+                .csrf(csrf -> csrf.disable()) // Disable CSRF protection
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/postuserrecord",
+                                "/api/user/verify-email", "/api/user/").permitAll()
+                        .requestMatchers("/api/teacher/**").hasAnyAuthority("TEACHER")
+                        .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
+                        .requestMatchers("/api/user/update-profile").authenticated()
+                        .anyRequest().authenticated());
         return http.build();
     }
 

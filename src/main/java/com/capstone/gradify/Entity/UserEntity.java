@@ -2,10 +2,7 @@ package com.capstone.gradify.Entity;
 
 import java.util.Date;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 @Entity
 public class UserEntity {
@@ -22,7 +19,9 @@ public class UserEntity {
     private Date createdAt;
     private Date lastLogin;
     private int failedLoginAttempts;
-    private String role;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
     
     public UserEntity() {
         // Default constructor
@@ -39,7 +38,7 @@ public class UserEntity {
         this.createdAt = createdAt;
         this.lastLogin = lastLogin;
         this.failedLoginAttempts = failedLoginAttempts;
-        this.role = role != null ? role.toUpperCase() : null;
+        this.role = role != null ? Role.valueOf(role.toUpperCase()) : null;
     }
     public int getUserId() {
         return userId;
@@ -95,13 +94,13 @@ public class UserEntity {
     public void setFailedLoginAttempts(int failedLoginAttempts) {
         this.failedLoginAttempts = failedLoginAttempts;
     }
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
-    public void setRole(String role) {
-        this.role = role != null ? role.toUpperCase() : null;
+    public void setRole(Role role) {
+        this.role = role;
     }
     public boolean hasRole(String role) {
-        return this.role != null && this.role.equalsIgnoreCase(role);
+        return this.role != null && this.role.name().equalsIgnoreCase(role);
     }
 }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import com.capstone.gradify.Entity.Role;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,7 +126,7 @@ public class UserController {
             user.setLastLogin(new Date());
             user.setIsActive(true);
             user.setFailedLoginAttempts(0);
-            user.setRole(user.getRole() != null ? user.getRole() : "USER");
+            user.setRole(user.getRole() != null ? user.getRole() : Role.USER);
 
             UserEntity savedUser = userv.postUserRecord(user);
 
@@ -263,7 +264,7 @@ public class UserController {
         userMap.put("email", user.getEmail());
         userMap.put("firstName", user.getFirstName());
         userMap.put("lastName", user.getLastName());
-        userMap.put("role", user.getRole());
+        userMap.put("role", user.getRole().name());
         userMap.put("isActive", user.IsActive());
         userMap.put("createdAt", user.getCreatedAt());
         userMap.put("lastLogin", user.getLastLogin());
@@ -274,6 +275,7 @@ public class UserController {
         return Jwts.builder()
                 .setSubject(String.valueOf(user.getUserId()))
                 .claim("email", user.getEmail())
+                .claim("role", user.getRole().name())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(SignatureAlgorithm.HS256, jwtSecret)
