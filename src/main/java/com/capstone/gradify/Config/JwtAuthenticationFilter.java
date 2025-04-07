@@ -1,5 +1,6 @@
 package com.capstone.gradify.Config;
 
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import com.capstone.gradify.Service.UserService;
 import com.capstone.gradify.Entity.UserEntity;
 import java.util.Collections;
+import java.util.List;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -46,6 +48,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     UserEntity user = userService.findById(Integer.parseInt(userId));
                     
                     if (user != null) {
+                        List<SimpleGrantedAuthority> authorities = Collections.singletonList(
+                                new SimpleGrantedAuthority(user.getRole().name())
+                        );
                         UsernamePasswordAuthenticationToken authentication = 
                             new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());
                         
