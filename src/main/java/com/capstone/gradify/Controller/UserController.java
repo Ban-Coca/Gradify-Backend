@@ -4,6 +4,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.io.IOException;
 import java.util.UUID;
 
 import com.capstone.gradify.Entity.Role;
@@ -13,16 +14,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.servlet.http.HttpServletResponse;
 
 import com.capstone.gradify.Entity.UserEntity;
 import com.capstone.gradify.Service.UserService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 
 @RestController
@@ -44,6 +48,24 @@ public class UserController {
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
+    @Value("${GOOGLE_CLIENT_ID}")
+    private String googleClientId;
+
+    @Value("${GOOGLE_CLIENT_SECRET}")
+    private String googleClientSecret;
+
+    @Value("${MICROSOFT_CLIENT_ID}")
+    private String microsoftClientId;
+
+    @Value("${MICROSOFT_CLIENT_SECRET}")
+    private String microsoftClientSecret;
+
+    @Value("${google.redirect-uri}")
+    private String googleRedirectUri;
+
+    @Value("${microsoft.redirect-uri}")
+    private String microsoftRedirectUri;
+
     @GetMapping("/print")
     public String print() {
         return "Hello, User";
@@ -52,6 +74,76 @@ public class UserController {
     @GetMapping("/")
     public ResponseEntity<String> home() {
         return ResponseEntity.ok("API is running on port 8080.");
+    }
+
+    @GetMapping("/oauth2/authorize/google")
+    public void redirectToGoogle(HttpServletResponse response) throws IOException {
+        String googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth"
+            + "?client_id=" + googleClientId
+            + "&redirect_uri=" + googleRedirectUri
+            + "&response_type=code"
+            + "&scope=openid%20email%20profile";
+        response.sendRedirect(googleAuthUrl);
+    }
+
+    @GetMapping("/oauth2/authorize/microsoft")
+    public void redirectToMicrosoft(HttpServletResponse response) throws IOException {
+        String microsoftAuthUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+            + "?client_id=" + microsoftClientId
+            + "&redirect_uri=" + microsoftRedirectUri
+            + "&response_type=code"
+            + "&scope=openid%20email%20profile";
+        response.sendRedirect(microsoftAuthUrl);
+    }
+
+    @GetMapping("/oauth2/success")
+    public ResponseEntity<?> oauth2LoginSuccess(@AuthenticationPrincipal OAuth2User principal) {
+        try {
+            logger.info("OAuth2 login successful for user: {}", (String) principal.getAttribute("email"));
+
+            // Extract user details from OAuth2User
+            String email = principal.getAttribute("email");
+            String name = principal.getAttribute("name");
+
+            // Check if the user exists in the database
+            UserEntity user = userv.findByEmail(email);
+            if (user == null) {
+                // Register the user if they don't exist
+                user = new UserEntity();
+                user.setEmail(email);
+                user.setFirstName(name.split(" ")[0]); // Assuming first name is the first part of the name
+                user.setLastName(name.split(" ").length > 1 ? name.split(" ")[1] : "");
+                user.setRole(Role.STUDENT); // Default role
+                user.setIsActive(true);
+                user.setCreatedAt(new Date());
+                user.setLastLogin(new Date());
+                user = userv.postUserRecord(user);
+            } else {
+                // Update last login time for existing user
+                user.setLastLogin(new Date());
+                userv.postUserRecord(user);
+            }
+
+            // Generate JWT token
+            String token = generateToken(user);
+
+            // Create response
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("user", getUserResponseMap(user));
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("Error during OAuth2 login: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "OAuth2 login failed: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/oauth2/failure")
+    public ResponseEntity<?> oauth2LoginFailure() {
+        logger.warn("OAuth2 login failed");
+        return ResponseEntity.status(401).body(Map.of("error", "OAuth2 login failed. Please try again."));
     }
 
     @PostMapping("/login")
@@ -126,7 +218,7 @@ public class UserController {
             user.setLastLogin(new Date());
             user.setIsActive(true);
             user.setFailedLoginAttempts(0);
-            user.setRole(user.getRole() != null ? user.getRole() : Role.USER);
+            user.setRole(user.getRole() != null ? user.getRole() : Role.STUDENT);
 
             UserEntity savedUser = userv.postUserRecord(user);
 
