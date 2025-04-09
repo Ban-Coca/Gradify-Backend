@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -38,7 +39,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/teacher/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/user/update-profile").authenticated()
-                        .anyRequest().authenticated());
+                        .anyRequest().authenticated())
+                .oauth2Login(oauth2 -> oauth2
+                    .authorizationEndpoint(authorization -> authorization
+                    .baseUri("/oauth2/authorization") // Custom base URI for OAuth2 authorization
+                    )
+                    .successHandler(new SimpleUrlAuthenticationSuccessHandler("http://localhost:5173/home")) // Redirect to frontend after successful login
+                    .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
+                );
         return http.build();
     }
 

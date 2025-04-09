@@ -16,6 +16,7 @@ public class UserEntity {
     private String email;
     private String password;
     private boolean isActive;
+    private String provider;
     private Date createdAt;
     private Date lastLogin;
     private int failedLoginAttempts;
@@ -75,6 +76,12 @@ public class UserEntity {
     }
     public void setIsActive(boolean isActive) {
         this.isActive = isActive;
+    }
+    public String getProvider() {
+        return provider;
+    }
+    public void setProvider(String provider) {
+        this.provider = provider;
     }
     public Date getCreatedAt() {
         return createdAt;
