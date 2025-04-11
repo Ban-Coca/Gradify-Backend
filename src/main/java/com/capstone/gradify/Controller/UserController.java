@@ -1,13 +1,13 @@
 package com.capstone.gradify.Controller;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.io.IOException;
-import java.util.UUID;
 
 import com.capstone.gradify.Entity.Role;
+import com.capstone.gradify.Entity.VerificationCode;
+import com.capstone.gradify.Service.EmailService;
+import com.capstone.gradify.Service.VerificationCodeService;
+import com.capstone.gradify.util.VerificationCodeGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,11 +15,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -38,6 +36,12 @@ public class UserController {
 
     @Autowired
     private UserService userv;
+
+    @Autowired
+    private VerificationCodeService codeService;
+
+    @Autowired
+    private EmailService emailService;
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -279,26 +283,83 @@ public class UserController {
         return userv.deleteUser(userId);
     }
 
-    @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestBody Map<String, String> request) {
+    @PostMapping("/request-password-reset")
+    public ResponseEntity<?> requestPasswordReset(@RequestBody Map<String, String> request) {
         try {
             String email = request.get("email");
-
-            UserEntity user = userv.findByEmail(email);
 
             if (email == null || email.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
             }
 
+            // Find user by email
+            UserEntity user = userv.findByEmail(email);
             if (user == null) {
-                return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+                // For security reasons, don't reveal if email exists or not
+                return ResponseEntity.ok(Map.of("message", "If your email exists in our system, you will receive a reset code"));
             }
 
-            return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
+            // Generate a random 6-digit verification code
+            String verificationCode = VerificationCodeGenerator.generateVerificationCode();
+
+            // Save the verification code
+            codeService.createVerificationCode(user, verificationCode);
+
+            // Send email with verification code
+            emailService.sendVerificationEmail(email, verificationCode);
+
+            return ResponseEntity.ok(Map.of("message", "If your email exists in our system, you will receive a reset code"));
 
         } catch (Exception e) {
-            logger.error("Error in password reset: ", e);
-            return ResponseEntity.status(500).body(Map.of("error", "Error in password reset: " + e.getMessage()));
+            logger.error("Error in password reset request: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "Error processing request: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<?> verifyResetCode(@RequestBody Map<String, String> request) {
+        try {
+            String email = request.get("email");
+            String code = request.get("code");
+
+            if (email == null || email.isEmpty() || code == null || code.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email and verification code are required"));
+            }
+
+            // Find user by email
+            UserEntity user = userv.findByEmail(email);
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "Invalid or expired verification code"));
+            }
+
+            // Find verification code for user
+            Optional<VerificationCode> verificationCodeOpt = codeService.findByUser(user);
+
+            if (verificationCodeOpt.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of("error", "Invalid or expired verification code"));
+            }
+
+            VerificationCode verificationCode = verificationCodeOpt.get();
+
+            // Check if code matches and is not expired
+            if (!verificationCode.getCode().equals(code) || !codeService.isCodeValid(verificationCode)) {
+                return ResponseEntity.status(400).body(Map.of("error", "Invalid or expired verification code"));
+            }
+
+            // Generate a temporary token for secure password reset
+            String resetToken = UUID.randomUUID().toString();
+            // Store the reset token (you might want to add this field to your VerificationCode entity)
+            verificationCode.setResetToken(resetToken);
+            codeService.save(verificationCode);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Verification successful",
+                    "resetToken", resetToken
+            ));
+
+        } catch (Exception e) {
+            logger.error("Error in code verification: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "Error verifying code: " + e.getMessage()));
         }
     }
 
@@ -306,22 +367,46 @@ public class UserController {
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
         try {
             String email = request.get("email");
-            String newPassword = request.get("NewPassword");
+            String resetToken = request.get("resetToken");
+            String newPassword = request.get("newPassword");
 
-            logger.info("Password reset request for email: {}", email);
+            logger.info("Password reset execution for email: {}", email);
 
-            if (email == null || email.isEmpty() || newPassword == null || newPassword.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Email and new password are required"));
+            if (email == null || email.isEmpty() || resetToken == null || resetToken.isEmpty() ||
+                    newPassword == null || newPassword.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email, reset token, and new password are required"));
             }
 
+            // Find user by email
             UserEntity user = userv.findByEmail(email);
             if (user == null) {
-                return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+                return ResponseEntity.status(404).body(Map.of("error", "Invalid request"));
             }
+
+            // Verify reset token
+            Optional<VerificationCode> verificationCodeOpt = codeService.findByUser(user);
+
+            if (verificationCodeOpt.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of("error", "Invalid request"));
+            }
+
+            VerificationCode verificationCode = verificationCodeOpt.get();
+
+            // Check if token matches and is not expired
+            if (!verificationCode.getResetToken().equals(resetToken) || !codeService.isCodeValid(verificationCode)) {
+                return ResponseEntity.status(400).body(Map.of("error", "Invalid or expired reset token"));
+            }
+
+            // Encrypt and update password
             String encryptedPassword = passwordEncoder.encode(newPassword);
             user.setPassword(encryptedPassword);
+            user.setFailedLoginAttempts(0); // Reset failed login attempts
 
             userv.postUserRecord(user);
+
+            // Delete the verification code record to prevent reuse
+            codeService.deleteByUser(user);
+
             return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
         } catch (Exception e) {
             logger.error("Error in password reset: ", e);
