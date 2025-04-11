@@ -14,7 +14,7 @@ import java.util.Optional;
 public class VerificationCodeService {
     @Autowired
     private UserVerificationRepository verificationRepo;
-    private static final int EXPIRATION_MINUTES = 15;
+    private static final int EXPIRATION_MINUTES = 30;
 
     public VerificationCode createVerificationCode(UserEntity user, String code) {
         // Delete any existing codes for this user first
