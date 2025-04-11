@@ -80,6 +80,12 @@ public class UserController {
         return ResponseEntity.ok("API is running on port 8080.");
     }
 
+    // Helper method to serialize UserEntity to a JSON string
+    private String serializeUser(UserEntity user) {
+        return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\"}",
+                user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name());
+    }
+
     @GetMapping("/oauth2/authorize/google")
     public void redirectToGoogle(HttpServletResponse response) throws IOException {
         String googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -101,22 +107,29 @@ public class UserController {
     }
 
     @GetMapping("/oauth2/success")
-    public ResponseEntity<?> oauth2LoginSuccess(@AuthenticationPrincipal OAuth2User principal) {
+    public void oauth2LoginSuccess(@AuthenticationPrincipal OAuth2User principal, HttpServletResponse response) {
         try {
             logger.info("OAuth2 login successful for user: {}", (String) principal.getAttribute("email"));
-
+    
             // Extract user details from OAuth2User
             String email = principal.getAttribute("email");
-            String name = principal.getAttribute("name");
-
+            String firstName = principal.getAttribute("given_name");
+            String lastName = principal.getAttribute("family_name");
+    
+            if (email == null || firstName == null || lastName == null) {
+                logger.error("Missing required attributes from OAuth2 provider");
+                response.sendRedirect("http://localhost:5173/login-failure?error=InvalidOAuth2Response");
+                return;
+            }
+    
             // Check if the user exists in the database
             UserEntity user = userv.findByEmail(email);
             if (user == null) {
                 // Register the user if they don't exist
                 user = new UserEntity();
                 user.setEmail(email);
-                user.setFirstName(name.split(" ")[0]); // Assuming first name is the first part of the name
-                user.setLastName(name.split(" ").length > 1 ? name.split(" ")[1] : "");
+                user.setFirstName(firstName);
+                user.setLastName(lastName);
                 user.setRole(Role.STUDENT); // Default role
                 user.setIsActive(true);
                 user.setCreatedAt(new Date());
@@ -127,20 +140,21 @@ public class UserController {
                 user.setLastLogin(new Date());
                 userv.postUserRecord(user);
             }
-
+    
             // Generate JWT token
             String token = generateToken(user);
-
-            // Create response
-            Map<String, Object> response = new HashMap<>();
-            response.put("token", token);
-            response.put("user", getUserResponseMap(user));
-
-            return ResponseEntity.ok(response);
-
+    
+            // Redirect to the frontend with token and user details
+            String frontendRedirectUrl = "http://localhost:5173/oauth2/callback";
+            response.sendRedirect(frontendRedirectUrl + "?token=" + token + "&user=" + serializeUser(user));
+    
         } catch (Exception e) {
             logger.error("Error during OAuth2 login: ", e);
-            return ResponseEntity.status(500).body(Map.of("error", "OAuth2 login failed: " + e.getMessage()));
+            try {
+                response.sendRedirect("http://localhost:5173/login-failure?error=OAuth2LoginFailed");
+            } catch (IOException ioException) {
+                logger.error("Error redirecting to frontend: ", ioException);
+            }
         }
     }
 
