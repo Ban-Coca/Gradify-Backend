@@ -13,6 +13,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.security.SecureRandom;
 
 import java.util.List;
 
@@ -35,8 +36,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/user/login", "/api/user/reset-password", "/api/user/postuserrecord",
-                                "/api/user/verify-email", "/api/user/").permitAll()
+                        .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/postuserrecord",
+                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
                         .requestMatchers("/api/teacher/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/user/update-profile").authenticated()
