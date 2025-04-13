@@ -1,5 +1,6 @@
 package com.capstone.gradify.Entity.records;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +23,7 @@ public class GradeRecordsEntity {
 //    private Student student;
 
     @ManyToOne
+    @JsonBackReference
     private ClassSpreadsheet classRecord;
 
 //    @ElementCollection

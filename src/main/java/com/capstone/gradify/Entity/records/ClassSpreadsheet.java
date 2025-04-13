@@ -1,6 +1,8 @@
 package com.capstone.gradify.Entity.records;
 
 import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,9 +22,11 @@ public class ClassSpreadsheet {
 
     @ManyToOne
     @JoinColumn(name = "userId")
+    @JsonBackReference
     private TeacherEntity uploadedBy;
 
     @OneToMany(mappedBy = "classRecord", cascade = CascadeType.ALL)
+    @JsonManagedReference
     private List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
 
 }

@@ -1,6 +1,6 @@
 package com.capstone.gradify.Controller.user;
 
-import com.capstone.gradify.Service.SpreadSheetService;
+import com.capstone.gradify.Service.ClassSpreadsheetService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,17 +15,17 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/teacher")
 public class TeacherController {
-    private final SpreadSheetService spreadSheetService;
+    private final ClassSpreadsheetService classSpreadsheetService;
 
     @Autowired
-    public TeacherController(SpreadSheetService spreadSheetService) {
-        this.spreadSheetService = spreadSheetService;
+    public TeacherController(ClassSpreadsheetService classSpreadsheetService) {
+        this.classSpreadsheetService = classSpreadsheetService;
     }
     @PostMapping("/upload-spreadsheet")
     public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file) {
         // Logic to handle spreadsheet upload
         try{
-            List<Map<String, String >> records = spreadSheetService.parseClassRecord(file);
+            List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
             return ResponseEntity.ok(records);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());

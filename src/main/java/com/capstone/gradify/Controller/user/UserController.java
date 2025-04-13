@@ -274,7 +274,7 @@ public class UserController {
             user.setFirstName(updatedUserDetails.getFirstName());
             user.setLastName(updatedUserDetails.getLastName());
             user.setRole(updatedUserDetails.getRole());
-            user.setIsActive(updatedUserDetails.IsActive());
+            user.setIsActive(updatedUserDetails.isActive());
 
             // Save updated user
             UserEntity updatedUser = userv.postUserRecord(user);
@@ -456,7 +456,7 @@ public class UserController {
         userMap.put("firstName", user.getFirstName());
         userMap.put("lastName", user.getLastName());
         userMap.put("role", user.getRole().name());
-        userMap.put("isActive", user.IsActive());
+        userMap.put("isActive", user.isActive());
         userMap.put("createdAt", user.getCreatedAt());
         userMap.put("lastLogin", user.getLastLogin());
         return userMap;

@@ -72,7 +72,7 @@ public class UserEntity {
     public void setPassword(String password) {
         this.password = password;
     }
-    public boolean IsActive() {
+    public boolean isActive() {
         return isActive;
     }
     public void setIsActive(boolean isActive) {
