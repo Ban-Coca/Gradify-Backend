@@ -1,10 +1,11 @@
-package com.capstone.gradify.Entity;
+package com.capstone.gradify.Entity.user;
 
 import java.util.Date;
 
 import jakarta.persistence.*;
 
 @Entity
+@Inheritance(strategy = InheritanceType.JOINED)
 public class UserEntity {
     
     @Id

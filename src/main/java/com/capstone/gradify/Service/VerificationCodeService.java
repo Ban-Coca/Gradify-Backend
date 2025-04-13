@@ -1,9 +1,8 @@
 package com.capstone.gradify.Service;
 
-import com.capstone.gradify.Entity.UserEntity;
-import com.capstone.gradify.Entity.VerificationCode;
+import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Entity.user.VerificationCode;
 import com.capstone.gradify.Repository.UserVerificationRepository;
-import com.capstone.gradify.util.VerificationCodeGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

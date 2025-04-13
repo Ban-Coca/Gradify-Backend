@@ -1,10 +1,10 @@
-package com.capstone.gradify.Controller;
+package com.capstone.gradify.Controller.user;
 
 import java.util.*;
 import java.io.IOException;
 
-import com.capstone.gradify.Entity.Role;
-import com.capstone.gradify.Entity.VerificationCode;
+import com.capstone.gradify.Entity.user.Role;
+import com.capstone.gradify.Entity.user.VerificationCode;
 import com.capstone.gradify.Service.EmailService;
 import com.capstone.gradify.Service.VerificationCodeService;
 import com.capstone.gradify.util.VerificationCodeGenerator;
@@ -23,8 +23,8 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.servlet.http.HttpServletResponse;
 
-import com.capstone.gradify.Entity.UserEntity;
-import com.capstone.gradify.Service.UserService;
+import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Service.userservice.UserService;
 
 
 @RestController

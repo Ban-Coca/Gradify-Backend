@@ -1,4 +1,4 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.userservice;
 
 import java.util.Date;
 import java.util.List;
@@ -12,8 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.capstone.gradify.Entity.UserEntity;
-import com.capstone.gradify.Repository.UserRepository;
+import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Repository.user.UserRepository;
 
 @Service
 public class UserService {
@@ -22,7 +22,7 @@ public class UserService {
 	UserRepository urepo;
 
 	@Value("${app.upload.dir}")
-  private String uploadDir;
+  	private String uploadDir;
 	
 	public UserService() {
 		super();
