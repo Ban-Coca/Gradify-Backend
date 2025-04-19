@@ -1,10 +1,11 @@
-package com.capstone.gradify.Entity;
+package com.capstone.gradify.Entity.user;
 
 import java.util.Date;
 
 import jakarta.persistence.*;
 
 @Entity
+@Inheritance(strategy = InheritanceType.JOINED)
 public class UserEntity {
     
     @Id
@@ -71,7 +72,7 @@ public class UserEntity {
     public void setPassword(String password) {
         this.password = password;
     }
-    public boolean IsActive() {
+    public boolean isActive() {
         return isActive;
     }
     public void setIsActive(boolean isActive) {

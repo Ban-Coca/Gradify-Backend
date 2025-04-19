@@ -1,4 +1,4 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.userservice;
 
 import java.util.Date;
 import java.util.List;
@@ -7,13 +7,16 @@ import java.util.concurrent.TimeUnit;
 
 import javax.naming.NameNotFoundException;
 
+import com.capstone.gradify.Entity.user.Role;
+import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.user.TeacherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.capstone.gradify.Entity.UserEntity;
-import com.capstone.gradify.Repository.UserRepository;
+import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Repository.user.UserRepository;
 
 @Service
 public class UserService {
@@ -22,8 +25,10 @@ public class UserService {
 	UserRepository urepo;
 
 	@Value("${app.upload.dir}")
-  private String uploadDir;
-	
+  	private String uploadDir;
+    @Autowired
+    private TeacherRepository teacherRepository;
+
 	public UserService() {
 		super();
 	}
@@ -34,7 +39,32 @@ public class UserService {
 	
 	//Create of CRUD
 	public UserEntity postUserRecord(UserEntity user) {
-		return urepo.save(user);
+		if (user.getRole() == Role.TEACHER) {
+
+			if (user instanceof TeacherEntity) {
+				return teacherRepository.save((TeacherEntity) user);
+			}
+
+			else {
+				TeacherEntity teacher = new TeacherEntity();
+
+				teacher.setFirstName(user.getFirstName());
+				teacher.setLastName(user.getLastName());
+				teacher.setEmail(user.getEmail());
+				teacher.setPassword(user.getPassword());
+				teacher.setIsActive(user.isActive());
+				teacher.setProvider(user.getProvider());
+				teacher.setCreatedAt(user.getCreatedAt());
+				teacher.setLastLogin(user.getLastLogin());
+				teacher.setFailedLoginAttempts(user.getFailedLoginAttempts());
+				teacher.setRole(Role.TEACHER);
+
+				return teacherRepository.save(teacher);
+			}
+		} else {
+
+			return urepo.save(user);
+		}
 	}
 
 	//find by ID
@@ -97,7 +127,7 @@ public class UserService {
                 long diffInMillis = now.getTime() - user.getLastLogin().getTime();
                 long diffInDays = TimeUnit.MILLISECONDS.toDays(diffInMillis);
 
-                if (diffInDays > 30 && user.IsActive()) {
+                if (diffInDays > 30 && user.isActive()) {
                     user.setIsActive(false);
                     urepo.save(user);
                 }

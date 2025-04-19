@@ -37,7 +37,8 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/postuserrecord",
-                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
+                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code",
+                                "api/spreadsheet/upload", "api/spreadsheet/get").permitAll()
                         .requestMatchers("/api/teacher/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/user/update-profile").authenticated()
