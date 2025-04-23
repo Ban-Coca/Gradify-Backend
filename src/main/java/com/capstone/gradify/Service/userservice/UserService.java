@@ -62,7 +62,6 @@ public class UserService {
 				return teacherRepository.save(teacher);
 			}
 		} else {
-
 			return urepo.save(user);
 		}
 	}

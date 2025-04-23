@@ -13,8 +13,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.security.SecureRandom;
 
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+
+import java.security.SecureRandom;
+import java.util.Date;
 import java.util.List;
 
 @Configuration
@@ -38,7 +42,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/postuserrecord",
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code",
-                                "api/spreadsheet/upload", "api/spreadsheet/get").permitAll()
+                                "api/spreadsheet/upload", "api/spreadsheet/get", "api/class/createclass", "api/class/getallclasses", "api/class/deleteclass","api/class/getclassbyid/{classId}","api/class/putclasses/{classId}").permitAll()
                         .requestMatchers("/api/teacher/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/user/update-profile").authenticated()
@@ -54,9 +58,25 @@ public class SecurityConfig {
                         String firstName = oAuth2User.getAttribute("given_name");
                         String lastName = oAuth2User.getAttribute("family_name");
 
-                        // Redirect to the backend endpoint for processing
-                        response.sendRedirect("http://localhost:8080/api/user/oauth2/success?email=" + email
-                                + "&firstName=" + firstName + "&lastName=" + lastName);
+                        // Generate a JWT token (you can use your existing logic)
+                        String token = Jwts.builder()
+                                .setSubject(email)
+                                .claim("firstName", firstName)
+                                .claim("lastName", lastName)
+                                .setIssuedAt(new Date())
+                                .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
+                                .signWith(SignatureAlgorithm.HS512, "your_jwt_secret") // Replace with your secret
+                                .compact();
+
+                        // Prepare the response body
+                        String responseBody = String.format(
+                                "{\"token\":\"%s\",\"user\":{\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\"}}",
+                                token, email, firstName, lastName);
+
+                        // Set response headers and body
+                        response.setContentType("application/json");
+                        response.setCharacterEncoding("UTF-8");
+                        response.getWriter().write(responseBody);
                     })
                     .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
                 );
