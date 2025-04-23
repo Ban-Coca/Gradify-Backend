@@ -21,6 +21,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import com.capstone.gradify.Entity.user.UserEntity;
@@ -107,21 +108,27 @@ public class UserController {
     }
 
     @GetMapping("/oauth2/success")
-    public void oauth2LoginSuccess(@AuthenticationPrincipal OAuth2User principal, HttpServletResponse response) {
+    public ResponseEntity<?> oauth2LoginSuccess(@AuthenticationPrincipal OAuth2User principal, HttpServletRequest request) {
         try {
             logger.info("OAuth2 login successful for user: {}", (String) principal.getAttribute("email"));
-    
+
             // Extract user details from OAuth2User
             String email = principal.getAttribute("email");
             String firstName = principal.getAttribute("given_name");
             String lastName = principal.getAttribute("family_name");
-    
+
             if (email == null || firstName == null || lastName == null) {
                 logger.error("Missing required attributes from OAuth2 provider");
-                response.sendRedirect("http://localhost:5173/login-failure?error=InvalidOAuth2Response");
-                return;
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid OAuth2 response"));
             }
-    
+
+            // Determine the provider (Google or Microsoft)
+            String provider = (String) request.getAttribute("org.springframework.security.oauth2.client.registrationId");
+            if (provider == null) {
+                logger.warn("Provider information is missing");
+                provider = "unknown";
+            }
+
             // Check if the user exists in the database
             UserEntity user = userv.findByEmail(email);
             if (user == null) {
@@ -134,27 +141,27 @@ public class UserController {
                 user.setIsActive(true);
                 user.setCreatedAt(new Date());
                 user.setLastLogin(new Date());
+                user.setProvider(provider); // Set the provider
                 user = userv.postUserRecord(user);
             } else {
                 // Update last login time for existing user
                 user.setLastLogin(new Date());
                 userv.postUserRecord(user);
             }
-    
+
             // Generate JWT token
             String token = generateToken(user);
-    
-            // Redirect to the frontend with token and user details
-            String frontendRedirectUrl = "http://localhost:5173/oauth2/callback";
-            response.sendRedirect(frontendRedirectUrl + "?token=" + token + "&user=" + serializeUser(user));
-    
+
+            // Return token and user details in the response
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("user", getUserResponseMap(user));
+
+            return ResponseEntity.ok(response);
+
         } catch (Exception e) {
             logger.error("Error during OAuth2 login: ", e);
-            try {
-                response.sendRedirect("http://localhost:5173/login-failure?error=OAuth2LoginFailed");
-            } catch (IOException ioException) {
-                logger.error("Error redirecting to frontend: ", ioException);
-            }
+            return ResponseEntity.status(500).body(Map.of("error", "OAuth2 login failed"));
         }
     }
 
@@ -235,6 +242,7 @@ public class UserController {
             user.setCreatedAt(new Date());
             user.setLastLogin(new Date());
             user.setIsActive(true);
+            user.setProvider("Email");
             user.setFailedLoginAttempts(0);
             user.setRole(user.getRole() != null ? user.getRole() : Role.STUDENT);
 
