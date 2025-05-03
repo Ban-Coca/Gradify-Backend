@@ -1,5 +1,6 @@
 package com.capstone.gradify.Entity.user;
 
+import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.CascadeType;
@@ -20,9 +21,14 @@ import java.util.List;
 public class TeacherEntity extends UserEntity {
     private String institution;
     private String department;
+
     @OneToMany(mappedBy = "uploadedBy", cascade = CascadeType.ALL)
     @JsonManagedReference
     private List<ClassSpreadsheet> classesRecord = new ArrayList<>();
+
+    @OneToMany(mappedBy = "teacher")
+    @JsonManagedReference(value = "teacher-class")
+    private List<ClassEntity> classes = new ArrayList<>();
     public TeacherEntity() {
 
     }

@@ -1,8 +1,12 @@
 package com.capstone.gradify.Controller.user;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
+import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.ClassService;
 import com.capstone.gradify.Service.ClassSpreadsheetService;
+import com.capstone.gradify.Service.userservice.TeacherService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/teacher")
@@ -20,17 +25,36 @@ public class TeacherController {
     
     @Autowired
     private ClassService classService;
-    
+    @Autowired
+    private TeacherRepository teacherRepository;
+
     @Autowired
     public TeacherController(ClassSpreadsheetService classSpreadsheetService) {
         this.classSpreadsheetService = classSpreadsheetService;
     }
-    @PostMapping("/upload-spreadsheet")
-    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file) {
+
+    @PostMapping("/upload")
+    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
         // Logic to handle spreadsheet upload
         try{
             List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
-            return ResponseEntity.ok(records);
+            TeacherEntity teacher = teacherRepository.findById(teacherId)
+                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
+            ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(file.getOriginalFilename(), teacher, records);
+
+            return ResponseEntity.ok(savedSpreadsheet);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/get")
+    public ResponseEntity<?> getSpreadsheetById(@RequestParam("id") Long id) {
+        // Logic to handle spreadsheet upload
+        try{
+            Optional<ClassSpreadsheet> classSpreadsheet = classSpreadsheetService.getClassSpreadsheetById(id);
+            return ResponseEntity.ok(classSpreadsheet);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
         }

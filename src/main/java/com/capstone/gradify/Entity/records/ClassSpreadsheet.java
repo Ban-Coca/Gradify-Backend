@@ -25,6 +25,10 @@ public class ClassSpreadsheet {
     @JsonBackReference
     private TeacherEntity uploadedBy;
 
+    @ManyToOne
+    @JoinColumn(name = "classId")
+    private ClassEntity classEntity;
+
     @OneToMany(mappedBy = "classRecord", cascade = CascadeType.ALL)
     @JsonManagedReference
     private List<GradeRecordsEntity> gradeRecords = new ArrayList<>();

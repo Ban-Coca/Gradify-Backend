@@ -1,7 +1,9 @@
 package com.capstone.gradify.Controller.records;
 
 import java.util.Date;
+import java.util.List;
 
+import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,7 +34,6 @@ public class ClassController {
         classEntity.setCreatedAt(now);
         classEntity.setUpdatedAt(now);
 
-        // Save the class entity
         ClassEntity createdClass = classService.createClass(classEntity);
         return ResponseEntity.status(201).body(createdClass);
     }
@@ -66,5 +67,26 @@ public class ClassController {
     public ResponseEntity<Object> deleteClass(@PathVariable int classId) {
         String msg = classService.deleteClass(classId);
         return ResponseEntity.status(200).body(msg);
+    }
+
+    @GetMapping("/getspreadsheetbyclassid/{classId}")
+    public ResponseEntity<Object> getSpreadsheetByClassId(@PathVariable int classId) {
+
+        List<ClassSpreadsheet> spreadsheets = classService.getSpreadsheetsByClassId(classId);
+        if (spreadsheets.isEmpty()) {
+            return ResponseEntity.status(404).body("Class not found");
+        } else {
+            return ResponseEntity.status(200).body(spreadsheets);
+        }
+    }
+
+    @GetMapping("/getclassbyteacherid/{teacherId}")
+    public ResponseEntity<Object> getClassByTeacherId(@PathVariable int teacherId) {
+        List<ClassEntity> classes = classService.getClassesByTeacherId(teacherId);
+        if (classes.isEmpty()) {
+            return ResponseEntity.status(404).body("No classes found for this teacher");
+        } else {
+            return ResponseEntity.status(200).body(classes);
+        }
     }
 }

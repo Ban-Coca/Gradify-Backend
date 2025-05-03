@@ -1,5 +1,6 @@
 package com.capstone.gradify.Service;
 
+import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
@@ -16,7 +17,7 @@ import java.util.*;
 public class ClassSpreadsheetService {
 
     @Autowired
-    ClassSpreadsheetRepository classSpreadsheetRepository;
+    private ClassSpreadsheetRepository classSpreadsheetRepository;
 
     public ClassSpreadsheetService() {
         super();
@@ -104,5 +105,159 @@ public class ClassSpreadsheetService {
             throw new IllegalArgumentException("Invalid file name");
         }
         return fileName.substring(0, fileName.lastIndexOf('.'));
+    }
+
+    public ClassEntity createClassEntityFromSpreadsheet(MultipartFile file, List<Map<String, String>> records, TeacherEntity teacher) {
+        ClassEntity classEntity = new ClassEntity();
+
+        // Set the teacher
+        classEntity.setTeacher(teacher);
+
+        String filename = file.getOriginalFilename();
+        if (filename != null) {
+
+            if (filename.contains(".")) {
+                filename = filename.substring(0, filename.lastIndexOf('.'));
+            }
+
+            // Split by underscore or other delimiter
+            String[] parts = filename.split("-");
+            if (parts.length >= 4) {
+                classEntity.setClassName(parts[0]);
+                classEntity.setSection(parts[1]);
+                classEntity.setClassCode(generateClassCode(parts[0], parts[1], parts[2], parts[3]));
+            } else if (parts.length >= 2) {
+                // Handle case when fewer parts are available
+                classEntity.setClassName(parts[0]);
+                classEntity.setSection(parts[1]);
+                classEntity.setClassCode(generateRandomClassCode());
+            } else {
+                // Not enough parts in the filename
+                classEntity.setClassName(extractFileName(filename));
+                classEntity.setClassCode(generateRandomClassCode());
+            }
+        }
+
+        if (records != null && !records.isEmpty()) {
+            // This is just an example - adjust based on your spreadsheet structure
+            Map<String, String> firstRecord = records.get(0);
+
+            if (classEntity.getClassName() == null && firstRecord.containsKey("Class")) {
+                classEntity.setClassName(firstRecord.get("Class"));
+            }
+
+            // Add more extraction logic as needed
+        }
+
+        // Set timestamps
+        Date now = new Date();
+        classEntity.setCreatedAt(now);
+        classEntity.setUpdatedAt(now);
+
+        // For any missing required fields, set defaults or throw an error
+        if (classEntity.getClassName() == null) {
+            classEntity.setClassName("Untitled Class");
+        }
+
+        if (classEntity.getSemester() == null) {
+            // You could derive the current semester based on the current date
+            classEntity.setSemester(determineCurrentSemester());
+        }
+
+        if (classEntity.getSchoolYear() == null) {
+            // Set the current school year
+            classEntity.setSchoolYear(determineCurrentSchoolYear());
+        }
+
+        if (classEntity.getClassCode() == null) {
+
+            classEntity.setClassCode(generateRandomClassCode());
+        }
+
+        return classEntity;
+    }
+
+
+    // Helper methods for the service
+    private String determineCurrentSemester() {
+        // Logic to determine current semester based on date
+        Calendar cal = Calendar.getInstance();
+        int month = cal.get(Calendar.MONTH);
+
+        if (month >= Calendar.JANUARY && month <= Calendar.MAY) {
+            return "2nd";
+        } else if (month >= Calendar.JUNE && month <= Calendar.JULY) {
+            return "Midyear";
+        } else {
+            return "1st";
+        }
+    }
+
+    private String determineCurrentSchoolYear() {
+        // Logic to determine current school year
+        Calendar cal = Calendar.getInstance();
+        int year = cal.get(Calendar.YEAR);
+        int month = cal.get(Calendar.MONTH);
+
+        // If it's after August, the school year is current year - next year
+        if (month >= Calendar.AUGUST) {
+            return year + "-" + (year + 1);
+        } else {
+            return (year - 1) + "-" + year;
+        }
+    }
+
+    private String generateClassCode(String className, String semester, String year, String section) {
+        // Remove spaces and special characters
+        String baseCode = className.replaceAll("[^a-zA-Z0-9]", "");
+
+        // Take first 3 chars of class name + first char of semester + last 2 digits of year + section
+        String code = baseCode.substring(0, Math.min(3, baseCode.length())) +
+                semester.substring(0, 1) +
+                year.substring(Math.max(0, year.length() - 2)) +
+                section;
+
+        return code.toUpperCase();
+    }
+
+    private String generateRandomClassCode() {
+        // Generate a random 6-character alphanumeric code
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        StringBuilder sb = new StringBuilder();
+        Random random = new Random();
+
+        for (int i = 0; i < 6; i++) {
+            int index = random.nextInt(chars.length());
+            sb.append(chars.charAt(index));
+        }
+
+        return sb.toString();
+    }
+
+    // Update the saveRecord method to include ClassEntity
+    public ClassSpreadsheet saveRecord(String filename, TeacherEntity teacher,
+                                       List<Map<String, String>> records, ClassEntity classEntity) {
+        ClassSpreadsheet spreadsheet = new ClassSpreadsheet();
+        spreadsheet.setFileName(filename);
+        spreadsheet.setUploadedBy(teacher);
+        spreadsheet.setClassName(classEntity.getClassName()); // Set the class name from ClassEntity
+        spreadsheet.setClassEntity(classEntity);
+        // Create grade records
+        List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
+        for (Map<String, String> record : records) {
+            GradeRecordsEntity gradeRecord = new GradeRecordsEntity();
+            gradeRecord.setStudentNumber(record.get("Student Number")); // Adjust based on your data structure
+            gradeRecord.setClassRecord(spreadsheet);
+
+
+            gradeRecord.setGrades(record);
+
+            gradeRecords.add(gradeRecord);
+        }
+
+        spreadsheet.setGradeRecords(gradeRecords);
+
+
+        return classSpreadsheetRepository.save(spreadsheet);
     }
 }

@@ -2,10 +2,9 @@ package com.capstone.gradify.Entity.records;
 
 import java.util.Date;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,8 +15,7 @@ public class ClassEntity {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int classid;
-
+    private int classId;
     private String className;
     private String semester;
     private String schoolYear;
@@ -25,6 +23,10 @@ public class ClassEntity {
     private Date createdAt;
     private Date updatedAt;
     private String section;
-    private String room;
-    private String schedule;
+
+    @ManyToOne
+    @JoinColumn(name = "teacher_id")
+    @JsonBackReference(value = "teacher-class")
+    private TeacherEntity teacher;
+
 }
