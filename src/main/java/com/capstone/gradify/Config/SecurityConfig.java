@@ -42,7 +42,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/postuserrecord",
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
-                        .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/class/**").hasAnyAuthority("TEACHER")
+                        .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/class/**", "/api/grading/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/user/update-profile").authenticated()
                         .anyRequest().authenticated());

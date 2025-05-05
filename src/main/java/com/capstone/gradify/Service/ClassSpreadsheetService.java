@@ -3,12 +3,17 @@ package com.capstone.gradify.Service;
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
+import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
+import com.capstone.gradify.Repository.records.GradeRecordRepository;
+import com.capstone.gradify.Repository.user.StudentRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
+import com.capstone.gradify.Entity.user.StudentEntity;
 
 import java.io.IOException;
 import java.util.*;
@@ -18,7 +23,10 @@ public class ClassSpreadsheetService {
 
     @Autowired
     private ClassSpreadsheetRepository classSpreadsheetRepository;
-
+    @Autowired
+    private StudentRepository studentRepository;
+    @Autowired
+    private GradeRecordRepository gradeRecordRepository;
     public ClassSpreadsheetService() {
         super();
     }
@@ -234,7 +242,56 @@ public class ClassSpreadsheetService {
         return sb.toString();
     }
 
-    // Update the saveRecord method to include ClassEntity
+    @Transactional
+    public GradeRecordsEntity createGradeRecordWithStudentAssociation(
+            String studentNumber,
+            String studentFirstName,
+            String studentLastName,
+            ClassSpreadsheet classRecord,
+            Map<String, String> grades) {
+
+        if (classRecord.getId() == null) {
+            classRecord = classSpreadsheetRepository.save(classRecord);
+        }
+
+        // Find the student by student number or create new one
+        StudentEntity student = studentRepository.findByStudentNumber(studentNumber)
+                .orElseGet(() -> {
+                    StudentEntity newStudent = new StudentEntity();
+                    newStudent.setStudentNumber(studentNumber);
+
+//                    // Split name into first and last name if available
+//                    if (studentName != null && !studentName.trim().isEmpty()) {
+//                        String[] nameParts = studentName.trim().split("\\s+", 2);
+//                        newStudent.setFirstName(nameParts[0]);
+//                        if (nameParts.length > 1) {
+//                            newStudent.setLastName(nameParts[1]);
+//                        }
+//                    }
+                    newStudent.setFirstName(studentFirstName);
+                    newStudent.setLastName(studentLastName);
+                    newStudent.setRole(Role.STUDENT);
+                    newStudent.setIsActive(true);
+                    newStudent.setCreatedAt(new Date());
+
+                    // You might need a temporary email and password if these are required
+                    // or mark them as to be completed later by the student
+                    newStudent.setEmail(studentNumber + "@temp.edu"); // Temporary email
+                    newStudent.setPassword("PLACEHOLDER"); // Will need to be changed when student registers
+
+                    return studentRepository.save(newStudent);
+                });
+
+        // Create and populate the grade record
+        GradeRecordsEntity gradeRecord = new GradeRecordsEntity();
+        gradeRecord.setStudentNumber(studentNumber);
+        gradeRecord.setStudent(student); // Associate with student
+        gradeRecord.setClassRecord(classRecord);
+        gradeRecord.setGrades(grades);
+
+        return gradeRecordRepository.save(gradeRecord);
+    }
+
     public ClassSpreadsheet saveRecord(String filename, TeacherEntity teacher,
                                        List<Map<String, String>> records, ClassEntity classEntity) {
         ClassSpreadsheet spreadsheet = new ClassSpreadsheet();
@@ -245,9 +302,29 @@ public class ClassSpreadsheetService {
         // Create grade records
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
         for (Map<String, String> record : records) {
-            GradeRecordsEntity gradeRecord = new GradeRecordsEntity();
-            gradeRecord.setStudentNumber(record.get("Student Number")); // Adjust based on your data structure
-            gradeRecord.setClassRecord(spreadsheet);
+            String studentFirstName = record.get("First Name");
+            String studentLastName = record.get("Last Name");
+            String studentNumber = record.get("Student Number");
+
+//            if (studentName == null) {
+//                // Try common field names or patterns in your data
+//                studentName = record.get("Name") != null ? record.get("name") :
+//                        (record.get("fullName") != null ? record.get("fullName") :
+//                                (record.get("First Name") + " " + record.get("Last Name")));
+//            }
+
+            if (studentNumber == null) {
+                studentNumber = record.get("StudentNumber");
+            }
+
+            // Create the grade record with student association
+            GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
+                    studentNumber,
+                    studentFirstName,
+                    studentLastName,
+                    spreadsheet,
+                    record
+            );
 
 
             gradeRecord.setGrades(record);

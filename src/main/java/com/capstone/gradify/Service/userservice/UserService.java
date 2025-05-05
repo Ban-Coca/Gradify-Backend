@@ -4,11 +4,14 @@ import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
+import java.util.Optional;
 
 import javax.naming.NameNotFoundException;
 
 import com.capstone.gradify.Entity.user.Role;
+import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +31,8 @@ public class UserService {
   	private String uploadDir;
     @Autowired
     private TeacherRepository teacherRepository;
+	@Autowired
+	private StudentRepository studentRepository;
 
 	public UserService() {
 		super();
@@ -60,6 +65,64 @@ public class UserService {
 				teacher.setRole(Role.TEACHER);
 
 				return teacherRepository.save(teacher);
+			}
+		} else if (user.getRole() == Role.STUDENT) {
+
+			String studentNumber = null;
+			if (user instanceof StudentEntity) {
+				studentNumber = ((StudentEntity) user).getStudentNumber();
+			}
+
+
+			if (studentNumber != null && !studentNumber.isEmpty()) {
+				Optional<StudentEntity> existingStudent = studentRepository.findByStudentNumber(studentNumber);
+
+				if (existingStudent.isPresent()) {
+
+					StudentEntity student = existingStudent.get();
+					student.setFirstName(user.getFirstName());
+					student.setLastName(user.getLastName());
+					student.setEmail(user.getEmail());
+					student.setPassword(user.getPassword());
+					student.setIsActive(user.isActive());
+					student.setProvider(user.getProvider());
+					student.setCreatedAt(user.getCreatedAt());
+					student.setLastLogin(user.getLastLogin());
+					student.setFailedLoginAttempts(user.getFailedLoginAttempts());
+					student.setRole(Role.STUDENT);
+
+					// Preserve any student-specific fields if they're not in the incoming object
+					if (user instanceof StudentEntity) {
+						StudentEntity studentEntity = (StudentEntity) user;
+						if (studentEntity.getMajor() != null) {
+							student.setMajor(studentEntity.getMajor());
+						}
+						if (studentEntity.getYearLevel() != null) {
+							student.setYearLevel(studentEntity.getYearLevel());
+						}
+					}
+
+					return studentRepository.save(student);
+				}
+			}
+			if (user instanceof StudentEntity) {
+				return studentRepository.save((StudentEntity) user);
+			} else {
+				// Create a new StudentEntity and copy properties from the UserEntity
+				StudentEntity student = new StudentEntity();
+
+				student.setFirstName(user.getFirstName());
+				student.setLastName(user.getLastName());
+				student.setEmail(user.getEmail());
+				student.setPassword(user.getPassword());
+				student.setIsActive(user.isActive());
+				student.setProvider(user.getProvider());
+				student.setCreatedAt(user.getCreatedAt());
+				student.setLastLogin(user.getLastLogin());
+				student.setFailedLoginAttempts(user.getFailedLoginAttempts());
+				student.setRole(Role.STUDENT);
+
+				return studentRepository.save(student);
 			}
 		} else {
 			return urepo.save(user);

@@ -13,4 +13,5 @@ public class StudentEntity extends UserEntity {
     private String studentNumber;
     private String major;
     private String yearLevel;
+    private String institution;
 }
