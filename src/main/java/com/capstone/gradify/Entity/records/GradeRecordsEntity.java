@@ -21,6 +21,7 @@ public class GradeRecordsEntity {
     private String studentNumber;
 
     @ManyToOne(cascade = CascadeType.MERGE)
+    @JsonBackReference
     private StudentEntity student;
 
     @ManyToOne
@@ -30,4 +31,5 @@ public class GradeRecordsEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private Map<String, String> grades;
+
 }

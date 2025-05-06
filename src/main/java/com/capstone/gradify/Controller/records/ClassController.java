@@ -4,6 +4,7 @@ import java.util.Date;
 import java.util.List;
 
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Service.RecordsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -26,6 +27,8 @@ public class ClassController {
     
     @Autowired
     private ClassService classService;
+    @Autowired
+    private RecordsService recordsService;
 
     @PostMapping("/createclass")
     public ResponseEntity<Object> createClass(@RequestBody ClassEntity classEntity) {
@@ -71,7 +74,6 @@ public class ClassController {
 
     @GetMapping("/getspreadsheetbyclassid/{classId}")
     public ResponseEntity<Object> getSpreadsheetByClassId(@PathVariable int classId) {
-
         List<ClassSpreadsheet> spreadsheets = classService.getSpreadsheetsByClassId(classId);
         if (spreadsheets.isEmpty()) {
             return ResponseEntity.status(404).body("Class not found");
@@ -88,5 +90,31 @@ public class ClassController {
         } else {
             return ResponseEntity.status(200).body(classes);
         }
+    }
+
+    @GetMapping("/{classId}/roster")
+    public ResponseEntity<List<RecordsService.StudentTableData>> getClassRoster(@PathVariable int classId) {
+        List<RecordsService.StudentTableData> rosterData = recordsService.getClassRosterTableData(classId);
+        return ResponseEntity.ok(rosterData);
+    }
+
+    @GetMapping("/{classId}/students/{studentId}/grade")
+    public ResponseEntity<Double> getStudentGrade(
+            @PathVariable int classId,
+            @PathVariable int studentId) {
+        double grade = recordsService.calculateStudentGrade(studentId, classId);
+        return ResponseEntity.ok(grade);
+    }
+
+    @GetMapping("/{classId}/avgclassgrade")
+    public ResponseEntity<Double> getAvgClassGrade(@PathVariable int classId){
+        double avgClassGrade = recordsService.calculateClassAverageGrade(classId);
+        return ResponseEntity.ok(avgClassGrade);
+    }
+
+    @GetMapping("/{classId}/studentcount")
+    public ResponseEntity<Integer> getClassCount(@PathVariable int classId) {
+        int classCount = recordsService.getStudentCount(classId);
+        return ResponseEntity.ok(classCount);
     }
 }

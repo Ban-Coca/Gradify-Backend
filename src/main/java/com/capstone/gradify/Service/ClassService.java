@@ -33,15 +33,12 @@ public class ClassService {
     public ClassEntity createClass(ClassEntity classEntity) {
         return classRepository.save(classEntity);
     }
-    
     public ClassEntity getClassById(int id) {
         return classRepository.findById(id).orElse(null);
     }
-
     public List<ClassEntity> getAllClasses() {
         return classRepository.findAll();
     }
-    
     public ClassEntity updateClass(int classId, ClassEntity newclassEntity) {
         ClassEntity existingClass = classRepository.findById(classId).orElse(null);
         try{
@@ -57,7 +54,6 @@ public class ClassService {
 			return classRepository.save(existingClass);
 		}
     }
-
     public String deleteClass(int classId) {
         String msg = "";
 
@@ -76,9 +72,10 @@ public class ClassService {
         }
         return new ArrayList<>();
     }
-
     public List<ClassEntity> getClassesByTeacherId(int teacherId) {
         TeacherEntity teacherEntity = teacherRepository.findById(teacherId).orElse(null);
         return classRepository.findByTeacher(teacherEntity);
     }
+
+
 }

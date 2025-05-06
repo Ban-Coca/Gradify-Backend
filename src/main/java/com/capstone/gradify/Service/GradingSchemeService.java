@@ -19,6 +19,7 @@ public class GradingSchemeService {
 
     @Autowired
     private ClassRepository classRepository;
+
     public GradingSchemes saveGradingScheme(GradingSchemes gradingScheme, Integer classId, Integer teacherId) {
         TeacherEntity teacher = teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + teacherId));
@@ -30,5 +31,13 @@ public class GradingSchemeService {
         gradingScheme.setTeacherEntity(teacher);
         gradingScheme.setClassEntity(classEntity);
         return gradingSchemeRepository.save(gradingScheme);
+    }
+
+    public GradingSchemes getGradingSchemeByClassEntityId(int id) {
+        GradingSchemes gradingSchemes = gradingSchemeRepository.findByClassEntity_ClassId(id);
+        if (gradingSchemes == null) {
+            throw new RuntimeException("Grading scheme not found for class ID: " + id);
+        }
+        return gradingSchemes;
     }
 }

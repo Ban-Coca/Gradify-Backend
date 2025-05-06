@@ -40,4 +40,17 @@ public class GradingSchemeController {
             return ResponseEntity.status(500).body("Error saving grading scheme: " + e.getMessage());
         }
     }
+    @GetMapping("/getscheme")
+    public ResponseEntity<?> getGradingScheme(@RequestParam int classId) {
+        try {
+            GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+            if (gradingScheme != null) {
+                return ResponseEntity.ok(gradingScheme);
+            } else {
+                return ResponseEntity.status(404).body("Grading scheme not found for class ID: " + classId);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error retrieving grading scheme: " + e.getMessage());
+        }
+    }
 }
