@@ -41,45 +41,44 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/postuserrecord",
-                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code",
-                                "api/spreadsheet/upload", "api/spreadsheet/get", "api/class/createclass", "api/class/getallclasses", "api/class/deleteclass","api/class/getclassbyid/{classId}","api/class/putclasses/{classId}").permitAll()
-                        .requestMatchers("/api/teacher/**").hasAnyAuthority("TEACHER")
+                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
+                        .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/class/**", "/api/grading/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/user/update-profile").authenticated()
-                        .anyRequest().authenticated())
-                .oauth2Login(oauth2 -> oauth2
-                    .authorizationEndpoint(authorization -> authorization
-                        .baseUri("/oauth2/authorization") // Custom base URI for OAuth2 authorization
-                    )
-                    .successHandler((request, response, authentication) -> {
-                        // Custom success handler to process user registration
-                        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-                        String email = oAuth2User.getAttribute("email");
-                        String firstName = oAuth2User.getAttribute("given_name");
-                        String lastName = oAuth2User.getAttribute("family_name");
-
-                        // Generate a JWT token (you can use your existing logic)
-                        String token = Jwts.builder()
-                                .setSubject(email)
-                                .claim("firstName", firstName)
-                                .claim("lastName", lastName)
-                                .setIssuedAt(new Date())
-                                .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
-                                .signWith(SignatureAlgorithm.HS512, "your_jwt_secret") // Replace with your secret
-                                .compact();
-
-                        // Prepare the response body
-                        String responseBody = String.format(
-                                "{\"token\":\"%s\",\"user\":{\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\"}}",
-                                token, email, firstName, lastName);
-
-                        // Set response headers and body
-                        response.setContentType("application/json");
-                        response.setCharacterEncoding("UTF-8");
-                        response.getWriter().write(responseBody);
-                    })
-                    .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
-                );
+                        .anyRequest().authenticated());
+//                .oauth2Login(oauth2 -> oauth2
+//                    .authorizationEndpoint(authorization -> authorization
+//                        .baseUri("/oauth2/authorization") // Custom base URI for OAuth2 authorization
+//                    )
+//                    .successHandler((request, response, authentication) -> {
+//                        // Custom success handler to process user registration
+//                        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+//                        String email = oAuth2User.getAttribute("email");
+//                        String firstName = oAuth2User.getAttribute("given_name");
+//                        String lastName = oAuth2User.getAttribute("family_name");
+//
+//                        // Generate a JWT token (you can use your existing logic)
+//                        String token = Jwts.builder()
+//                                .setSubject(email)
+//                                .claim("firstName", firstName)
+//                                .claim("lastName", lastName)
+//                                .setIssuedAt(new Date())
+//                                .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
+//                                .signWith(SignatureAlgorithm.HS512, "your_jwt_secret") // Replace with your secret
+//                                .compact();
+//
+//                        // Prepare the response body
+//                        String responseBody = String.format(
+//                                "{\"token\":\"%s\",\"user\":{\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\"}}",
+//                                token, email, firstName, lastName);
+//
+//                        // Set response headers and body
+//                        response.setContentType("application/json");
+//                        response.setCharacterEncoding("UTF-8");
+//                        response.getWriter().write(responseBody);
+//                    })
+//                    .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
+//                );
         return http.build();
     }
 

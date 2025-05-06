@@ -52,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 new SimpleGrantedAuthority(user.getRole().name())
                         );
                         UsernamePasswordAuthenticationToken authentication = 
-                            new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());
+                            new UsernamePasswordAuthenticationToken(user, null, authorities);
                         
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                         logger.debug("Authentication set for user ID: {}", userId);

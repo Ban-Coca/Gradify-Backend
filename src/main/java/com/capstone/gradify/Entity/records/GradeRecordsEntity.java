@@ -1,5 +1,6 @@
 package com.capstone.gradify.Entity.records;
 
+import com.capstone.gradify.Entity.user.StudentEntity;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -19,20 +20,16 @@ public class GradeRecordsEntity {
 
     private String studentNumber;
 
-//    @ManyToOne
-//    private Student student;
+    @ManyToOne(cascade = CascadeType.MERGE)
+    @JsonBackReference
+    private StudentEntity student;
 
     @ManyToOne
     @JsonBackReference
     private ClassSpreadsheet classRecord;
 
-//    @ElementCollection
-//    @CollectionTable(name = "grade_values", joinColumns = @JoinColumn(name = "record_id"))
-//    @MapKeyColumn(name = "header")
-//    @Column(name = "value")
-//    private Map<String, String> grades = new HashMap<>();
-
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private Map<String, String> grades;
+
 }
