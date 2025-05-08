@@ -23,6 +23,8 @@ public class ClassEntity {
     private Date createdAt;
     private Date updatedAt;
     private String section;
+    private String schedule;
+    private String room;
 
     @ManyToOne
     @JoinColumn(name = "teacher_id")

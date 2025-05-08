@@ -57,6 +57,8 @@ public class ClassController {
             classEntity.setSchoolYear(schoolYear);
             classEntity.setSection(section);
             classEntity.setClassCode(classCode);
+            classEntity.setSchedule(schedule);
+            classEntity.setRoom(room);
             
             // Set optional fields if provided
             if (room != null && !room.isEmpty()) {

@@ -48,6 +48,8 @@ public class ClassService {
             existingClass.setSchoolYear(newclassEntity.getSchoolYear());
             existingClass.setUpdatedAt(new Date());
             existingClass.setSection(newclassEntity.getSection());
+            existingClass.setSchedule(newclassEntity.getSchedule());
+            existingClass.setRoom(newclassEntity.getRoom());
         }catch(NoSuchElementException nex){
 			throw new NameNotFoundException("Class "+ classId +"not found");
 		}finally {
