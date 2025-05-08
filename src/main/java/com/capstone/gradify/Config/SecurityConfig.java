@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/postuserrecord",
+                        .requestMatchers("/api/user/login", "api/user/reset-password", "/postuserrecord", "/api/user/postuserrecord",
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/class/**", "/api/grading/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
