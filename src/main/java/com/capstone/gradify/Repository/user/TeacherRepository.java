@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TeacherRepository extends JpaRepository<TeacherEntity, Integer> {
-
+    TeacherEntity findByUserId(int userId);
 }
