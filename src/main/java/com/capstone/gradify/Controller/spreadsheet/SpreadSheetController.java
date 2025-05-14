@@ -7,6 +7,7 @@ import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.ClassSpreadsheetService;
+import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,8 @@ public class SpreadSheetController {
     private TeacherRepository teacherRepository;
     @Autowired
     private ClassRepository classRepository;
+    @Autowired
+    private CloudSpreadsheetManager cloudSpreadsheetManager;
     @Autowired
     public SpreadSheetController(ClassSpreadsheetService classSpreadsheetService) {
         this.classSpreadsheetService = classSpreadsheetService;
@@ -56,6 +59,54 @@ public class SpreadSheetController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
         }
+    }
+
+    @PostMapping("/process-url")
+    public ResponseEntity<?> processSpreadsheetUrl(
+            @RequestParam("url") String spreadsheetUrl,
+            @RequestParam("teacherId") Integer teacherId) {
+        try {
+            // Validate the URL is supported
+            if (!cloudSpreadsheetManager.canProcessLink(spreadsheetUrl)) {
+                return ResponseEntity.badRequest().body(
+                        "Unsupported spreadsheet URL. Please provide a valid Google Sheets or Microsoft Excel Online URL.");
+            }
+
+            // Get the teacher
+            TeacherEntity teacher = teacherRepository.findById(teacherId)
+                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
+
+            // Process the spreadsheet
+            ClassSpreadsheet spreadsheet = cloudSpreadsheetManager.processSharedSpreadsheet(spreadsheetUrl, teacher);
+
+            // Create response
+            Map<String, Object> response = new HashMap<>();
+            response.put("spreadsheet", spreadsheet);
+            response.put("class", spreadsheet.getClassEntity());
+            response.put("provider", cloudSpreadsheetManager.getServiceNameForLink(spreadsheetUrl));
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error processing spreadsheet URL: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Check if the provided URL is supported by our cloud spreadsheet integrations
+     *
+     * @param url URL to check
+     * @return Support information
+     */
+    @GetMapping("/check-url-support")
+    public ResponseEntity<?> checkUrlSupport(@RequestParam("url") String url) {
+        boolean supported = cloudSpreadsheetManager.canProcessLink(url);
+        String provider = supported ? cloudSpreadsheetManager.getServiceNameForLink(url) : "Unsupported";
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("supported", supported);
+        response.put("provider", provider);
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/get/{id}")

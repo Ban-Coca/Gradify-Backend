@@ -187,7 +187,7 @@ public class ClassSpreadsheetService {
 
 
     // Helper methods for the service
-    private String determineCurrentSemester() {
+    public String determineCurrentSemester() {
         // Logic to determine current semester based on date
         Calendar cal = Calendar.getInstance();
         int month = cal.get(Calendar.MONTH);
@@ -201,7 +201,7 @@ public class ClassSpreadsheetService {
         }
     }
 
-    private String determineCurrentSchoolYear() {
+    public String determineCurrentSchoolYear() {
         // Logic to determine current school year
         Calendar cal = Calendar.getInstance();
         int year = cal.get(Calendar.YEAR);
@@ -215,7 +215,7 @@ public class ClassSpreadsheetService {
         }
     }
 
-    private String generateClassCode(String className, String semester, String year, String section) {
+    public String generateClassCode(String className, String semester, String year, String section) {
         // Remove spaces and special characters
         String baseCode = className.replaceAll("[^a-zA-Z0-9]", "");
 
@@ -228,7 +228,7 @@ public class ClassSpreadsheetService {
         return code.toUpperCase();
     }
 
-    private String generateRandomClassCode() {
+    public String generateRandomClassCode() {
         // Generate a random 6-character alphanumeric code
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         StringBuilder sb = new StringBuilder();

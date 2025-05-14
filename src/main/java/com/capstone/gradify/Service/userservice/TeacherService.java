@@ -2,6 +2,7 @@ package com.capstone.gradify.Service.userservice;
 
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +16,10 @@ public class TeacherService {
         super();
     }
 
-    public TeacherEntity saveTeacherDetails(TeacherEntity teacher) {
+    public TeacherEntity save(TeacherEntity teacher) {
         return teacherRepository.save(teacher);
+    }
+    public TeacherEntity findByUserId(int userId) {
+        return teacherRepository.findByUserId(userId);
     }
 }

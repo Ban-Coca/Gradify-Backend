@@ -1,6 +1,11 @@
 package com.capstone.gradify.Config;
 
+import com.capstone.gradify.Entity.user.Role;
+import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Service.userservice.UserService;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,6 +22,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 
+import java.security.Key;
 import java.security.SecureRandom;
 import java.util.Date;
 import java.util.List;
@@ -27,6 +33,11 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Autowired
+    private UserService userService;
+
+    @Value("${jwt.secret}")
+    private String jwtSecret;
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
@@ -35,6 +46,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+
         http
                 .csrf(csrf -> csrf.disable()) // Disable CSRF protection
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
@@ -44,41 +57,60 @@ public class SecurityConfig {
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/class/**", "/api/grading/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
-                        .requestMatchers("/api/user/update-profile").authenticated()
-                        .anyRequest().authenticated());
-//                .oauth2Login(oauth2 -> oauth2
-//                    .authorizationEndpoint(authorization -> authorization
-//                        .baseUri("/oauth2/authorization") // Custom base URI for OAuth2 authorization
-//                    )
-//                    .successHandler((request, response, authentication) -> {
-//                        // Custom success handler to process user registration
-//                        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-//                        String email = oAuth2User.getAttribute("email");
-//                        String firstName = oAuth2User.getAttribute("given_name");
-//                        String lastName = oAuth2User.getAttribute("family_name");
-//
-//                        // Generate a JWT token (you can use your existing logic)
-//                        String token = Jwts.builder()
-//                                .setSubject(email)
-//                                .claim("firstName", firstName)
-//                                .claim("lastName", lastName)
-//                                .setIssuedAt(new Date())
-//                                .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
-//                                .signWith(SignatureAlgorithm.HS512, "your_jwt_secret") // Replace with your secret
-//                                .compact();
-//
-//                        // Prepare the response body
-//                        String responseBody = String.format(
-//                                "{\"token\":\"%s\",\"user\":{\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\"}}",
-//                                token, email, firstName, lastName);
-//
-//                        // Set response headers and body
-//                        response.setContentType("application/json");
-//                        response.setCharacterEncoding("UTF-8");
-//                        response.getWriter().write(responseBody);
-//                    })
-//                    .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
-//                );
+                        .requestMatchers("/api/user/update-profile", "/api/user/update-role").authenticated()
+                        .anyRequest().authenticated())
+                .oauth2Login(oauth2 -> oauth2
+                    .authorizationEndpoint(authorization -> authorization
+                        .baseUri("/oauth2/authorization") // Custom base URI for OAuth2 authorization
+                    )
+                    .successHandler((request, response, authentication) -> {
+                        // Custom success handler to process user registration
+                        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+                        String email = oAuth2User.getAttribute("email");
+                        String firstName = oAuth2User.getAttribute("given_name");
+                        String lastName = oAuth2User.getAttribute("family_name");
+
+                        String provider = request.getRequestURI().contains("google") ? "Google" : "Microsoft";
+
+                        UserEntity user = userService.findByEmail(email);
+                        if (user == null) {
+                            // Create new user if not exists
+                            user = new UserEntity();
+                            user.setEmail(email);
+                            user.setFirstName(firstName);
+                            user.setLastName(lastName);
+                            user.setRole(Role.STUDENT); // Default role
+                            user.setIsActive(true);
+                            user.setCreatedAt(new Date());
+                            user.setProvider(provider);
+                        }
+
+                        // Update last login
+                        user.setLastLogin(new Date());
+                        userService.postUserRecord(user);
+
+                        Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+                        String token = Jwts.builder()
+                                .setSubject(email)
+                                .claim("firstName", firstName)
+                                .claim("lastName", lastName)
+                                .setIssuedAt(new Date())
+                                .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
+                                .signWith(key, SignatureAlgorithm.HS512) // Replace with your secret
+                                .compact();
+
+                        // Prepare the response body
+                        String responseBody = String.format(
+                                "{\"token\":\"%s\",\"user\":{\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\"}}",
+                                token, email, firstName, lastName);
+
+                        // Set response headers and body
+                        response.setContentType("application/json");
+                        response.setCharacterEncoding("UTF-8");
+                        response.getWriter().write(responseBody);
+                    })
+                    .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
+                );
         return http.build();
     }
 

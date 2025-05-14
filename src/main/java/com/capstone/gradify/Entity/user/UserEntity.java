@@ -1,6 +1,8 @@
 package com.capstone.gradify.Entity.user;
 
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import jakarta.persistence.*;
 
@@ -21,6 +23,9 @@ public class UserEntity {
     private Date createdAt;
     private Date lastLogin;
     private int failedLoginAttempts;
+    @Version
+    private Long version;
+    private transient Map<String, Object> attributes = new HashMap<>();
 
     @Enumerated(EnumType.STRING)
     private Role role;
@@ -110,5 +115,18 @@ public class UserEntity {
     }
     public boolean hasRole(String role) {
         return this.role != null && this.role.name().equalsIgnoreCase(role);
+    }
+    public Long getVersion() {
+        return version;
+    }
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+    public void setAttribute(String key, Object value) {
+        attributes.put(key, value);
+    }
+
+    public Object getAttribute(String key) {
+        return attributes.get(key);
     }
 }

@@ -4,14 +4,24 @@ import java.util.*;
 import java.io.IOException;
 
 import com.capstone.gradify.Entity.user.Role;
+import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.VerificationCode;
+import com.capstone.gradify.Repository.user.StudentRepository;
+import com.capstone.gradify.Repository.user.TeacherRepository;
+import com.capstone.gradify.Repository.user.UserRepository;
 import com.capstone.gradify.Service.EmailService;
 import com.capstone.gradify.Service.VerificationCodeService;
+import com.capstone.gradify.Service.userservice.StudentService;
+import com.capstone.gradify.Service.userservice.TeacherService;
 import com.capstone.gradify.util.VerificationCodeGenerator;
+import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -44,6 +54,12 @@ public class UserController {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private StudentService studentService;
+
+    @Autowired
+    private TeacherService teacherService;
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
@@ -70,6 +86,15 @@ public class UserController {
 
     @Value("${microsoft.redirect-uri}")
     private String microsoftRedirectUri;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private StudentRepository studentRepository;
+    @Autowired
+    private TeacherRepository teacherRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @GetMapping("/print")
     public String print() {
@@ -222,11 +247,31 @@ public class UserController {
     }
 
     @PostMapping("/postuserrecord")
-    public ResponseEntity<?> postUserRecord(@RequestBody UserEntity user) {
+    public ResponseEntity<?> postUserRecord(@RequestBody Map<String, Object> userMap) {
         try {
-            logger.info("Received registration request for email: {}", user.getEmail());
+            String roleStr = (String) userMap.get("role");
+            Role role = Role.valueOf(roleStr);
 
-            // Validate required fields
+            UserEntity user;
+
+            if (role == Role.TEACHER) {
+                TeacherEntity teacher = new TeacherEntity();
+                teacher.setInstitution((String) userMap.get("institution"));
+                teacher.setDepartment((String) userMap.get("department"));
+                user = teacher;
+                logger.debug("Creating a new teacher entity: {}, {}", teacher.getDepartment(), teacher.getInstitution());
+            } else {
+                user = new UserEntity();
+            }
+
+            user.setFirstName((String) userMap.get("firstName"));
+            user.setLastName((String) userMap.get("lastName"));
+            user.setEmail((String) userMap.get("email"));
+            user.setPassword((String) userMap.get("password"));
+            user.setRole(role);
+
+            logger.info("Received registration request for email: {}", user.getEmail());
+            logger.info("Received registration request for user: {}", user);
             if (user.getEmail() == null || user.getEmail().isEmpty()) {
                 return ResponseEntity.badRequest().body("Email is required");
             }
@@ -234,27 +279,21 @@ public class UserController {
                 return ResponseEntity.badRequest().body("Password is required");
             }
 
-            // Encrypt the password
             String encryptedPassword = passwordEncoder.encode(user.getPassword());
             user.setPassword(encryptedPassword);
 
-            // Set default values for other fields
             user.setCreatedAt(new Date());
             user.setLastLogin(new Date());
             user.setIsActive(true);
             user.setProvider("Email");
             user.setFailedLoginAttempts(0);
-            user.setRole(user.getRole() != null ? user.getRole() : Role.STUDENT);
+            user.setRole(user.getRole() != null ? user.getRole() : Role.PENDING);
 
             UserEntity savedUser = userv.postUserRecord(user);
 
-            // Generate a JWT token for the user
             String token = generateToken(savedUser);
-
-            // Don't send the encrypted password back in the response
             savedUser.setPassword(null);
 
-            // Include the token in the response
             Map<String, Object> response = new HashMap<>();
             response.put("user", savedUser);
             response.put("token", token);
@@ -422,7 +461,7 @@ public class UserController {
             // Encrypt and update password
             String encryptedPassword = passwordEncoder.encode(newPassword);
             user.setPassword(encryptedPassword);
-            user.setFailedLoginAttempts(0); // Reset failed login attempts
+            user.setFailedLoginAttempts(0);
 
             userv.postUserRecord(user);
 
@@ -435,28 +474,47 @@ public class UserController {
             return ResponseEntity.status(500).body(Map.of("error", "Error in password reset: " + e.getMessage()));
         }
     }
-    
 
-    // @GetMapping("/admin/dashboard")
-    // public ResponseEntity<String> adminDashboard() {
-    //     return ResponseEntity.ok("Welcome to the Admin Dashboard");
-    // }
+    @PutMapping("/update-role/{userId}")
+    public ResponseEntity<?> updateRole(@PathVariable int userId, @RequestBody Map<String, String> payload) {
+        try {
+            // Validate user
+            UserEntity user = userv.findById(userId);
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+            }
 
-    // @GetMapping("/teacher/dashboard")
-    // public ResponseEntity<String> teacherDashboard() {
-    //     return ResponseEntity.ok("Welcome to the Teacher Dashboard");
-    // }
+            String role = payload.get("role");
+            if (role == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Role is required"));
+            }
 
-    // @GetMapping("/student/dashboard")
-    // public ResponseEntity<String> studentDashboard() {
-    //     return ResponseEntity.ok("Welcome to the Student Dashboard");
-    // }
+            // Update user role
+            user.setRole(Role.valueOf(role));
+            userv.changeUserRole(userId, user.getRole());
 
-    // @GetMapping("/debug/roles")
-    // public ResponseEntity<?> debugRoles() {
-    //     return ResponseEntity.ok(SecurityContextHolder.getContext().getAuthentication().getAuthorities());
-    // }
+            return ResponseEntity.ok(getUserResponseMap(user));
 
+        } catch (Exception e) {
+            logger.error("Error updating role: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "Role update failed: " + e.getMessage()));
+        }
+    }
+
+    // Helper method to copy user properties
+    private void copyUserProperties(UserEntity source, UserEntity target) {
+        target.setUserId(source.getUserId());
+        target.setEmail(source.getEmail());
+        target.setFirstName(source.getFirstName());
+        target.setLastName(source.getLastName());
+        target.setPassword(source.getPassword());
+        target.setIsActive(source.isActive());
+        target.setCreatedAt(source.getCreatedAt());
+        target.setLastLogin(source.getLastLogin());
+        target.setProvider(source.getProvider());
+        target.setFailedLoginAttempts(source.getFailedLoginAttempts());
+        target.setRole(source.getRole());
+    }
     private Map<String, Object> getUserResponseMap(UserEntity user) {
         Map<String, Object> userMap = new HashMap<>();
         userMap.put("userId", user.getUserId());
