@@ -4,6 +4,8 @@ import java.util.Date;
 import java.util.List;
 
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.RecordsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -29,16 +31,58 @@ public class ClassController {
     private ClassService classService;
     @Autowired
     private RecordsService recordsService;
+     @Autowired
+    private TeacherRepository teacherRepository;
 
     @PostMapping("/createclass")
-    public ResponseEntity<Object> createClass(@RequestBody ClassEntity classEntity) {
-        // Set createdAt and updatedAt to the current date
-        Date now = new Date();
-        classEntity.setCreatedAt(now);
-        classEntity.setUpdatedAt(now);
+    public ResponseEntity<Object> createClass(
+            @RequestParam("className") String className,
+            @RequestParam("semester") String semester,
+            @RequestParam("schoolYear") String schoolYear,
+            @RequestParam("section") String section,
+            @RequestParam("classCode") String classCode,
+            @RequestParam(value = "room", required = false) String room,
+            @RequestParam(value = "schedule", required = false) String schedule,
+            @RequestParam("teacher.userId") Integer teacherId) {
+        
+        try {
+            // Find the teacher entity
+            TeacherEntity teacher = teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + teacherId));
+            
+            // Create and populate the class entity
+            ClassEntity classEntity = new ClassEntity();
+            classEntity.setClassName(className);
+            classEntity.setSemester(semester);
+            classEntity.setSchoolYear(schoolYear);
+            classEntity.setSection(section);
+            classEntity.setClassCode(classCode);
+            classEntity.setSchedule(schedule);
+            classEntity.setRoom(room);
+            
+            // Set optional fields if provided
+            if (room != null && !room.isEmpty()) {
+                // Assuming you add this field to your entity
+                // classEntity.setRoom(room);
+            }
+            
+            if (schedule != null && !schedule.isEmpty()) {
+                // Assuming you add this field to your entity
+                // classEntity.setSchedule(schedule);
+            }
+            
+            // Set the teacher and timestamps
+            classEntity.setTeacher(teacher);
+            Date now = new Date();
+            classEntity.setCreatedAt(now);
+            classEntity.setUpdatedAt(now);
 
-        ClassEntity createdClass = classService.createClass(classEntity);
-        return ResponseEntity.status(201).body(createdClass);
+            // Save the class
+            ClassEntity createdClass = classService.createClass(classEntity);
+            return ResponseEntity.status(201).body(createdClass);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error creating class: " + e.getMessage());
+        }
     }
 
     @GetMapping("/getallclasses")
