@@ -9,6 +9,7 @@ import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -109,13 +110,27 @@ public class SpreadSheetController {
     }
 
     @GetMapping("/get/{id}")
-    public ResponseEntity<?> getSpreadsheetById(@PathVariable("id") Long id) {
-        // Logic to handle spreadsheet upload
-        try{
-            Optional<ClassSpreadsheet> classSpreadsheet = classSpreadsheetService.getClassSpreadsheetById(id);
-            return ResponseEntity.ok(classSpreadsheet);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
+        public ResponseEntity<?> getSpreadsheetById(@PathVariable("id") Long id) {
+            try {
+                // Validate the ID
+                if (id == null) {
+                    return ResponseEntity.badRequest().body("Spreadsheet ID cannot be null");
+                }
+                
+                Optional<ClassSpreadsheet> classSpreadsheetOpt = classSpreadsheetService.getClassSpreadsheetById(id);
+                
+                if (classSpreadsheetOpt.isPresent()) {
+                    // Return the spreadsheet if found
+                    ClassSpreadsheet spreadsheet = classSpreadsheetOpt.get();
+                    return ResponseEntity.ok(spreadsheet);
+                } else {
+                    // Return 404 if not found
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("Spreadsheet with ID " + id + " not found");
+                }
+            } catch (Exception e) {
+                return ResponseEntity.status(500)
+                    .body("Error retrieving spreadsheet: " + e.getMessage());
+            }
         }
-    }
 }
