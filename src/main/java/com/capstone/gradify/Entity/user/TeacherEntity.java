@@ -1,5 +1,6 @@
 package com.capstone.gradify.Entity.user;
 
+import com.capstone.gradify.Entity.ReportEntity;
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -29,6 +30,10 @@ public class TeacherEntity extends UserEntity {
     @OneToMany(mappedBy = "teacher")
     @JsonManagedReference(value = "teacher-class")
     private List<ClassEntity> classes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "teacher")
+    private List<ReportEntity> sentReports = new ArrayList<>();
+
     public TeacherEntity() {
 
     }

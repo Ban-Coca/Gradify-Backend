@@ -5,23 +5,20 @@ import java.io.IOException;
 
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.TeacherEntity;
-import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.VerificationCode;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Repository.user.UserRepository;
-import com.capstone.gradify.Service.EmailService;
-import com.capstone.gradify.Service.VerificationCodeService;
+import com.capstone.gradify.Service.email.EmailService;
+import com.capstone.gradify.Service.userservice.VerificationCodeService;
 import com.capstone.gradify.Service.userservice.StudentService;
 import com.capstone.gradify.Service.userservice.TeacherService;
 import com.capstone.gradify.util.VerificationCodeGenerator;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -501,6 +498,24 @@ public class UserController {
         }
     }
 
+    @GetMapping("/getuserdetails/{userId}")
+    public ResponseEntity<?> getUserDetails(@PathVariable int userId) {
+        try {
+            UserEntity user = userv.findById(userId);
+            if (user == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("user", getUserResponseMap(user));
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("Error fetching user details: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "Error fetching user details: " + e.getMessage()));
+        }
+    }
     // Helper method to copy user properties
     private void copyUserProperties(UserEntity source, UserEntity target) {
         target.setUserId(source.getUserId());

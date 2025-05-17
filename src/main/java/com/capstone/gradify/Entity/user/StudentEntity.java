@@ -1,5 +1,6 @@
 package com.capstone.gradify.Entity.user;
 
+import com.capstone.gradify.Entity.ReportEntity;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.Entity;
@@ -9,6 +10,7 @@ import jakarta.persistence.PrimaryKeyJoinColumn;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -24,4 +26,7 @@ public class StudentEntity extends UserEntity {
     @OneToMany(mappedBy = "student", fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<GradeRecordsEntity> gradeRecords;
+
+    @OneToMany(mappedBy = "student")
+    private List<ReportEntity> receivedReports = new ArrayList<>();
 }
