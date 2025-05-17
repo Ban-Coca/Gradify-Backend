@@ -29,28 +29,31 @@ public class RecordsService {
      */
     public static class StudentTableData {
         private String studentName;
-        private String studentId;
+        private String studentNumber;
         private String grade;
         private double percentage;
         private String status;
-
-        public StudentTableData(String studentName, String studentId, String grade, double percentage, String status) {
+        private int userId;
+        public StudentTableData(String studentName, String studentNumber, String grade, double percentage, String status, int userId) {
             this.studentName = studentName;
-            this.studentId = studentId;
+            this.studentNumber = studentNumber;
             this.grade = grade;
             this.percentage = percentage;
             this.status = status;
+            this.userId = userId;
         }
         public String getStudentName() { return studentName; }
         public void setStudentName(String studentName) { this.studentName = studentName; }
-        public String getStudentId() { return studentId; }
-        public void setStudentId(String studentId) { this.studentId = studentId; }
+        public String getStudentNumber() { return studentNumber; }
+        public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
         public String getGrade() { return grade; }
         public void setGrade(String grade) { this.grade = grade; }
         public double getPercentage() { return percentage; }
         public void setPercentage(double percentage) { this.percentage = percentage; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+        public int getUserId() { return userId; }
+        public void setUserId(int userId) { this.userId = userId; }
     }
 
     public List<StudentTableData> getClassRosterTableData(int classId) {
@@ -68,8 +71,8 @@ public class RecordsService {
             double percentageGrade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
 
             // Get student information
-            String studentId = record.getStudentNumber();
-            Optional<StudentEntity> studentOpt = studentRepository.findByStudentNumber(studentId);
+            String studentNumber = record.getStudentNumber();
+            Optional<StudentEntity> studentOpt = studentRepository.findByStudentNumber(studentNumber);
 
             if (studentOpt.isPresent()) {
                 StudentEntity student = studentOpt.get();
@@ -84,10 +87,11 @@ public class RecordsService {
                 // Create table data object
                 StudentTableData data = new StudentTableData(
                         studentName,
-                        studentId,
+                        studentNumber,
                         letterGrade,
                         percentageGrade,
-                        status
+                        status,
+                        student.getUserId()
                 );
 
                 tableData.add(data);
@@ -118,12 +122,12 @@ public class RecordsService {
         else return "Failing";
     }
 
-    public double calculateStudentGrade(int studentId, int classId) {
+    public double calculateStudentGrade(int studentNumber, int classId) {
         // Get student's grade records for this class
-        List<GradeRecordsEntity> records = gradeRecordsRepository.findByStudent_UserIdAndClassRecord_ClassEntity_ClassId(studentId, classId);
+        List<GradeRecordsEntity> records = gradeRecordsRepository.findByStudent_UserIdAndClassRecord_ClassEntity_ClassId(studentNumber, classId);
 
         if (records.isEmpty()) {
-            throw new RuntimeException("No grade records found for student ID: " + studentId + " in class ID: " + classId);
+            throw new RuntimeException("No grade records found for student ID: " + studentNumber + " in class ID: " + classId);
         }
 
         // Use the first record found
@@ -147,8 +151,8 @@ public class RecordsService {
         Map<String, Double> studentGrades = new HashMap<>();
         for (GradeRecordsEntity record : allRecords) {
             double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
-            String studentId = record.getStudentNumber();
-            studentGrades.put(studentId, grade);
+            String studentNumber = record.getStudentNumber();
+            studentGrades.put(studentNumber, grade);
         }
 
         return studentGrades;

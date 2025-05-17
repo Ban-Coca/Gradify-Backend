@@ -1,4 +1,4 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.userservice;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Entity.user.VerificationCode;

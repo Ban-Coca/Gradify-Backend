@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -29,6 +30,11 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(
+        securedEnabled = true,
+        jsr250Enabled = true,
+        prePostEnabled = true
+)
 public class SecurityConfig {
 
     @Autowired
@@ -57,7 +63,12 @@ public class SecurityConfig {
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/class/**", "/api/grading/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
-                        .requestMatchers("/api/user/update-profile", "/api/user/update-role").authenticated()
+                        .requestMatchers("/api/reports/**").hasAnyAuthority("TEACHER", "STUDENT")
+                        .requestMatchers(
+                                "/api/reports/teacher/**",
+                                "/api/reports/class/**"
+                        ).hasAuthority("TEACHER")
+                        .requestMatchers("/api/user/update-profile", "/api/user/update-role", "/api/user/getuserdetails/").authenticated()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                     .authorizationEndpoint(authorization -> authorization
