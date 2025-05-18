@@ -57,8 +57,6 @@ public class ClassController {
             classEntity.setSchoolYear(schoolYear);
             classEntity.setSection(section);
             classEntity.setClassCode(classCode);
-            classEntity.setSchedule(schedule);
-            classEntity.setRoom(room);
             
             // Set optional fields if provided
             if (room != null && !room.isEmpty()) {
@@ -118,22 +116,22 @@ public class ClassController {
 
     @GetMapping("/getspreadsheetbyclassid/{classId}")
     public ResponseEntity<Object> getSpreadsheetByClassId(@PathVariable int classId) {
-        List<ClassSpreadsheet> spreadsheets = classService.getSpreadsheetsByClassId(classId);
-        if (spreadsheets.isEmpty()) {
+        ClassEntity classEntity = classService.getClassById(classId);
+        if (classEntity == null) {
             return ResponseEntity.status(404).body("Class not found");
-        } else {
-            return ResponseEntity.status(200).body(spreadsheets);
         }
+        List<ClassSpreadsheet> spreadsheets = classService.getSpreadsheetsByClassId(classId);
+        return ResponseEntity.ok(spreadsheets);
     }
 
     @GetMapping("/getclassbyteacherid/{teacherId}")
     public ResponseEntity<Object> getClassByTeacherId(@PathVariable int teacherId) {
-        List<ClassEntity> classes = classService.getClassesByTeacherId(teacherId);
-        if (classes.isEmpty()) {
-            return ResponseEntity.status(404).body("No classes found for this teacher");
-        } else {
-            return ResponseEntity.status(200).body(classes);
+        boolean teacherExists = teacherRepository.existsById(teacherId);
+        if (!teacherExists) {
+            return ResponseEntity.status(404).body("Teacher not found");
         }
+        List<ClassEntity> classes = classService.getClassesByTeacherId(teacherId);
+        return ResponseEntity.ok(classes);
     }
 
     @GetMapping("/{classId}/roster")
