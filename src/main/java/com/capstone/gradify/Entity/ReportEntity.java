@@ -4,6 +4,7 @@ import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -27,14 +28,17 @@ public class ReportEntity {
 
     @ManyToOne
     @JoinColumn(name = "teacher_id")
+    @JsonBackReference(value = "teacher-report")
     private TeacherEntity teacher;
 
     @ManyToOne
     @JoinColumn(name = "student_id")
+    @JsonBackReference
     private StudentEntity student;
 
     @ManyToOne
     @JoinColumn(name = "class_id")
+    @JsonBackReference(value = "class-report")
     private ClassEntity relatedClass;
 
     @ManyToOne

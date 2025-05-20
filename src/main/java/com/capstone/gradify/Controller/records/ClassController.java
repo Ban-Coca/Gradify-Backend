@@ -2,11 +2,15 @@ package com.capstone.gradify.Controller.records;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.RecordsService;
+import com.capstone.gradify.dto.student.StudentDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -61,12 +65,12 @@ public class ClassController {
             // Set optional fields if provided
             if (room != null && !room.isEmpty()) {
                 // Assuming you add this field to your entity
-                // classEntity.setRoom(room);
+                classEntity.setRoom(room);
             }
             
             if (schedule != null && !schedule.isEmpty()) {
                 // Assuming you add this field to your entity
-                // classEntity.setSchedule(schedule);
+                classEntity.setSchedule(schedule);
             }
             
             // Set the teacher and timestamps
@@ -158,5 +162,26 @@ public class ClassController {
     public ResponseEntity<Integer> getClassCount(@PathVariable int classId) {
         int classCount = recordsService.getStudentCount(classId);
         return ResponseEntity.ok(classCount);
+    }
+
+    @GetMapping("/{classId}/students")
+    public ResponseEntity<List<StudentDTO>> getStudentsByClassId(@PathVariable int classId) {
+        Set<StudentEntity> students = classService.getStudentsByClassId(classId);
+        List<StudentDTO> studentDTOs = students.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(studentDTOs);
+    }
+
+    private StudentDTO convertToDTO(StudentEntity student) {
+        StudentDTO dto = new StudentDTO();
+        dto.setUserId(student.getUserId());
+        dto.setFirstName(student.getFirstName());
+        dto.setLastName(student.getLastName());
+        dto.setEmail(student.getEmail());
+        dto.setStudentNumber(student.getStudentNumber());
+        dto.setMajor(student.getMajor());
+        dto.setYearLevel(student.getYearLevel());
+        return dto;
     }
 }

@@ -2,6 +2,7 @@ package com.capstone.gradify.Controller.spreadsheet;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
@@ -13,10 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("api/spreadsheet")
@@ -50,6 +48,17 @@ public class SpreadSheetController {
                     teacher,
                     records,
                     classEntity);
+
+            Set<StudentEntity> students = new HashSet<>();
+            savedSpreadsheet.getGradeRecords().forEach(record -> {
+                if (record.getStudent() != null) {
+                    students.add(record.getStudent());
+                }
+            });
+
+
+            classEntity.setStudents(students);
+            classEntity = classRepository.save(classEntity);
 
             Map<String, Object> response = new HashMap<>();
             response.put("spreadsheet", savedSpreadsheet);
