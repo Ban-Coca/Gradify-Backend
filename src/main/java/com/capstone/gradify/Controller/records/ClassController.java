@@ -61,12 +61,12 @@ public class ClassController {
             // Set optional fields if provided
             if (room != null && !room.isEmpty()) {
                 // Assuming you add this field to your entity
-                // classEntity.setRoom(room);
+                classEntity.setRoom(room);
             }
             
             if (schedule != null && !schedule.isEmpty()) {
                 // Assuming you add this field to your entity
-                // classEntity.setSchedule(schedule);
+                classEntity.setSchedule(schedule);
             }
             
             // Set the teacher and timestamps
