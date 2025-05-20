@@ -1,17 +1,18 @@
 package com.capstone.gradify.Entity.user;
 
 import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrimaryKeyJoinColumn;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -28,5 +29,10 @@ public class StudentEntity extends UserEntity {
     private List<GradeRecordsEntity> gradeRecords;
 
     @OneToMany(mappedBy = "student")
+    @JsonManagedReference
     private List<ReportEntity> receivedReports = new ArrayList<>();
+
+    @ManyToMany(mappedBy = "students")
+    @JsonBackReference(value = "class-student")
+    private Set<ClassEntity> classes = new HashSet<>();
 }

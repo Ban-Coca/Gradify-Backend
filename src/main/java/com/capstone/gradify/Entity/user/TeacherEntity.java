@@ -32,6 +32,7 @@ public class TeacherEntity extends UserEntity {
     private List<ClassEntity> classes = new ArrayList<>();
 
     @OneToMany(mappedBy = "teacher")
+    @JsonManagedReference(value = "teacher-report")
     private List<ReportEntity> sentReports = new ArrayList<>();
 
     public TeacherEntity() {

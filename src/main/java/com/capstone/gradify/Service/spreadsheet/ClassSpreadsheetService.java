@@ -61,8 +61,6 @@ public class ClassSpreadsheetService {
 
     public List<Map<String, String>> parseClassRecord(MultipartFile file) throws IOException {
         List<Map<String, String>> records = new ArrayList<>();
-        // Logic to parse the spreadsheet file and extract records
-        // For example, using Apache POI or any other library to read Excel files
 
         Workbook workbook = WorkbookFactory.create(file.getInputStream());
         Sheet sheet = workbook.getSheetAt(0);

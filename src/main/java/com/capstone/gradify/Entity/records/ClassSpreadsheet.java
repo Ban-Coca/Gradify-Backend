@@ -6,9 +6,12 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Getter
@@ -28,6 +31,10 @@ public class ClassSpreadsheet {
     @ManyToOne
     @JoinColumn(name = "classId")
     private ClassEntity classEntity;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, String> assessmentMaxValues;
 
     @OneToMany(mappedBy = "classRecord", cascade = CascadeType.ALL)
     @JsonManagedReference
