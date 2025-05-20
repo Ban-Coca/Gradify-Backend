@@ -158,7 +158,7 @@ public class RecordsService {
         return studentGrades;
     }
 
-    private double calculateGrade(Map<String, String> grades, String schemeJson) {
+    public double calculateGrade(Map<String, String> grades, String schemeJson) {
         try {
             // Parse the grading scheme from JSON
             List<Map<String, Object>> schemeItems = mapper.readValue(
@@ -275,5 +275,21 @@ public class RecordsService {
         } catch (NumberFormatException e) {
             return -1;
         }
+    }
+    public List<GradeRecordsEntity> getGradeRecordsByStudentId(int studentId) {
+        return gradeRecordsRepository.findByStudent_UserId(studentId);
+    }
+
+    public Map<String, String> getStudentCourseGrades(int studentId, int classId) {
+        List<GradeRecordsEntity> gradeRecords = gradeRecordsRepository.findByStudent_UserIdAndClassRecord_ClassEntity_ClassId(studentId, classId);
+
+        if (!gradeRecords.isEmpty() && gradeRecords.get(0).getGrades() != null) {
+            return gradeRecords.get(0).getGrades();
+        }
+        return Collections.emptyMap();
+    }
+
+    public List<GradeRecordsEntity> getGradeRecordsByStudentIdAndClassId(int studentId, int classId) {
+        return gradeRecordsRepository.findByStudent_UserIdAndClassRecord_ClassEntity_ClassId(studentId, classId);
     }
 }
