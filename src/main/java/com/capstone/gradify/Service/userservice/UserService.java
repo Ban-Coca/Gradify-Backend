@@ -88,38 +88,31 @@ public class UserService {
 				studentNumber = ((StudentEntity) user).getStudentNumber();
 			}
 
+			Optional<StudentEntity> existingStudent = studentRepository.findByStudentNumber(studentNumber);
 
-			if (studentNumber != null && !studentNumber.isEmpty()) {
-				Optional<StudentEntity> existingStudent = studentRepository.findByStudentNumber(studentNumber);
-
-				if (existingStudent.isPresent()) {
-
-					StudentEntity student = existingStudent.get();
-
-					copyUserProperties(user, student);
-					student.setRole(Role.STUDENT);
-
-					// Preserve any student-specific fields if they're not in the incoming object
-                    StudentEntity studentEntity = (StudentEntity) user;
-                    if (studentEntity.getMajor() != null) {
-                        student.setMajor(studentEntity.getMajor());
-                    }
-                    if (studentEntity.getYearLevel() != null) {
-                        student.setYearLevel(studentEntity.getYearLevel());
-                    }
-
-                    return studentRepository.save(student);
-				}
-			}
-			if (user instanceof StudentEntity) {
-				return studentRepository.save((StudentEntity) user);
-			} else {
-				// Create a new StudentEntity and copy properties from the UserEntity
-				StudentEntity student = new StudentEntity();
-
+			if (existingStudent.isPresent()) {
+				StudentEntity student = existingStudent.get();
 				copyUserProperties(user, student);
 				student.setRole(Role.STUDENT);
 
+				// Preserve any student-specific fields if they're not in the incoming object
+				StudentEntity studentEntity = (StudentEntity) user;
+				if (studentEntity.getMajor() != null) {
+					student.setMajor(studentEntity.getMajor());
+				}
+				if (studentEntity.getYearLevel() != null) {
+					student.setYearLevel(studentEntity.getYearLevel());
+				}
+				return studentRepository.save(student);
+			}
+
+			// If not found, save as new student
+			if (user instanceof StudentEntity) {
+				return studentRepository.save((StudentEntity) user);
+			} else {
+				StudentEntity student = new StudentEntity();
+				copyUserProperties(user, student);
+				student.setRole(Role.STUDENT);
 				return studentRepository.save(student);
 			}
 		} else {

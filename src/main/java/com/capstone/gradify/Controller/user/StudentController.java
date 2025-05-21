@@ -1,0 +1,118 @@
+package com.capstone.gradify.Controller.user;
+
+import com.capstone.gradify.Entity.records.ClassEntity;
+import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Entity.records.GradeRecordsEntity;
+import com.capstone.gradify.Entity.records.GradingSchemes;
+import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.user.TeacherRepository;
+import com.capstone.gradify.Service.ClassService;
+import com.capstone.gradify.Service.GradingSchemeService;
+import com.capstone.gradify.Service.RecordsService;
+import com.capstone.gradify.Service.ReportService;
+import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
+import com.capstone.gradify.Service.userservice.TeacherService;
+import com.capstone.gradify.dto.report.ReportResponseDTO;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+
+@RestController
+@RequestMapping("/api/student")
+public class StudentController {
+    
+    @Autowired
+    private RecordsService recordsService;
+    @Autowired
+    private GradingSchemeService gradingSchemeService;
+    @Autowired
+    private TeacherService teacherService;
+    @Autowired
+    private ReportService reportService;
+
+    @GetMapping("/{studentId}/classes")
+    public ResponseEntity<?> getStudentClasses(@PathVariable int studentId) {
+        // Find all grade records for this student
+        List<GradeRecordsEntity> gradeRecords = recordsService.getGradeRecordsByStudentId(studentId);
+
+        // Collect unique classes
+        Set<ClassEntity> classes = new HashSet<>();
+        for (GradeRecordsEntity record : gradeRecords) {
+            if (record.getClassRecord() != null && record.getClassRecord().getClassEntity() != null) {
+                classes.add(record.getClassRecord().getClassEntity());
+            }
+        }
+        return ResponseEntity.ok(classes);
+    }
+
+    @GetMapping("/{studentId}/classes/{classId}/grades")
+    public ResponseEntity<?> getStudentGradesForClass(
+            @PathVariable int studentId,
+            @PathVariable int classId) {
+        Map<String, String> grades = recordsService.getStudentCourseGrades(studentId, classId);
+        return ResponseEntity.ok(grades);
+    }
+
+    @GetMapping("/classes/{classId}/gradingscheme")
+    public ResponseEntity<?> getGradingSchemeByClassEntityId(@PathVariable int classId) {
+        try {
+            String gradingScheme = gradingSchemeService.getGradeSchemeByClassEntityId(classId);
+            return ResponseEntity.ok(gradingScheme);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/classes/{classId}/teacher")
+    public ResponseEntity<?> getTeacherFullNameByClassId(@PathVariable int classId) {
+        String fullName = teacherService.getTeacherFullNameByClassId(classId);
+        if (fullName != null) {
+            return ResponseEntity.ok(fullName);
+        } else {
+            return ResponseEntity.status(404).body("Teacher not found for class ID: " + classId);
+        }
+    }
+
+    @GetMapping("/{studentId}/reports")
+    public ResponseEntity<?> getReportsByStudentId(@PathVariable int studentId) {
+        List<ReportResponseDTO> reports = reportService.getReportsByStudentId(studentId);
+        return ResponseEntity.ok(reports);
+    }
+
+    @GetMapping("/{studentId}/classes/{classId}/calculated-grade")
+    public ResponseEntity<?> getCalculatedGrade(
+            @PathVariable int studentId,
+            @PathVariable int classId) {
+        try {
+            // Get the grade record for this student and class
+            List<GradeRecordsEntity> gradeRecords = recordsService
+                    .getGradeRecordsByStudentIdAndClassId(studentId, classId);
+
+            if (gradeRecords.isEmpty()) {
+                return ResponseEntity.status(404).body("Grade record not found for student and class.");
+            }
+
+            GradeRecordsEntity record = gradeRecords.get(0);
+
+            // Get grading scheme for this class
+            GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+
+            // Calculate the grade
+            double calculatedGrade = recordsService.calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+
+            return ResponseEntity.ok(calculatedGrade);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error calculating grade: " + e.getMessage());
+        }
+    }
+}

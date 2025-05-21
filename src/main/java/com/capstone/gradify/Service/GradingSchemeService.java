@@ -40,4 +40,12 @@ public class GradingSchemeService {
         }
         return gradingSchemes;
     }
+
+    public String getGradeSchemeByClassEntityId(int id) {
+        GradingSchemes gradingSchemes = gradingSchemeRepository.findByClassEntity_ClassId(id);
+        if (gradingSchemes == null) {
+            throw new RuntimeException("Grading scheme not found for class ID: " + id);
+        }
+        return gradingSchemes.getGradingScheme();
+    }
 }

@@ -4,6 +4,7 @@ import java.util.*;
 import java.io.IOException;
 
 import com.capstone.gradify.Entity.user.Role;
+import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Entity.user.VerificationCode;
 import com.capstone.gradify.Repository.user.StudentRepository;
@@ -257,7 +258,16 @@ public class UserController {
                 teacher.setDepartment((String) userMap.get("department"));
                 user = teacher;
                 logger.debug("Creating a new teacher entity: {}, {}", teacher.getDepartment(), teacher.getInstitution());
-            } else {
+            }else if (role == Role.STUDENT) {
+                StudentEntity student = new StudentEntity();
+                student.setStudentNumber((String) userMap.get("studentNumber"));
+                student.setMajor((String) userMap.get("major"));
+                student.setYearLevel((String) userMap.get("yearLevel"));
+                student.setInstitution((String) userMap.get("institution"));
+                user = student;
+                logger.debug("Creating a new student entity: {}, {}, {}", student.getStudentNumber(), student.getMajor(), student.getYearLevel());
+            } 
+            else {
                 user = new UserEntity();
             }
 
