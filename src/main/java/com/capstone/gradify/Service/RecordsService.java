@@ -21,6 +21,8 @@ public class RecordsService {
     private StudentRepository studentRepository;
     @Autowired
     private GradingSchemeService gradingSchemeService;
+    @Autowired
+    private ClassService classService;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -158,7 +160,7 @@ public class RecordsService {
         return studentGrades;
     }
 
-    private double calculateGrade(Map<String, String> grades, String schemeJson, Map<String, Integer> assessmentMaxValues) {
+    public double calculateGrade(Map<String, String> grades, String schemeJson, Map<String, Integer> assessmentMaxValues) {
         try {
             // Parse the grading scheme from JSON
             List<Map<String, Object>> schemeItems = mapper.readValue(
@@ -316,5 +318,82 @@ public class RecordsService {
 
     public List<GradeRecordsEntity> getGradeRecordsByStudentIdAndClassId(int studentId, int classId) {
         return gradeRecordsRepository.findByStudent_UserIdAndClassRecord_ClassEntity_ClassId(studentId, classId);
+    }
+
+    public int countAtRiskStudents(int teacherId) {
+        // Find all classes taught by this teacher
+        List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
+
+        // Track unique at-risk students by student number
+        Set<String> uniqueAtRiskStudents = new HashSet<>();
+
+        // Check each class taught by this teacher
+        for (ClassEntity classEntity : teacherClasses) {
+            int classId = classEntity.getClassId();
+            List<GradeRecordsEntity> classRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
+
+            // Get grading scheme for this class
+            GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+
+            for (GradeRecordsEntity record : classRecords) {
+                double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(),
+                        record.getClassRecord().getAssessmentMaxValues());
+                if (grade < 60 && record.getStudentNumber() != null) {
+                    uniqueAtRiskStudents.add(record.getStudentNumber());
+                }
+            }
+        }
+
+        return uniqueAtRiskStudents.size();
+    }
+
+
+    public int countTopPerformingStudents(int teacherId) {
+        // Find all classes taught by this teacher
+        List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
+
+        // Track unique top-performing students by student number
+        Set<String> uniqueTopStudents = new HashSet<>();
+
+        // Check each class taught by this teacher
+        for (ClassEntity classEntity : teacherClasses) {
+            int classId = classEntity.getClassId();
+            List<GradeRecordsEntity> classRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
+
+            // Get grading scheme for this class
+            GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+
+            for (GradeRecordsEntity record : classRecords) {
+                double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(),
+                        record.getClassRecord().getAssessmentMaxValues());
+                if (grade >= 80 && record.getStudentNumber() != null) {
+                    uniqueTopStudents.add(record.getStudentNumber());
+                }
+            }
+        }
+
+        return uniqueTopStudents.size();
+    }
+
+    public int getStudentCountByTeacher(int teacherId) {
+        // First, find all classes taught by this teacher
+        List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
+
+        // Use a Set to track unique students by their student number
+        Set<String> uniqueStudentNumbers = new HashSet<>();
+
+        // For each class, get all students and add them to the set
+        for (ClassEntity classEntity : teacherClasses) {
+            List<GradeRecordsEntity> classRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classEntity.getClassId());
+
+            for (GradeRecordsEntity record : classRecords) {
+                if (record.getStudentNumber() != null) {
+                    uniqueStudentNumbers.add(record.getStudentNumber());
+                }
+            }
+        }
+
+        // Return the count of unique students
+        return uniqueStudentNumbers.size();
     }
 }

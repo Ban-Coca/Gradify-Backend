@@ -5,6 +5,7 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
@@ -29,6 +30,8 @@ public class ClassSpreadsheetService {
     private StudentRepository studentRepository;
     @Autowired
     private GradeRecordRepository gradeRecordRepository;
+    @Autowired
+    private ClassRepository classRepository;
     public ClassSpreadsheetService() {
         super();
     }
@@ -387,5 +390,13 @@ public class ClassSpreadsheetService {
 
 
         return classSpreadsheetRepository.save(spreadsheet);
+    }
+
+    public List<ClassSpreadsheet> getClassSpreadSheetByClassId(int classId) {
+        ClassEntity classEntity = classRepository.findByClassId(classId);
+        if (classEntity == null) {
+            throw new RuntimeException("Class not found");
+        }
+        return classSpreadsheetRepository.findByClassEntity(classEntity);
     }
 }
