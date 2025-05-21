@@ -32,21 +32,21 @@ public class TeacherController {
         this.classSpreadsheetService = classSpreadsheetService;
     }
 
-    @PostMapping("/upload")
-    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
-        // Logic to handle spreadsheet upload
-        try{
-            List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
-            TeacherEntity teacher = teacherRepository.findById(teacherId)
-                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
-
-            ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(file.getOriginalFilename(), teacher, records);
-
-            return ResponseEntity.ok(savedSpreadsheet);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
-        }
-    }
+//    @PostMapping("/upload")
+//    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
+//        // Logic to handle spreadsheet upload
+//        try{
+//            List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
+//            TeacherEntity teacher = teacherRepository.findById(teacherId)
+//                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
+//
+//            ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(file.getOriginalFilename(), teacher, records);
+//
+//            return ResponseEntity.ok(savedSpreadsheet);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
+//        }
+//    }
 
     @GetMapping("/get")
     public ResponseEntity<?> getSpreadsheetById(@RequestParam("id") Long id) {

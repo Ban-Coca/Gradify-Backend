@@ -68,7 +68,7 @@ public class RecordsService {
 
         for (GradeRecordsEntity record : allRecords) {
             // Calculate numerical grade
-            double percentageGrade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+            double percentageGrade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(), record.getClassRecord().getAssessmentMaxValues());
 
             // Get student information
             String studentNumber = record.getStudentNumber();
@@ -137,7 +137,7 @@ public class RecordsService {
         GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
 
         // Calculate the grade based on the grading scheme
-        return calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+        return calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(), record.getClassRecord().getAssessmentMaxValues());
     }
 
     public Map<String, Double> calculateClassGrades(int classId) {
@@ -150,7 +150,7 @@ public class RecordsService {
         // Calculate grade for each student
         Map<String, Double> studentGrades = new HashMap<>();
         for (GradeRecordsEntity record : allRecords) {
-            double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+            double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(), record.getClassRecord().getAssessmentMaxValues());
             String studentNumber = record.getStudentNumber();
             studentGrades.put(studentNumber, grade);
         }
@@ -158,7 +158,7 @@ public class RecordsService {
         return studentGrades;
     }
 
-    private double calculateGrade(Map<String, String> grades, String schemeJson) {
+    private double calculateGrade(Map<String, String> grades, String schemeJson, Map<String, Integer> assessmentMaxValues) {
         try {
             // Parse the grading scheme from JSON
             List<Map<String, Object>> schemeItems = mapper.readValue(
@@ -172,7 +172,7 @@ public class RecordsService {
                 double weight = Double.parseDouble(schemeItem.get("weight").toString());
 
                 // Map scheme items to their corresponding grade records
-                double categoryScore = getCategoryScore(grades, name);
+                double categoryScore = getCategoryScore(grades, name, assessmentMaxValues);
 
                 if (categoryScore >= 0) { // Only include if we found a valid score
                     totalGrade += (categoryScore * (weight / 100.0));
@@ -192,10 +192,10 @@ public class RecordsService {
         }
     }
 
-    private double getCategoryScore(Map<String, String> grades, String category) {
+    private double getCategoryScore(Map<String, String> grades, String category, Map<String, Integer> assessmentMaxValues) {
         // Map category names to potential keys in the grade records
         category = category.trim();
-
+        Map<String, Integer> maxValues = assessmentMaxValues != null ? assessmentMaxValues : new HashMap<>();
         // Handle common category mappings
         if (category.equalsIgnoreCase("Quizzes")) {
             // Look for quiz-related keys (Q1, Q2, etc.)
@@ -207,7 +207,8 @@ public class RecordsService {
                 if (key.matches("Q\\d+") || key.toLowerCase().startsWith("quiz")) {
                     try {
                         double score = Double.parseDouble(entry.getValue());
-                        total += score;
+                        int maxValue = maxValues.getOrDefault(key, 100);
+                        total += (score / maxValue) * 100;
                         count++;
                     } catch (NumberFormatException e) {
                         // Skip non-numeric values
@@ -218,21 +219,45 @@ public class RecordsService {
             return count > 0 ? total / count : -1;
         } else if (category.equalsIgnoreCase("Midterm Exam")) {
             // Look for midterm keys
-            return parseGradeValue(grades.get("ME")) != -1 ? parseGradeValue(grades.get("ME")) :
-                    parseGradeValue(grades.get("Midterm")) != -1 ? parseGradeValue(grades.get("Midterm")) :
-                            parseGradeValue(grades.get("Midterm Exam"));
+            if (parseGradeValue(grades.get("ME")) != -1) {
+                double score = parseGradeValue(grades.get("ME"));
+                int maxValue = maxValues.getOrDefault("ME", 100);
+                return (score / maxValue) * 100;
+            } else if (parseGradeValue(grades.get("Midterm")) != -1) {
+                double score = parseGradeValue(grades.get("Midterm"));
+                int maxValue = maxValues.getOrDefault("Midterm", 100);
+                return (score / maxValue) * 100;
+            } else if (parseGradeValue(grades.get("Midterm Exam")) != -1) {
+                double score = parseGradeValue(grades.get("Midterm Exam"));
+                int maxValue = maxValues.getOrDefault("Midterm Exam", 100);
+                return (score / maxValue) * 100;
+            }
+            return -1;
         } else if (category.equalsIgnoreCase("Final Exam")) {
             // Look for final exam keys
-            return parseGradeValue(grades.get("FE")) != -1 ? parseGradeValue(grades.get("FE")) :
-                    parseGradeValue(grades.get("Final")) != -1 ? parseGradeValue(grades.get("Final")) :
-                            parseGradeValue(grades.get("Final Exam"));
-        } else {
-            // For other categories, try exact match or first letter match
-            for (Map.Entry<String, String> entry : grades.entrySet()) {
-                if (entry.getKey().equalsIgnoreCase(category)) {
-                    return parseGradeValue(entry.getValue());
-                }
+            if (parseGradeValue(grades.get("FE")) != -1) {
+                double score = parseGradeValue(grades.get("FE"));
+                int maxValue = maxValues.getOrDefault("FE", 100);
+                return (score / maxValue) * 100;
+            } else if (parseGradeValue(grades.get("Final")) != -1) {
+                double score = parseGradeValue(grades.get("Final"));
+                int maxValue = maxValues.getOrDefault("Final", 100);
+                return (score / maxValue) * 100;
+            } else if (parseGradeValue(grades.get("Final Exam")) != -1) {
+                double score = parseGradeValue(grades.get("Final Exam"));
+                int maxValue = maxValues.getOrDefault("Final Exam", 100);
+                return (score / maxValue) * 100;
             }
+        return -1;
+    } else {
+        // For other categories, try exact match
+        for (Map.Entry<String, String> entry : grades.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(category)) {
+                double score = parseGradeValue(entry.getValue());
+                int maxValue = maxValues.getOrDefault(entry.getKey(), 100);
+                return (score / maxValue) * 100;
+            }
+        }
 
             // If no match found, return -1 to indicate missing category
             return -1;
@@ -255,7 +280,7 @@ public class RecordsService {
         int studentCount = 0;
 
         for (GradeRecordsEntity record : allRecords) {
-            double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+            double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(), record.getClassRecord().getAssessmentMaxValues());
             totalGrades += grade;
             studentCount++;
         }

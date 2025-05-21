@@ -34,7 +34,7 @@ public class ClassSpreadsheet {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private Map<String, String> assessmentMaxValues;
+    private Map<String, Integer> assessmentMaxValues;
 
     @OneToMany(mappedBy = "classRecord", cascade = CascadeType.ALL)
     @JsonManagedReference

@@ -36,6 +36,7 @@ public class SpreadSheetController {
         // Logic to handle spreadsheet upload
         try{
             List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
+            Map<String, Integer> maxAssessmentValue = classSpreadsheetService.getMaxAssessmentValue(file);
             TeacherEntity teacher = teacherRepository.findById(teacherId)
                     .orElseThrow(() -> new RuntimeException("Teacher not found"));
 
@@ -47,7 +48,8 @@ public class SpreadSheetController {
                     file.getOriginalFilename(),
                     teacher,
                     records,
-                    classEntity);
+                    classEntity,
+                    maxAssessmentValue);
 
             Set<StudentEntity> students = new HashSet<>();
             savedSpreadsheet.getGradeRecords().forEach(record -> {
