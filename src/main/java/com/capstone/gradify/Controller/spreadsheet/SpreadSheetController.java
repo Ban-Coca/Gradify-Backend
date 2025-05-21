@@ -9,6 +9,8 @@ import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -141,5 +143,16 @@ public class SpreadSheetController {
                 return ResponseEntity.status(500)
                     .body("Error retrieving spreadsheet: " + e.getMessage());
             }
+        }
+
+    @GetMapping("/check-google-sheets-config")
+        public ResponseEntity<Map<String, Boolean>> checkGoogleSheetsConfig() {
+            Resource resource = new ClassPathResource("credentials/google-sheets-credentials.json");
+            boolean configured = resource.exists();
+            
+            Map<String, Boolean> response = new HashMap<>();
+            response.put("configured", configured);
+            
+            return ResponseEntity.ok(response);
         }
 }
