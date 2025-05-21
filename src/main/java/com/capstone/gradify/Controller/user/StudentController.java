@@ -19,12 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 
 @RestController
@@ -39,6 +34,8 @@ public class StudentController {
     private TeacherService teacherService;
     @Autowired
     private ReportService reportService;
+    @Autowired
+    private ClassSpreadsheetService classSpreadsheetService;
 
     @GetMapping("/{studentId}/classes")
     public ResponseEntity<?> getStudentClasses(@PathVariable int studentId) {
@@ -94,6 +91,7 @@ public class StudentController {
             @PathVariable int studentId,
             @PathVariable int classId) {
         try {
+            List<ClassSpreadsheet> classRecord = classSpreadsheetService.getClassSpreadSheetByClassId(classId);
             // Get the grade record for this student and class
             List<GradeRecordsEntity> gradeRecords = recordsService
                     .getGradeRecordsByStudentIdAndClassId(studentId, classId);
@@ -107,8 +105,15 @@ public class StudentController {
             // Get grading scheme for this class
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
 
+            Map<String, Integer> maxAssessmentValues = new HashMap<>();
+            for (ClassSpreadsheet spreadsheet : classRecord) {
+                // Use the assessmentMaxValues field directly
+                if (spreadsheet.getAssessmentMaxValues() != null) {
+                    maxAssessmentValues.putAll(spreadsheet.getAssessmentMaxValues());
+                }
+            }
             // Calculate the grade
-            double calculatedGrade = recordsService.calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+            double calculatedGrade = recordsService.calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(), maxAssessmentValues);
 
             return ResponseEntity.ok(calculatedGrade);
         } catch (Exception e) {

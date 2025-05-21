@@ -5,10 +5,13 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import org.apache.poi.ss.usermodel.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,21 +23,24 @@ import java.util.*;
 
 @Service
 public class ClassSpreadsheetService {
-
+    Logger logger = LoggerFactory.getLogger(ClassSpreadsheetService.class);
     @Autowired
     private ClassSpreadsheetRepository classSpreadsheetRepository;
     @Autowired
     private StudentRepository studentRepository;
     @Autowired
     private GradeRecordRepository gradeRecordRepository;
+    @Autowired
+    private ClassRepository classRepository;
     public ClassSpreadsheetService() {
         super();
     }
 
-    public ClassSpreadsheet saveRecord(String fileName, TeacherEntity teacher, List<Map<String, String>> records){
+    public ClassSpreadsheet saveRecord(String fileName, TeacherEntity teacher, List<Map<String, String>> records, Map<String, Integer> maxAssessmentValues) {
         ClassSpreadsheet classSpreadsheet = new ClassSpreadsheet();
         classSpreadsheet.setFileName(fileName);
         classSpreadsheet.setUploadedBy(teacher);
+        classSpreadsheet.setAssessmentMaxValues(maxAssessmentValues);
         classSpreadsheet.setClassName(extractFileName(fileName));
 
         // Logic to save the records to the database
@@ -61,6 +67,7 @@ public class ClassSpreadsheetService {
 
     public List<Map<String, String>> parseClassRecord(MultipartFile file) throws IOException {
         List<Map<String, String>> records = new ArrayList<>();
+        Map<String, Integer> maxAssessmentValues = new HashMap<>();
 
         Workbook workbook = WorkbookFactory.create(file.getInputStream());
         Sheet sheet = workbook.getSheetAt(0);
@@ -71,6 +78,20 @@ public class ClassSpreadsheetService {
             Row headerRow = rowIterator.next();
             for(Cell cell : headerRow) {
                 headers.add(cell.getStringCellValue());
+            }
+        }
+
+        if (rowIterator.hasNext()) {
+            Row maxValueRow = rowIterator.next();
+            for (int i = 0; i < headers.size(); i++) {
+                String header = headers.get(i);
+                Cell cell = maxValueRow.getCell(i);
+
+                // Only process assessment columns (those with numeric values)
+                if (cell != null && cell.getCellType() == CellType.NUMERIC) {
+                    int maxValue = (int) cell.getNumericCellValue();
+                    maxAssessmentValues.put(header, maxValue);
+                }
             }
         }
 
@@ -88,7 +109,41 @@ public class ClassSpreadsheetService {
         return records;
     }
 
+    public Map<String, Integer> getMaxAssessmentValue(MultipartFile file) throws IOException {
+        Map<String, Integer> maxAssessmentValues = new HashMap<>();
+        Workbook workbook = WorkbookFactory.create(file.getInputStream());
+        Sheet sheet = workbook.getSheetAt(0);
+
+        Iterator<Row> rowIterator = sheet.iterator();
+        List<String> headers = new ArrayList<>();
+        if (rowIterator.hasNext()) {
+            Row headerRow = rowIterator.next();
+            for(Cell cell : headerRow) {
+                headers.add(cell.getStringCellValue());
+            }
+        }
+
+        if (rowIterator.hasNext()) {
+            Row maxValueRow = rowIterator.next();
+            for (int i = 0; i < headers.size(); i++) {
+                String header = headers.get(i);
+                Cell cell = maxValueRow.getCell(i);
+
+                // Only process assessment columns (those with numeric values)
+                if (cell != null && cell.getCellType() == CellType.NUMERIC) {
+                    int maxValue = (int) cell.getNumericCellValue();
+                    maxAssessmentValues.put(header, maxValue);
+                }
+            }
+        }
+        workbook.close();
+        return maxAssessmentValues;
+    }
+
     private String getCellValue(Cell cell) {
+        if (cell == null) {
+            return ""; // Return empty string for null cells
+        }
         String value = "";
         switch (cell.getCellType()) {
             case STRING:
@@ -291,12 +346,13 @@ public class ClassSpreadsheetService {
     }
 
     public ClassSpreadsheet saveRecord(String filename, TeacherEntity teacher,
-                                       List<Map<String, String>> records, ClassEntity classEntity) {
+                                       List<Map<String, String>> records, ClassEntity classEntity, Map<String, Integer> maxAssessmentValues) {
         ClassSpreadsheet spreadsheet = new ClassSpreadsheet();
         spreadsheet.setFileName(filename);
         spreadsheet.setUploadedBy(teacher);
         spreadsheet.setClassName(classEntity.getClassName()); // Set the class name from ClassEntity
         spreadsheet.setClassEntity(classEntity);
+        spreadsheet.setAssessmentMaxValues(maxAssessmentValues);
         // Create grade records
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
         for (Map<String, String> record : records) {
@@ -334,5 +390,13 @@ public class ClassSpreadsheetService {
 
 
         return classSpreadsheetRepository.save(spreadsheet);
+    }
+
+    public List<ClassSpreadsheet> getClassSpreadSheetByClassId(int classId) {
+        ClassEntity classEntity = classRepository.findByClassId(classId);
+        if (classEntity == null) {
+            throw new RuntimeException("Class not found");
+        }
+        return classSpreadsheetRepository.findByClassEntity(classEntity);
     }
 }

@@ -120,7 +120,8 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 spreadsheetName + ".sheet",
                 teacher,
                 records,
-                classEntity);
+                classEntity,
+                Collections.emptyMap());// Placeholder for maxAssessmentValue);
     }
 
     private String cleanSpreadsheetName(String name) {

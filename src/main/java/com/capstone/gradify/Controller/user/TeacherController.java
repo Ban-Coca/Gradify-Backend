@@ -5,6 +5,7 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.ClassService;
+import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,27 +27,29 @@ public class TeacherController {
     private ClassService classService;
     @Autowired
     private TeacherRepository teacherRepository;
+    @Autowired
+    private RecordsService recordsService;
 
     @Autowired
     public TeacherController(ClassSpreadsheetService classSpreadsheetService) {
         this.classSpreadsheetService = classSpreadsheetService;
     }
 
-    @PostMapping("/upload")
-    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
-        // Logic to handle spreadsheet upload
-        try{
-            List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
-            TeacherEntity teacher = teacherRepository.findById(teacherId)
-                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
-
-            ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(file.getOriginalFilename(), teacher, records);
-
-            return ResponseEntity.ok(savedSpreadsheet);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
-        }
-    }
+//    @PostMapping("/upload")
+//    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
+//        // Logic to handle spreadsheet upload
+//        try{
+//            List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
+//            TeacherEntity teacher = teacherRepository.findById(teacherId)
+//                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
+//
+//            ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(file.getOriginalFilename(), teacher, records);
+//
+//            return ResponseEntity.ok(savedSpreadsheet);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
+//        }
+//    }
 
     @GetMapping("/get")
     public ResponseEntity<?> getSpreadsheetById(@RequestParam("id") Long id) {
@@ -102,5 +105,17 @@ public class TeacherController {
         return ResponseEntity.status(200).body(msg);
     }
 
+    @GetMapping("/getstudentcount/{teacherId}")
+    public int getStudentCountByTeacherId(@PathVariable int teacherId) {
+        return recordsService.getStudentCountByTeacher(teacherId);
+    }
+    @GetMapping("/getatriskstudents/{teacherId}")
+    public int getAtRiskStudentsByTeacherId(@PathVariable int teacherId) {
+        return recordsService.countAtRiskStudents(teacherId);
+    }
+    @GetMapping("/gettopstudents/{teacherId}")
+    public int getTopStudentsByTeacherId(@PathVariable int teacherId) {
+        return recordsService.countTopPerformingStudents(teacherId);
+    }
 
 }
