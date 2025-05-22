@@ -1,9 +1,8 @@
 package com.capstone.gradify.Entity.user;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
+import com.capstone.gradify.Entity.NotificationEntity;
 import jakarta.persistence.*;
 
 @Entity
@@ -25,6 +24,11 @@ public class UserEntity {
     private int failedLoginAttempts;
     @Version
     private Long version;
+    private String FCMToken;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<NotificationEntity> notifications = new ArrayList<>();
+
     private transient Map<String, Object> attributes = new HashMap<>();
 
     @Enumerated(EnumType.STRING)
@@ -125,8 +129,13 @@ public class UserEntity {
     public void setAttribute(String key, Object value) {
         attributes.put(key, value);
     }
-
     public Object getAttribute(String key) {
         return attributes.get(key);
+    }
+    public String getFCMToken() {
+        return FCMToken;
+    }
+    public void setFCMToken(String FCMToken) {
+        this.FCMToken = FCMToken;
     }
 }
