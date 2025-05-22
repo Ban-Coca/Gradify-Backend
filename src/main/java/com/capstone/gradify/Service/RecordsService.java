@@ -396,4 +396,64 @@ public class RecordsService {
         // Return the count of unique students
         return uniqueStudentNumbers.size();
     }
+
+    public double getStudentAveragePercentage(int studentId) {
+        List<GradeRecordsEntity> gradeRecords = gradeRecordsRepository.findByStudent_UserId(studentId);
+
+        if (gradeRecords.isEmpty()) {
+            return 0.0;
+        }
+
+        double total = 0.0;
+        int count = 0;
+
+        for (GradeRecordsEntity record : gradeRecords) {
+            int classId = record.getClassRecord().getClassEntity().getClassId();
+            GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+            double percentage = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+            total += percentage;
+            count++;
+        }
+
+        return count > 0 ? total / count : 0.0;
+    }
+
+    public Map<Integer, Double> getAllGradesByStudentId(int studentId) {
+        List<GradeRecordsEntity> gradeRecords = gradeRecordsRepository.findByStudent_UserId(studentId);
+        Map<Integer, Double> gradesByClass = new HashMap<>();
+
+        for (GradeRecordsEntity record : gradeRecords) {
+            int classId = record.getClassRecord().getClassEntity().getClassId();
+            GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+            double percentage = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+            gradesByClass.put(classId, percentage);
+        }
+
+        return gradesByClass;
+    }
+
+    public List<Map<String, Object>> getClassAveragesForStudent(int studentId) {
+        List<GradeRecordsEntity> gradeRecords = gradeRecordsRepository.findByStudent_UserId(studentId);
+        Set<Integer> classIds = new HashSet<>();
+        Map<Integer, String> classNames = new HashMap<>();
+
+        for (GradeRecordsEntity record : gradeRecords) {
+            if (record.getClassRecord() != null && record.getClassRecord().getClassEntity() != null) {
+                int classId = record.getClassRecord().getClassEntity().getClassId();
+                classIds.add(classId);
+                classNames.put(classId, record.getClassRecord().getClassEntity().getClassName());
+            }
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Integer classId : classIds) {
+            double avg = calculateClassAverageGrade(classId);
+            Map<String, Object> map = new HashMap<>();
+            map.put("classId", classId);
+            map.put("className", classNames.get(classId));
+            map.put("average", avg);
+            result.add(map);
+        }
+        return result;
+    }
 }
