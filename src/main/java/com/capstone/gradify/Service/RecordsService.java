@@ -425,7 +425,11 @@ public class RecordsService {
         for (GradeRecordsEntity record : gradeRecords) {
             int classId = record.getClassRecord().getClassEntity().getClassId();
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
-            double percentage = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+            double percentage = calculateGrade(
+                record.getGrades(),
+                gradingScheme.getGradingScheme(),
+                record.getClassRecord().getAssessmentMaxValues()
+            );
             gradesByClass.put(classId, percentage);
         }
 
