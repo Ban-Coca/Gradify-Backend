@@ -1,5 +1,6 @@
 package com.capstone.gradify.Service;
 
+import com.capstone.gradify.Service.userservice.StudentService;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import com.capstone.gradify.Entity.ReportEntity;
@@ -40,6 +41,9 @@ public class ReportService {
 
     @Autowired
     private GradeRecordRepository gradeRecordsRepository;
+
+    @Autowired
+    private StudentService studentService;
 
     /**
      * Create a new report from a teacher to a student
@@ -224,6 +228,14 @@ public class ReportService {
         }
 
         return dto;
+    }
+    public ReportEntity mapToReportEntity(ReportResponseDTO reportResponseDTO) {
+        ReportEntity report = new ReportEntity();
+        report.setStudent(studentService.findByUserId(reportResponseDTO.getStudentId()));
+        report.setSubject(reportResponseDTO.getSubject());
+        report.setMessage(reportResponseDTO.getMessage());
+        report.setNotificationType("REPORT_CREATED");
+        return report;
     }
 }
 

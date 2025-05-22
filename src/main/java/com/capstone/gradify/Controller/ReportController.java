@@ -1,7 +1,12 @@
 package com.capstone.gradify.Controller;
 
+import com.capstone.gradify.Entity.ReportEntity;
 import com.capstone.gradify.Service.AiServices.GenerateFeedbackAIService;
+import com.capstone.gradify.Service.notification.EmailService;
+import com.capstone.gradify.Service.notification.NotificationService;
+import com.capstone.gradify.Service.userservice.StudentService;
 import com.capstone.gradify.dto.report.ReportDTO;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,14 +27,30 @@ public class ReportController {
     private ReportService reportService;
     @Autowired
     private GenerateFeedbackAIService generateFeedbackAIService;
+    @Autowired
+    private StudentService studentService;
+    @Autowired
+    private EmailService emailService;
+    @Autowired
+    private NotificationService notificationService;
     /**
      * Create a new report
      * Only teachers should be able to create reports
      */
     @PostMapping
     @PreAuthorize("hasAuthority('TEACHER')")
-    public ResponseEntity<ReportResponseDTO> createReport(@Valid @RequestBody ReportDTO reportDTO) {
+    public ResponseEntity<ReportResponseDTO> createReport(@Valid @RequestBody ReportDTO reportDTO) throws MessagingException {
+        String defaultURL = "http://localhost:5173/feedback";
+        int studentUserId = reportDTO.getStudentId();
+        String email = studentService.getEmailById(studentUserId);
+
         ReportResponseDTO createdReport = reportService.createReport(reportDTO);
+
+        // Send email notification to the student
+        emailService.sendFeedbackNotification(email, createdReport.getSubject(), createdReport.getMessage(), createdReport.getClassName(), createdReport.getStudentName(), defaultURL, createdReport.getReportDate());
+        // Send in-app notification to the student
+        notificationService.sendNotification(reportService.mapToReportEntity(createdReport));
+
         return new ResponseEntity<>(createdReport, HttpStatus.CREATED);
     }
 
@@ -139,4 +160,5 @@ public class ReportController {
     public static class AIGeneratedReport{
         private String message;
     }
+
 }

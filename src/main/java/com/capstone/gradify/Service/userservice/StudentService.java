@@ -43,4 +43,8 @@ public class StudentService {
     public StudentEntity findByUserId(int userId) {
         return studentRepository.findByUserId(userId);
     }
+    public String getEmailById(int id) {
+        StudentEntity student = studentRepository.findByUserId(id);
+        return student.getEmail();
+    }
 }

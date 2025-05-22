@@ -10,7 +10,7 @@ import com.capstone.gradify.Entity.user.VerificationCode;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Repository.user.UserRepository;
-import com.capstone.gradify.Service.email.EmailService;
+import com.capstone.gradify.Service.notification.EmailService;
 import com.capstone.gradify.Service.userservice.VerificationCodeService;
 import com.capstone.gradify.Service.userservice.StudentService;
 import com.capstone.gradify.Service.userservice.TeacherService;
