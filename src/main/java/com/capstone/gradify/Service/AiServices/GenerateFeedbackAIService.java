@@ -1,13 +1,17 @@
 package com.capstone.gradify.Service.AiServices;
 
+import com.anthropic.models.messages.ContentBlock;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
+import com.anthropic.models.messages.TextBlock;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.records.GradingSchemes;
 import com.capstone.gradify.Service.GradingSchemeService;
 import com.capstone.gradify.Service.RecordsService;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
@@ -21,7 +25,19 @@ public class GenerateFeedbackAIService {
     private RecordsService recordsService;
     @Autowired
     private GradingSchemeService gradingSchemeService;
-    AnthropicClient client = AnthropicOkHttpClient.fromEnv();
+
+    @Value("${anthropic.api.key}")
+    private String anthropicApiKey;
+
+    private AnthropicClient client;
+
+    @PostConstruct
+    public void init(){
+        // Initialize the Anthropic client with the API key
+        client = new AnthropicOkHttpClient.Builder()
+                .apiKey(anthropicApiKey)
+                .build();
+    }
 
     public String generateFeedbackAI(int studentId, int classId) {
         // Fetch required data
@@ -61,7 +77,7 @@ public class GenerateFeedbackAIService {
                 overallGrade
         );
 
-        String systemPrompt = "You are an educational assistant. Generate clear, concise, and constructive feedback or reports based on the provided student data or assignment. Focus on actionable suggestions, highlight strengths and areas for improvement, and maintain a professional, supportive tone. Ensure all information is accurate and relevant to the context.  Be more human on the feedback, make it a letter format. Tone should be casual but professional. PASSING percentage is 60%";
+        String systemPrompt = "You are an educational assistant. Generate clear, concise, and constructive feedback or reports based on the provided student data or assignment. Focus on actionable suggestions, highlight strengths and areas for improvement, and maintain a professional, supportive tone. Ensure all information is accurate and relevant to the context.  Be more human on the feedback. Tone should be casual but professional. PASSING percentage is 60%";
 
         MessageCreateParams params = MessageCreateParams.builder()
                 .model("claude-3-5-haiku-20241022")
@@ -72,10 +88,16 @@ public class GenerateFeedbackAIService {
                 .build();
 
         Message response = client.messages().create(params);
-        return response.content().get(0).text().toString();
+        return response.content().get(0).text()
+                .map(TextBlock::text)
+                .orElse("No feedback available");
     }
 
     private String formatMap(Map<?, ?> map) {
+        if (map == null) {
+            return "No data available";
+        }
+
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<?, ?> entry : map.entrySet()) {
             sb.append("- ").append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");

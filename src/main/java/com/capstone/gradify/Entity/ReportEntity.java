@@ -21,9 +21,13 @@ public class ReportEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int reportId;
 
+    @Column(columnDefinition = "TEXT")
     private String notificationType;
+    @Column(columnDefinition = "TEXT")
     private String message;
+    @Column(columnDefinition = "TEXT")
     private String subject;
+    @Column(columnDefinition = "TEXT")
     private String reportDate;
 
     @ManyToOne
