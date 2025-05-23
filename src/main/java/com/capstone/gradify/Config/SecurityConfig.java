@@ -1,9 +1,9 @@
 package com.capstone.gradify.Config;
 
-import com.capstone.gradify.Entity.user.Role;
-import com.capstone.gradify.Entity.user.UserEntity;
-import com.capstone.gradify.Service.userservice.UserService;
-import io.jsonwebtoken.security.Keys;
+import java.security.Key;
+import java.util.Date;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -14,19 +14,17 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Service.userservice.UserService;
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-
-import java.security.Key;
-import java.security.SecureRandom;
-import java.util.Date;
-import java.util.List;
+import io.jsonwebtoken.security.Keys;
 
 @Configuration
 @EnableWebSecurity
@@ -75,50 +73,57 @@ public class SecurityConfig {
                         .baseUri("/oauth2/authorization") // Custom base URI for OAuth2 authorization
                     )
                     .successHandler((request, response, authentication) -> {
-                        // Custom success handler to process user registration
                         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
                         String email = oAuth2User.getAttribute("email");
                         String firstName = oAuth2User.getAttribute("given_name");
                         String lastName = oAuth2User.getAttribute("family_name");
 
-                        String provider = request.getRequestURI().contains("google") ? "Google" : "Microsoft";
-
-                        UserEntity user = userService.findByEmail(email);
-                        if (user == null) {
-                            // Create new user if not exists
-                            user = new UserEntity();
-                            user.setEmail(email);
-                            user.setFirstName(firstName);
-                            user.setLastName(lastName);
-                            user.setRole(Role.STUDENT); // Default role
-                            user.setIsActive(true);
-                            user.setCreatedAt(new Date());
-                            user.setProvider(provider);
+                        // Get provider (google, microsoft, etc.)
+                        String provider = null;
+                        if (authentication instanceof org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken token) {
+                            provider = token.getAuthorizedClientRegistrationId(); // e.g., "google" or "microsoft"
                         }
 
-                        // Update last login
-                        user.setLastLogin(new Date());
-                        userService.postUserRecord(user);
+                        UserEntity user = userService.findByEmail(email);
 
-                        Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
-                        String token = Jwts.builder()
-                                .setSubject(email)
-                                .claim("firstName", firstName)
-                                .claim("lastName", lastName)
-                                .setIssuedAt(new Date())
-                                .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
-                                .signWith(key, SignatureAlgorithm.HS512) // Replace with your secret
-                                .compact();
+                        String userRole = (user != null && user.getRole() != null) ? user.getRole().name() : "PENDING";
 
-                        // Prepare the response body
-                        String responseBody = String.format(
-                                "{\"token\":\"%s\",\"user\":{\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\"}}",
-                                token, email, firstName, lastName);
+                        String baseCallback = "http://localhost:5173/oauth2/callback";
+                        String params = String.format(
+                            "?email=%s&firstName=%s&lastName=%s&provider=%s&role=%s",
+                            java.net.URLEncoder.encode(email, "UTF-8"),
+                            java.net.URLEncoder.encode(firstName, "UTF-8"),
+                            java.net.URLEncoder.encode(lastName, "UTF-8"),
+                            java.net.URLEncoder.encode(provider != null ? provider : "", "UTF-8"),
+                            java.net.URLEncoder.encode(userRole, "UTF-8")
+                        );
 
-                        // Set response headers and body
-                        response.setContentType("application/json");
-                        response.setCharacterEncoding("UTF-8");
-                        response.getWriter().write(responseBody);
+                        if (user == null) {
+                            // User does not exist, add exists=false
+                            String redirectUrl = baseCallback + params + "&exists=false";
+                            response.sendRedirect(redirectUrl);
+                        } else {
+                            // User exists: generate JWT and add exists=true
+                            user.setLastLogin(new Date());
+                            user.setProvider(provider);
+                            userService.postUserRecord(user);
+
+                            String token = Jwts.builder()
+                                    .setSubject(String.valueOf(user.getUserId()))
+                                    .claim("userId",user.getUserId())
+                                    .claim("email", email)
+                                    .claim("firstName", firstName)
+                                    .claim("lastName", lastName)
+                                    .claim("provider", provider)
+                                    .claim("role", userRole)
+                                    .setIssuedAt(new Date())
+                                    .setExpiration(new Date(System.currentTimeMillis() + 3600000))
+                                    .signWith(SignatureAlgorithm.HS256, jwtSecret)
+                                    .compact();
+
+                            String redirectUrl = baseCallback + params + "&exists=true&token=" + java.net.URLEncoder.encode(token, "UTF-8");
+                            response.sendRedirect(redirectUrl);
+                        }
                     })
                     .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
                 );
