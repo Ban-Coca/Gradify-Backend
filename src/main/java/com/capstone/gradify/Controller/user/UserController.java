@@ -129,65 +129,7 @@ public class UserController {
             + "&scope=openid%20email%20profile";
         response.sendRedirect(microsoftAuthUrl);
     }
-
-    @GetMapping("/oauth2/success")
-    public ResponseEntity<?> oauth2LoginSuccess(@AuthenticationPrincipal OAuth2User principal, HttpServletRequest request) {
-        try {
-            logger.info("OAuth2 login successful for user: {}", (String) principal.getAttribute("email"));
-
-            // Extract user details from OAuth2User
-            String email = principal.getAttribute("email");
-            String firstName = principal.getAttribute("given_name");
-            String lastName = principal.getAttribute("family_name");
-
-            if (email == null || firstName == null || lastName == null) {
-                logger.error("Missing required attributes from OAuth2 provider");
-                return ResponseEntity.badRequest().body(Map.of("error", "Invalid OAuth2 response"));
-            }
-
-            // Determine the provider (Google or Microsoft)
-            String provider = (String) request.getAttribute("org.springframework.security.oauth2.client.registrationId");
-            if (provider == null) {
-                logger.warn("Provider information is missing");
-                provider = "unknown";
-            }
-
-            // Check if the user exists in the database
-            UserEntity user = userv.findByEmail(email);
-            if (user == null) {
-                // Register the user if they don't exist
-                user = new UserEntity();
-                user.setEmail(email);
-                user.setFirstName(firstName);
-                user.setLastName(lastName);
-                user.setRole(Role.STUDENT); // Default role
-                user.setIsActive(true);
-                user.setCreatedAt(new Date());
-                user.setLastLogin(new Date());
-                user.setProvider(provider); // Set the provider
-                user = userv.postUserRecord(user);
-            } else {
-                // Update last login time for existing user
-                user.setLastLogin(new Date());
-                userv.postUserRecord(user);
-            }
-
-            // Generate JWT token
-            String token = generateToken(user);
-
-            // Return token and user details in the response
-            Map<String, Object> response = new HashMap<>();
-            response.put("token", token);
-            response.put("user", getUserResponseMap(user));
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            logger.error("Error during OAuth2 login: ", e);
-            return ResponseEntity.status(500).body(Map.of("error", "OAuth2 login failed"));
-        }
-    }
-
+    
     @GetMapping("/oauth2/failure")
     public ResponseEntity<?> oauth2LoginFailure() {
         logger.warn("OAuth2 login failed");
@@ -275,6 +217,7 @@ public class UserController {
             user.setLastName((String) userMap.get("lastName"));
             user.setEmail((String) userMap.get("email"));
             user.setPassword((String) userMap.get("password"));
+            user.setProvider((String) userMap.get("provider"));
             user.setRole(role);
 
             logger.info("Received registration request for email: {}", user.getEmail());
@@ -282,17 +225,15 @@ public class UserController {
             if (user.getEmail() == null || user.getEmail().isEmpty()) {
                 return ResponseEntity.badRequest().body("Email is required");
             }
-            if (user.getPassword() == null || user.getPassword().isEmpty()) {
-                return ResponseEntity.badRequest().body("Password is required");
+
+            if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+                String encryptedPassword = passwordEncoder.encode(user.getPassword());
+                user.setPassword(encryptedPassword);
             }
-
-            String encryptedPassword = passwordEncoder.encode(user.getPassword());
-            user.setPassword(encryptedPassword);
-
             user.setCreatedAt(new Date());
             user.setLastLogin(new Date());
             user.setIsActive(true);
-            user.setProvider("Email");
+            user.setProvider(user.getProvider() != null ? user.getProvider() : "Email");
             user.setFailedLoginAttempts(0);
             user.setRole(user.getRole() != null ? user.getRole() : Role.PENDING);
 
@@ -550,6 +491,7 @@ public class UserController {
         userMap.put("isActive", user.isActive());
         userMap.put("createdAt", user.getCreatedAt());
         userMap.put("lastLogin", user.getLastLogin());
+        userMap.put("provider", user.getProvider());
         return userMap;
     }
 
