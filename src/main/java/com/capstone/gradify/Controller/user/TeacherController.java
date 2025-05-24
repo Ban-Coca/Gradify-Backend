@@ -8,6 +8,7 @@ import com.capstone.gradify.Service.ClassService;
 import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -118,4 +119,22 @@ public class TeacherController {
         return recordsService.countTopPerformingStudents(teacherId);
     }
 
+    @GetMapping("/teacher-grade-distribution/{teacherId}")
+    public ResponseEntity<Map<String, Integer>> getTeacherGradeDistribution(@PathVariable int teacherId) {
+        try {
+            Map<String, Integer> distribution = recordsService.getTeacherGradeDistribution(teacherId);
+            return ResponseEntity.ok(distribution);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+    @GetMapping("/class-performance/{teacherId}")
+    public ResponseEntity<List<RecordsService.TeacherAssessmentPerformance>> getClassPerformance(@PathVariable int teacherId) {
+        try {
+            List<RecordsService.TeacherAssessmentPerformance> performanceData = recordsService.getClassPerformanceData(teacherId);
+            return ResponseEntity.ok(performanceData);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
 }

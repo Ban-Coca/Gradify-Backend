@@ -49,6 +49,7 @@ public class ReportController {
         // Send email notification to the student
         emailService.sendFeedbackNotification(email, createdReport.getSubject(), createdReport.getMessage(), createdReport.getClassName(), createdReport.getStudentName(), defaultURL, createdReport.getReportDate());
         // Send in-app notification to the student
+
         notificationService.sendNotification(reportService.mapToReportEntity(createdReport));
 
         return new ResponseEntity<>(createdReport, HttpStatus.CREATED);
