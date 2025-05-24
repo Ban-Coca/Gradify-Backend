@@ -30,13 +30,17 @@ public class NotificationEntity {
     @JsonIgnore
     private UserEntity user;
 
-    public NotificationEntity(String notificationType, String subject, String message, UserEntity user) {
+    @Column(nullable = true)
+    private Integer reportId;
+
+    public NotificationEntity(String notificationType, String subject, String message, UserEntity user, int reportId) {
         this.notificationType = notificationType;
         this.subject = subject;
         this.message = message;
         this.date = LocalDateTime.now();
         this.user = user;
         this.read = false;
+        this.reportId = reportId;
     }
     public NotificationEntity() {
         // Default constructor

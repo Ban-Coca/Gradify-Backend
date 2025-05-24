@@ -231,6 +231,7 @@ public class ReportService {
     }
     public ReportEntity mapToReportEntity(ReportResponseDTO reportResponseDTO) {
         ReportEntity report = new ReportEntity();
+        report.setReportId(reportResponseDTO.getReportId());
         report.setStudent(studentService.findByUserId(reportResponseDTO.getStudentId()));
         report.setSubject(reportResponseDTO.getSubject());
         report.setMessage(reportResponseDTO.getMessage());

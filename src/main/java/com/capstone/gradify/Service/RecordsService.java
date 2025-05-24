@@ -7,6 +7,7 @@ import com.capstone.gradify.Repository.user.StudentRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.capstone.gradify.Entity.user.StudentEntity;
@@ -71,7 +72,7 @@ public class RecordsService {
         for (GradeRecordsEntity record : allRecords) {
             // Calculate numerical grade
             double percentageGrade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(), record.getClassRecord().getAssessmentMaxValues());
-
+            double grade = percentageGrade / 100; // Convert to percentage
             // Get student information
             String studentNumber = record.getStudentNumber();
             Optional<StudentEntity> studentOpt = studentRepository.findByStudentNumber(studentNumber);
@@ -81,7 +82,7 @@ public class RecordsService {
                 String studentName = student.getFirstName() + " " + student.getLastName();
 
                 // Determine letter grade based on percentage
-                String letterGrade = convertToLetterGrade(percentageGrade);
+                String letterGrade = convertToLetterGrade(grade);
 
                 // Determine status based on grade
                 String status = determineStatus(percentageGrade);
@@ -338,7 +339,8 @@ public class RecordsService {
             for (GradeRecordsEntity record : classRecords) {
                 double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(),
                         record.getClassRecord().getAssessmentMaxValues());
-                if (grade < 60 && record.getStudentNumber() != null) {
+                double percentage = grade / 100; // Convert to percentage
+                if (percentage < 60 && record.getStudentNumber() != null) {
                     uniqueAtRiskStudents.add(record.getStudentNumber());
                 }
             }
@@ -366,7 +368,8 @@ public class RecordsService {
             for (GradeRecordsEntity record : classRecords) {
                 double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(),
                         record.getClassRecord().getAssessmentMaxValues());
-                if (grade >= 80 && record.getStudentNumber() != null) {
+                double percentage = grade / 100; // Convert to percentage
+                if (percentage >= 80 && record.getStudentNumber() != null) {
                     uniqueTopStudents.add(record.getStudentNumber());
                 }
             }
@@ -410,7 +413,7 @@ public class RecordsService {
         for (GradeRecordsEntity record : gradeRecords) {
             int classId = record.getClassRecord().getClassEntity().getClassId();
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
-            double percentage = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme());
+            double percentage = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(), record.getClassRecord().getAssessmentMaxValues());
             total += percentage;
             count++;
         }
@@ -460,4 +463,165 @@ public class RecordsService {
         }
         return result;
     }
+
+    public Map<String, Integer> getTeacherGradeDistribution(int teacherId) {
+        // Find all classes taught by this teacher
+        List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
+
+        Map<String, Integer> distribution = new HashMap<>();
+        distribution.put("A", 0);
+        distribution.put("B", 0);
+        distribution.put("C", 0);
+        distribution.put("D", 0);
+        distribution.put("F", 0);
+
+        // Process each class
+        for (ClassEntity classEntity : teacherClasses) {
+            List<StudentTableData> classData = getClassRosterTableData(classEntity.getClassId());
+
+            for (StudentTableData student : classData) {
+                String grade = student.getGrade();
+                distribution.put(grade, distribution.get(grade) + 1);
+            }
+        }
+
+        return distribution;
+    }
+
+    public static class TeacherAssessmentPerformance {
+        private String assessmentType;
+        private double overallAverage;
+        private double topQuartileAverage;
+        private double bottomQuartileAverage;
+        private int totalStudents;
+
+        public TeacherAssessmentPerformance(String assessmentType, double overallAverage,
+                                            double topQuartileAverage, double bottomQuartileAverage, int totalStudents) {
+            this.assessmentType = assessmentType;
+            this.overallAverage = overallAverage;
+            this.topQuartileAverage = topQuartileAverage;
+            this.bottomQuartileAverage = bottomQuartileAverage;
+            this.totalStudents = totalStudents;
+        }
+
+        // Getters and setters
+        public String getAssessmentType() { return assessmentType; }
+        public void setAssessmentType(String assessmentType) { this.assessmentType = assessmentType; }
+        public double getOverallAverage() { return overallAverage; }
+        public void setOverallAverage(double overallAverage) { this.overallAverage = overallAverage; }
+        public double getTopQuartileAverage() { return topQuartileAverage; }
+        public void setTopQuartileAverage(double topQuartileAverage) { this.topQuartileAverage = topQuartileAverage; }
+        public double getBottomQuartileAverage() { return bottomQuartileAverage; }
+        public void setBottomQuartileAverage(double bottomQuartileAverage) { this.bottomQuartileAverage = bottomQuartileAverage; }
+        public int getTotalStudents() { return totalStudents; }
+        public void setTotalStudents(int totalStudents) { this.totalStudents = totalStudents; }
+    }
+
+
+    public List<TeacherAssessmentPerformance> getClassPerformanceData(int teacherId) {
+        // Find all classes taught by this teacher
+        List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
+
+        // Collect all assessment data by type across all classes
+        Map<String, List<Double>> assessmentScores = new HashMap<>();
+
+        for (ClassEntity classEntity : teacherClasses) {
+            int classId = classEntity.getClassId();
+            List<GradeRecordsEntity> classRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
+
+            if (classRecords.isEmpty()) continue;
+
+            Map<String, Integer> assessmentMaxValues = classRecords.get(0).getClassRecord().getAssessmentMaxValues();
+
+            // Process each assessment type in this class
+            for (String assessmentKey : assessmentMaxValues.keySet()) {
+                String assessmentType = getAssessmentType(assessmentKey);
+
+                // Initialize list if not exists
+                assessmentScores.computeIfAbsent(assessmentType, k -> new ArrayList<>());
+
+                // Collect scores for this assessment type
+                for (GradeRecordsEntity record : classRecords) {
+                    Map<String, String> grades = record.getGrades();
+                    if (grades.containsKey(assessmentKey)) {
+                        double score = parseGradeValue(grades.get(assessmentKey));
+                        if (score >= 0) {
+                            int maxValue = assessmentMaxValues.get(assessmentKey);
+                            double percentage = (score / maxValue) * 100;
+                            assessmentScores.get(assessmentType).add(percentage);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Calculate performance statistics for each assessment type
+        List<TeacherAssessmentPerformance> performanceData = new ArrayList<>();
+
+        for (Map.Entry<String, List<Double>> entry : assessmentScores.entrySet()) {
+            String assessmentType = entry.getKey();
+            List<Double> scores = entry.getValue();
+
+            if (!scores.isEmpty()) {
+                // Calculate averages
+                double overallAverage = scores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+
+                // Sort scores for quartile calculations
+                Collections.sort(scores);
+                int size = scores.size();
+
+                // Top quartile (top 25%)
+                int topQuartileStart = (int) Math.ceil(size * 0.75);
+                double topQuartileAverage = scores.subList(topQuartileStart, size)
+                        .stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+
+                // Bottom quartile (bottom 25%)
+                int bottomQuartileEnd = (int) Math.ceil(size * 0.25);
+                double bottomQuartileAverage = scores.subList(0, bottomQuartileEnd)
+                        .stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+
+                performanceData.add(new TeacherAssessmentPerformance(
+                        assessmentType, overallAverage, topQuartileAverage, bottomQuartileAverage, scores.size()));
+            }
+        }
+
+        // Sort by assessment type order
+        performanceData.sort((a, b) -> getAssessmentTypeOrder(a.getAssessmentType()) - getAssessmentTypeOrder(b.getAssessmentType()));
+
+        return performanceData;
+    }
+
+    /**
+     * Get assessment type from assessment key
+     */
+    private String getAssessmentType(String key) {
+        if (key.matches("Q\\d+")) {
+            return "Quizzes";
+        } else if (key.matches("A\\d+")) {
+            return "Assignments";
+        } else if (key.matches("P\\d+")) {
+            return "Projects";
+        } else if (key.equalsIgnoreCase("ME") || key.equalsIgnoreCase("Midterm")) {
+            return "Midterm Exams";
+        } else if (key.equalsIgnoreCase("FE") || key.equalsIgnoreCase("Final")) {
+            return "Final Exams";
+        } else {
+            return "Other";
+        }
+    }
+
+    /**
+     * Get assessment type order for sorting
+     */
+    private int getAssessmentTypeOrder(String assessmentType) {
+        switch (assessmentType.toLowerCase()) {
+            case "quizzes": return 1;
+            case "assignments": return 2;
+            case "projects": return 3;
+            case "midterm exams": return 4;
+            case "final exams": return 5;
+            default: return 6;
+        }
+    }
+
 }

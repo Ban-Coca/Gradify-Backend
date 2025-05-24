@@ -38,12 +38,13 @@ public class NotificationService {
             String subject = report.getSubject();
             String feedback = report.getMessage();
             String notificationType = report.getNotificationType();
-
+            int reportId = report.getReportId();
             NotificationEntity notificationEntity = new NotificationEntity(
                     notificationType,
                     subject,
                     feedback,
-                    user
+                    user,
+                    reportId
             );
             notificationRepository.save(notificationEntity);
             String fcmToken = user.getFCMToken();
