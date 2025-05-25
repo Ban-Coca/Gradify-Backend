@@ -56,7 +56,7 @@ public class StudentController {
     public ResponseEntity<?> getStudentGradesForClass(
             @PathVariable int studentId,
             @PathVariable int classId) {
-        Map<String, String> grades = recordsService.getStudentCourseGrades(studentId, classId);
+        Map<String, Object> grades = recordsService.getStudentCourseGrades(studentId, classId);
         return ResponseEntity.ok(grades);
     }
 

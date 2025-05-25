@@ -308,13 +308,18 @@ public class RecordsService {
         return gradeRecordsRepository.findByStudent_UserId(studentId);
     }
 
-    public Map<String, String> getStudentCourseGrades(int studentId, int classId) {
+    public Map<String, Object> getStudentCourseGrades(int studentId, int classId) {
         List<GradeRecordsEntity> gradeRecords = gradeRecordsRepository.findByStudent_UserIdAndClassRecord_ClassEntity_ClassId(studentId, classId);
 
+        Map<String, Object> result = new HashMap<>();
         if (!gradeRecords.isEmpty() && gradeRecords.get(0).getGrades() != null) {
-            return gradeRecords.get(0).getGrades();
+            result.put("grades", gradeRecords.get(0).getGrades());
+            result.put("assessmentMaxValues", gradeRecords.get(0).getClassRecord().getAssessmentMaxValues());
+        } else {
+            result.put("grades", Collections.emptyMap());
+            result.put("assessmentMaxValues", Collections.emptyMap());
         }
-        return Collections.emptyMap();
+        return result;
     }
 
     public List<GradeRecordsEntity> getGradeRecordsByStudentIdAndClassId(int studentId, int classId) {
