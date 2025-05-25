@@ -89,13 +89,23 @@ public class SecurityConfig {
                         String userRole = (user != null && user.getRole() != null) ? user.getRole().name() : "PENDING";
 
                         String baseCallback = "http://localhost:5173/oauth2/callback";
+                        
+                        // Helper to safely encode nulls as empty strings
+                        java.util.function.Function<String, String> safeEncode = s -> {
+                            try {
+                                return java.net.URLEncoder.encode(s != null ? s : "", "UTF-8");
+                            } catch (Exception e) {
+                                return "";
+                            }
+                        };
+
                         String params = String.format(
                             "?email=%s&firstName=%s&lastName=%s&provider=%s&role=%s",
-                            java.net.URLEncoder.encode(email, "UTF-8"),
-                            java.net.URLEncoder.encode(firstName, "UTF-8"),
-                            java.net.URLEncoder.encode(lastName, "UTF-8"),
-                            java.net.URLEncoder.encode(provider != null ? provider : "", "UTF-8"),
-                            java.net.URLEncoder.encode(userRole, "UTF-8")
+                            safeEncode.apply(email),
+                            safeEncode.apply(firstName),
+                            safeEncode.apply(lastName),
+                            safeEncode.apply(provider),
+                            safeEncode.apply(userRole)
                         );
 
                         if (user == null) {
