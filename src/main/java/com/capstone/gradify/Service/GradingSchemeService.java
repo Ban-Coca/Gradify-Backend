@@ -41,6 +41,27 @@ public class GradingSchemeService {
         return gradingSchemes;
     }
 
+    public GradingSchemes updateGradingScheme(GradingSchemes updatedScheme, Integer classId, Integer teacherId) {
+        // Find the existing grading scheme first
+        GradingSchemes existingScheme = gradingSchemeRepository.findByClassEntity_ClassId(classId);
+        if (existingScheme == null) {
+            throw new RuntimeException("Grading scheme not found for class ID: " + classId);
+        }
+
+        // Update the grading scheme content
+        existingScheme.setGradingScheme(updatedScheme.getGradingScheme());
+
+        // Update teacher if provided
+        if (teacherId != null) {
+            TeacherEntity teacher = teacherRepository.findById(teacherId)
+                    .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + teacherId));
+            existingScheme.setTeacherEntity(teacher);
+        }
+
+        // Save and return the updated entity
+        return gradingSchemeRepository.save(existingScheme);
+    }
+
     public String getGradeSchemeByClassEntityId(int id) {
         GradingSchemes gradingSchemes = gradingSchemeRepository.findByClassEntity_ClassId(id);
         if (gradingSchemes == null) {
