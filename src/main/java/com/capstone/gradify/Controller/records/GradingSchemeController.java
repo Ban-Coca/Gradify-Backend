@@ -44,13 +44,35 @@ public class GradingSchemeController {
     public ResponseEntity<?> getGradingScheme(@RequestParam int classId) {
         try {
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
-            if (gradingScheme != null) {
-                return ResponseEntity.ok(gradingScheme);
-            } else {
-                return ResponseEntity.status(404).body("Grading scheme not found for class ID: " + classId);
-            }
+            Map<String, Object> response = Map.of(
+                    "id", gradingScheme.getId(),
+                    "gradingScheme", gradingScheme.getGradingScheme()
+            );
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error retrieving grading scheme: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/updatescheme/{classId}/teacher/{teacherId}")
+    public ResponseEntity<?> updateGradingScheme(@PathVariable Integer classId,
+                                                 @PathVariable Integer teacherId,
+                                                 @RequestBody Map<String, Object> requestBody) {
+        try {
+            // Convert the schemes array to a JSON string
+            ObjectMapper objectMapper = new ObjectMapper();
+            String schemesJson = objectMapper.writeValueAsString(requestBody.get("schemes"));
+
+            // Create a GradingSchemes object to pass to the service
+            GradingSchemes gradingScheme = new GradingSchemes();
+            gradingScheme.setGradingScheme(schemesJson);
+
+            // Update the grading scheme using your service
+            GradingSchemes updatedScheme = gradingSchemeService.updateGradingScheme(gradingScheme, classId, teacherId);
+
+            return ResponseEntity.ok(updatedScheme);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error updating grading scheme: " + e.getMessage());
         }
     }
 }
