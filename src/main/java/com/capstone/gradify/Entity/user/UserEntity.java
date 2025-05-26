@@ -1,9 +1,8 @@
 package com.capstone.gradify.Entity.user;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
+import com.capstone.gradify.Entity.NotificationEntity;
 import jakarta.persistence.*;
 
 @Entity
@@ -23,10 +22,13 @@ public class UserEntity {
     private Date createdAt;
     private Date lastLogin;
     private int failedLoginAttempts;
-    
     @Version
-    private Long version = 0L; // Initialize with default value
-    
+    private Long version;
+    private String FCMToken;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<NotificationEntity> notifications = new ArrayList<>();
+
     private transient Map<String, Object> attributes = new HashMap<>();
 
     @Enumerated(EnumType.STRING)
@@ -92,7 +94,6 @@ public class UserEntity {
     public void setPassword(String password) {
         this.password = password;
     }
-    
     public boolean isActive() {
         return isActive;
     }
@@ -100,15 +101,12 @@ public class UserEntity {
     public void setIsActive(boolean isActive) {
         this.isActive = isActive;
     }
-    
     public String getProvider() {
         return provider;
     }
-    
     public void setProvider(String provider) {
         this.provider = provider;
     }
-    
     public Date getCreatedAt() {
         return createdAt;
     }
@@ -132,47 +130,31 @@ public class UserEntity {
     public void setFailedLoginAttempts(int failedLoginAttempts) {
         this.failedLoginAttempts = failedLoginAttempts;
     }
-    
     public Role getRole() {
         return role;
     }
-    
     public void setRole(Role role) {
         this.role = role;
     }
-    
     public boolean hasRole(String role) {
         return this.role != null && this.role.name().equalsIgnoreCase(role);
     }
-    
     public Long getVersion() {
         return version;
     }
-    
     public void setVersion(Long version) {
-        this.version = version != null ? version : 0L;
+        this.version = version;
     }
-    
     public void setAttribute(String key, Object value) {
-        if (attributes == null) {
-            attributes = new HashMap<>();
-        }
         attributes.put(key, value);
     }
-
     public Object getAttribute(String key) {
-        if (attributes == null) {
-            return null;
-        }
         return attributes.get(key);
     }
-    
-    // Method to ensure version is properly initialized before persistence
-    @PrePersist
-    @PreUpdate
-    protected void ensureVersionInitialized() {
-        if (this.version == null) {
-            this.version = 0L;
-        }
+    public String getFCMToken() {
+        return FCMToken;
+    }
+    public void setFCMToken(String FCMToken) {
+        this.FCMToken = FCMToken;
     }
 }

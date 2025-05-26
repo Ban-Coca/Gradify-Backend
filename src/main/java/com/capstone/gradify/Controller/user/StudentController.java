@@ -56,7 +56,7 @@ public class StudentController {
     public ResponseEntity<?> getStudentGradesForClass(
             @PathVariable int studentId,
             @PathVariable int classId) {
-        Map<String, String> grades = recordsService.getStudentCourseGrades(studentId, classId);
+        Map<String, Object> grades = recordsService.getStudentCourseGrades(studentId, classId);
         return ResponseEntity.ok(grades);
     }
 
@@ -118,6 +118,47 @@ public class StudentController {
             return ResponseEntity.ok(calculatedGrade);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error calculating grade: " + e.getMessage());
+        }
+    }
+    
+    @GetMapping("/{studentId}/average-percentage")
+    public ResponseEntity<Double> getStudentAveragePercentage(@PathVariable int studentId) {
+        try {
+            double average = recordsService.getStudentAveragePercentage(studentId);
+            return ResponseEntity.ok(average);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @GetMapping("/{studentId}/grade-records")
+    public ResponseEntity<List<GradeRecordsEntity>> getGradeRecordsByStudentId(
+            @PathVariable int studentId) {
+        try {
+            List<GradeRecordsEntity> records = recordsService.getGradeRecordsByStudentId(studentId);
+            return ResponseEntity.ok(records);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @GetMapping("/{studentId}/all-grades")
+    public ResponseEntity<Map<Integer, Double>> getAllGradesByStudentId(@PathVariable int studentId) {
+        try {
+            Map<Integer, Double> grades = recordsService.getAllGradesByStudentId(studentId);
+            return ResponseEntity.ok(grades);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+    
+    @GetMapping("/{studentId}/class-averages")
+    public ResponseEntity<List<Map<String, Object>>> getClassAveragesForStudent(@PathVariable int studentId) {
+        try {
+            List<Map<String, Object>> averages = recordsService.getClassAveragesForStudent(studentId);
+            return ResponseEntity.ok(averages);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
         }
     }
 }

@@ -8,8 +8,6 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrimaryKeyJoinColumn;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import lombok.Getter;
 import lombok.Setter;
 import net.minidev.json.annotate.JsonIgnore;
@@ -38,28 +36,6 @@ public class TeacherEntity extends UserEntity {
     private List<ReportEntity> sentReports = new ArrayList<>();
 
     public TeacherEntity() {
-        super(); // Call parent constructor which initializes version
-        // Additional initialization if needed
-        this.classesRecord = new ArrayList<>();
-        this.classes = new ArrayList<>();
-        this.sentReports = new ArrayList<>();
-    }
-    
-    // Alternative constructor for OAuth scenarios
-    public TeacherEntity(String email, String name) {
-        super(); // Call parent constructor which initializes version
-        this.setEmail(email);
-        this.setFirstName(name);
-        this.classesRecord = new ArrayList<>();
-        this.classes = new ArrayList<>();
-        this.sentReports = new ArrayList<>();
-    }
-    
-    // Override to ensure proper initialization
-    @Override
-    @PrePersist
-    @PreUpdate
-    protected void ensureVersionInitialized() {
-        super.ensureVersionInitialized(); // Call parent method
+
     }
 }

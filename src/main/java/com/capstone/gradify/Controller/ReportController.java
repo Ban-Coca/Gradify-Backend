@@ -1,7 +1,14 @@
 package com.capstone.gradify.Controller;
 
+import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Service.AiServices.GenerateFeedbackAIService;
+import com.capstone.gradify.Service.notification.EmailService;
+import com.capstone.gradify.Service.notification.NotificationService;
+import com.capstone.gradify.Service.userservice.StudentService;
 import com.capstone.gradify.dto.report.ReportDTO;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,15 +25,33 @@ public class ReportController {
 
     @Autowired
     private ReportService reportService;
-
+    @Autowired
+    private GenerateFeedbackAIService generateFeedbackAIService;
+    @Autowired
+    private StudentService studentService;
+    @Autowired
+    private EmailService emailService;
+    @Autowired
+    private NotificationService notificationService;
     /**
      * Create a new report
      * Only teachers should be able to create reports
      */
     @PostMapping
     @PreAuthorize("hasAuthority('TEACHER')")
-    public ResponseEntity<ReportResponseDTO> createReport(@Valid @RequestBody ReportDTO reportDTO) {
+    public ResponseEntity<ReportResponseDTO> createReport(@Valid @RequestBody ReportDTO reportDTO) throws MessagingException {
+        String defaultURL = "http://localhost:5173/feedback";
+        int studentUserId = reportDTO.getStudentId();
+        String email = studentService.getEmailById(studentUserId);
+
         ReportResponseDTO createdReport = reportService.createReport(reportDTO);
+
+        // Send email notification to the student
+        emailService.sendFeedbackNotification(email, createdReport.getSubject(), createdReport.getMessage(), createdReport.getClassName(), createdReport.getStudentName(), defaultURL, createdReport.getReportDate());
+        // Send in-app notification to the student
+
+        notificationService.sendNotification(reportService.mapToReportEntity(createdReport));
+
         return new ResponseEntity<>(createdReport, HttpStatus.CREATED);
     }
 
@@ -105,23 +130,36 @@ public class ReportController {
      * Generate an AI-suggested feedback report based on a student's grades
      * This is an advanced feature that would integrate with an AI service
      */
-//    @GetMapping("/generate-suggestion/student/{studentId}/class/{classId}")
-//    @PreAuthorize("hasRole('TEACHER')")
-//    public ResponseEntity<ReportDTO> generateReportSuggestion(
-//            @PathVariable int studentId,
-//            @PathVariable int classId) {
-//        // This would typically call an AI service integration
-//        // For MVP, this could return a template based on grade thresholds
-//        // Implementation would depend on your AI integration strategy
-//
-//        // Placeholder for demonstration - in a real app, this would call an AI service
-//        ReportDTO suggestion = new ReportDTO();
-//        suggestion.setStudentId(studentId);
-//        suggestion.setClassId(classId);
-//        suggestion.setNotificationType("GRADE_FEEDBACK");
-//        suggestion.setSubject("Grade Performance Feedback");
-//        suggestion.setMessage("This is a placeholder for AI-generated feedback based on the student's performance.");
-//
-//        return ResponseEntity.ok(suggestion);
-//    }
+    @GetMapping("/generate-suggestion/student/{studentId}/class/{classId}")
+    @PreAuthorize("hasAuthority('TEACHER')")
+    public ResponseEntity<AIGeneratedReport> generateReportSuggestion(
+            @PathVariable int studentId,
+            @PathVariable int classId) {
+        try {
+            // Call the AI service to generate personalized feedback
+            String aiGeneratedFeedback = generateFeedbackAIService.generateFeedbackAI(studentId, classId);
+
+            // Create the report DTO with the AI-generated feedback
+            AIGeneratedReport report = new AIGeneratedReport();
+            report.setMessage(aiGeneratedFeedback);
+
+            return ResponseEntity.ok(report);
+        } catch (Exception e) {
+            // Log the error
+            System.err.println("Error generating AI feedback: " + e.getMessage());
+
+            // Return a basic response with an error message
+            AIGeneratedReport errorReport = new AIGeneratedReport();
+            errorReport.setMessage("Unable to generate AI feedback at this time. Please try again later.");
+
+            return ResponseEntity.ok(errorReport);
+        }
+    }
+
+    // DTO FOR AI GENERATED REPORT
+    @Data
+    public static class AIGeneratedReport{
+        private String message;
+    }
+
 }
