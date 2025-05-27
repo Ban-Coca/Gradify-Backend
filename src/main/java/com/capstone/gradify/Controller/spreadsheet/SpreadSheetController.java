@@ -74,6 +74,36 @@ public class SpreadSheetController {
         }
     }
 
+    @PutMapping("/update/{classId}")
+    public ResponseEntity<?> updateSpreadsheet(
+            @PathVariable("classId") Integer classId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("teacherId") Integer teacherId) {
+
+        try {
+            // Get the teacher
+            TeacherEntity teacher = teacherRepository.findById(teacherId)
+                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
+            List<ClassSpreadsheet> spreadsheet = classSpreadsheetService.getClassSpreadSheetByClassId(classId);
+            // Update the spreadsheet using the existing service method
+            ClassSpreadsheet updatedSpreadsheet = classSpreadsheetService.updateSpreadsheet(
+                    spreadsheet.get(0).getId(),
+                    file,
+                    teacher
+            );
+
+            // Create response
+            Map<String, Object> response = new HashMap<>();
+            response.put("spreadsheet", updatedSpreadsheet);
+            response.put("class", updatedSpreadsheet.getClassEntity());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error updating spreadsheet: " + e.getMessage());
+        }
+    }
+
     @PostMapping("/process-url")
     public ResponseEntity<?> processSpreadsheetUrl(
             @RequestParam("url") String spreadsheetUrl,
