@@ -16,5 +16,5 @@ public interface ClassSpreadsheetRepository extends JpaRepository<ClassSpreadshe
     List<ClassSpreadsheet> findByUploadedBy(TeacherEntity teacher);
     List<ClassSpreadsheet> findByClassEntity(ClassEntity classEntity);
     List<ClassSpreadsheet> findByFileName(String fileName);
-
+    List<ClassSpreadsheet> findByClassEntity_ClassId(Integer classId);
 }

@@ -392,11 +392,80 @@ public class ClassSpreadsheetService {
         return classSpreadsheetRepository.save(spreadsheet);
     }
 
+    @Transactional
+    public ClassSpreadsheet updateSpreadsheet(Long spreadsheetId, MultipartFile file, TeacherEntity teacher) throws IOException {
+        // Fetch the existing spreadsheet
+        ClassSpreadsheet existingSpreadsheet = classSpreadsheetRepository.findById(spreadsheetId)
+                .orElseThrow(() -> new RuntimeException("Class spreadsheet not found"));
+
+        // Parse the new data from file
+        List<Map<String, String>> updatedRecords = parseClassRecord(file);
+        Map<String, Integer> updatedMaxValues = getMaxAssessmentValue(file);
+
+        // Update basic spreadsheet information
+        String fileName = file.getOriginalFilename();
+        if (fileName != null) {
+            existingSpreadsheet.setFileName(fileName);
+            existingSpreadsheet.setClassName(extractFileName(fileName));
+        }
+
+        existingSpreadsheet.setAssessmentMaxValues(updatedMaxValues);
+
+        // Create a map of existing grade records by student number for quick lookup
+        Map<String, GradeRecordsEntity> existingRecordsByStudentId = new HashMap<>();
+        for (GradeRecordsEntity record : existingSpreadsheet.getGradeRecords()) {
+            existingRecordsByStudentId.put(record.getStudentNumber(), record);
+        }
+
+        // Process updated records
+        List<GradeRecordsEntity> updatedGradeRecords = new ArrayList<>();
+        for (Map<String, String> record : updatedRecords) {
+            String studentNumber = record.get("Student Number");
+            String studentFirstName = record.get("First Name");
+            String studentLastName = record.get("Last Name");
+
+            if (studentNumber == null) {
+                logger.warn("Skipping record with missing student number");
+                continue;
+            }
+
+            // Check if this student already exists in the spreadsheet
+            if (existingRecordsByStudentId.containsKey(studentNumber)) {
+                // Update existing grade record
+                GradeRecordsEntity existingRecord = existingRecordsByStudentId.get(studentNumber);
+                existingRecord.setGrades(record);
+                updatedGradeRecords.add(existingRecord);
+            } else {
+                // Create new grade record for new student
+                GradeRecordsEntity newRecord = createGradeRecordWithStudentAssociation(
+                        studentNumber,
+                        studentFirstName,
+                        studentLastName,
+                        existingSpreadsheet,
+                        record
+                );
+                updatedGradeRecords.add(newRecord);
+            }
+        }
+
+        // Update the spreadsheet with the new records
+        existingSpreadsheet.setGradeRecords(updatedGradeRecords);
+
+        // Save and return the updated spreadsheet
+        return classSpreadsheetRepository.save(existingSpreadsheet);
+    }
+
     public List<ClassSpreadsheet> getClassSpreadSheetByClassId(int classId) {
         ClassEntity classEntity = classRepository.findByClassId(classId);
         if (classEntity == null) {
             throw new RuntimeException("Class not found");
         }
         return classSpreadsheetRepository.findByClassEntity(classEntity);
+    }
+
+    public List<ClassSpreadsheet> getClassSpreadsheetsByClassId(Integer classId) {
+        // Assuming you have a repository method for this
+        // If not, you'll need to add one to your repository
+        return classSpreadsheetRepository.findByClassEntity_ClassId(classId);
     }
 }
