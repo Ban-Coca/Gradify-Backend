@@ -4,6 +4,7 @@ import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
+import com.capstone.gradify.Service.AiServices.AiAnalysisService;
 import com.capstone.gradify.Service.ClassService;
 import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
@@ -30,6 +31,8 @@ public class TeacherController {
     private TeacherRepository teacherRepository;
     @Autowired
     private RecordsService recordsService;
+    @Autowired
+    private AiAnalysisService aiAnalysisService;
 
     @Autowired
     public TeacherController(ClassSpreadsheetService classSpreadsheetService) {
@@ -135,6 +138,19 @@ public class TeacherController {
             return ResponseEntity.ok(performanceData);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+    @GetMapping("/class-ai-analytics/{classId}")
+    public ResponseEntity<?> getClassAIAnalytics(@PathVariable int classId) {
+        try {
+            ClassEntity classEntity = classService.getClassById(classId);
+            if (classEntity == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Class not found");
+            }
+            String analytics = aiAnalysisService.analyzeClass(classId);
+            return ResponseEntity.ok(analytics);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error retrieving AI analytics: " + e.getMessage());
         }
     }
 }
