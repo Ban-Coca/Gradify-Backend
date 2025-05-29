@@ -25,7 +25,6 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 
 import java.security.Key;
-import java.security.SecureRandom;
 import java.util.Date;
 import java.util.List;
 
@@ -36,20 +35,7 @@ import java.util.List;
         jsr250Enabled = true,
         prePostEnabled = true
 )
-@EnableMethodSecurity(
-        securedEnabled = true,
-        jsr250Enabled = true,
-        prePostEnabled = true
-)
 public class SecurityConfig {
-
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-    @Autowired
-    private UserService userService;
-
-    @Value("${jwt.secret}")
-    private String jwtSecret;
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
