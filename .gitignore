@@ -35,3 +35,6 @@ build/
 
 
 .env
+google-sheets-credentials.json
+src/main/resources/credentials/google-sheets-credentials.json
+

@@ -9,7 +9,7 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 
-@Service
+@Service("notificationEmailService")
 public class EmailService {
     @Autowired
     private JavaMailSender mailSender;

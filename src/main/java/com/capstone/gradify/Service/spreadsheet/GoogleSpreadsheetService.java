@@ -121,11 +121,10 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 teacher,
                 records,
                 classEntity,
-                Collections.emptyMap());// Placeholder for maxAssessmentValue);
+                Collections.emptyMap());
     }
 
     private String cleanSpreadsheetName(String name) {
-        // Remove any file extension if present
         if (name.contains(".")) {
             name = name.substring(0, name.lastIndexOf('.'));
         }
@@ -134,10 +133,8 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
 
     @Override
     public boolean canProcessLink(String link) {
-        // Check if the link is a Google Sheets URL
         if (link == null) return false;
 
-        // Google Sheets patterns
         String[] patterns = {
                 "^https?://docs\\.google\\.com/spreadsheets/d/([a-zA-Z0-9-_]+)",
                 "^https?://drive\\.google\\.com/open\\?id=([a-zA-Z0-9-_]+)",
@@ -174,25 +171,39 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
     }
 
     private Sheets createSheetsService() throws IOException, GeneralSecurityException {
-        HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+        try {
+            HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
-        // Load credentials from the resource file
-        InputStream credentialsStream = googleCredentialsFile.getInputStream();
-        GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsStream)
-                .createScoped(SCOPES);
+            // Load credentials from the resource file
+            InputStream credentialsStream = googleCredentialsFile.getInputStream();
 
-        HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
+            // Create credentials - this should be a service account key file
+            GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsStream)
+                    .createScoped(SCOPES);
 
-        return new Sheets.Builder(httpTransport, JSON_FACTORY, requestInitializer)
-                .setApplicationName("Gradify")
-                .build();
+            // Refresh the credentials to ensure they're valid
+            credentials.refreshIfExpired();
+
+            HttpRequestInitializer requestInitializer = new HttpCredentialsAdapter(credentials);
+
+            return new Sheets.Builder(httpTransport, JSON_FACTORY, requestInitializer)
+                    .setApplicationName("Gradify")
+                    .build();
+
+        } catch (Exception e) {
+            // Log the detailed error for debugging
+            System.err.println("Error creating Google Sheets service: " + e.getMessage());
+            e.printStackTrace();
+
+            // Re-throw with a more descriptive message
+            throw new GeneralSecurityException("Failed to initialize Google Sheets API: " + e.getMessage(), e);
+        }
     }
 
     private List<Map<String, String>> convertToRecords(List<List<Object>> values) {
         List<Map<String, String>> records = new ArrayList<>();
 
         if (values.size() < 2) {
-            // Need at least header row and one data row
             return records;
         }
 
@@ -210,7 +221,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
 
             for (int j = 0; j < Math.min(headers.size(), dataRow.size()); j++) {
                 String header = headers.get(j);
-                String value = dataRow.get(j).toString();
+                String value = dataRow.get(j) != null ? dataRow.get(j).toString() : "";
                 record.put(header, value);
             }
 
@@ -219,9 +230,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 record.put(headers.get(j), "");
             }
 
-            // Ensure we have student number, first name, and last name
             ensureStudentFields(record, headers);
-
             records.add(record);
         }
 
@@ -231,7 +240,6 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
     private void ensureStudentFields(Map<String, String> record, List<String> headers) {
         // Check for student number field
         if (!record.containsKey("Student Number")) {
-            // Try alternative keys
             for (String header : headers) {
                 if (header.toLowerCase().contains("student") &&
                         (header.toLowerCase().contains("id") || header.toLowerCase().contains("number"))) {
@@ -243,10 +251,8 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
 
         // Check for name fields
         if (!record.containsKey("First Name") && !record.containsKey("Last Name")) {
-            // Try to find name fields
             String fullName = null;
 
-            // Look for full name field
             for (String header : headers) {
                 if (header.equalsIgnoreCase("Name") || header.equalsIgnoreCase("Full Name")) {
                     fullName = record.get(header);
@@ -254,7 +260,6 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 }
             }
 
-            // If we found a full name, split it
             if (fullName != null && !fullName.trim().isEmpty()) {
                 String[] nameParts = fullName.trim().split("\\s+", 2);
                 record.put("First Name", nameParts[0]);

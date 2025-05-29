@@ -36,7 +36,8 @@ public class Application {
         System.setProperty("microsoft.graph.client.id", Objects.requireNonNull(dotenv.get("MICROSOFT_GRAPH_CLIENT_ID")));
         System.setProperty("microsoft.graph.client.secret", Objects.requireNonNull(dotenv.get("MICROSOFT_GRAPH_CLIENT_SECRET")));
         System.setProperty("microsoft.graph.tenant.id", Objects.requireNonNull(dotenv.get("MICROSOFT_GRAPH_TENANT_ID")));
-
+        System.setProperty("ANTHROPIC_API_KEY", Objects.requireNonNull(dotenv.get("ANTHROPIC_API_KEY")));
+        System.setProperty("FIREBASE_SERVICE_ACCOUNT_KEY", Objects.requireNonNull(dotenv.get("FIREBASE_SERVICE_ACCOUNT_KEY")));
         SpringApplication.run(Application.class, args);
     }
 }
