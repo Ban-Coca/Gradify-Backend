@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
@@ -39,8 +40,8 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
 
-    @Value("${google.credentials.file-path:classpath:credentials/google-sheets-credentials.json}")
-    private Resource googleCredentialsFile;
+    @Value("${GOOGLE_SHEETS_CREDENTIALS}")
+    private String googleCredentialsPath;
 
     @Autowired
     private ClassSpreadsheetService classSpreadsheetService;
@@ -174,8 +175,8 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
         try {
             HttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
 
-            // Load credentials from the resource file
-            InputStream credentialsStream = googleCredentialsFile.getInputStream();
+            // Load credentials from the file path
+            InputStream credentialsStream = getCredentialsStream();
 
             // Create credentials - this should be a service account key file
             GoogleCredentials credentials = GoogleCredentials.fromStream(credentialsStream)
@@ -197,6 +198,30 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
 
             // Re-throw with a more descriptive message
             throw new GeneralSecurityException("Failed to initialize Google Sheets API: " + e.getMessage(), e);
+        }
+    }
+
+    private InputStream getCredentialsStream() throws IOException {
+        if (googleCredentialsPath == null || googleCredentialsPath.trim().isEmpty()) {
+            throw new IOException("Google credentials path is not configured. Please set GOOGLE_SHEETS_CREDENTIALS environment variable.");
+        }
+
+        // Handle different path formats
+        if (googleCredentialsPath.startsWith("classpath:")) {
+            // Classpath resource
+            String resourcePath = googleCredentialsPath.substring("classpath:".length());
+            InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+            if (stream == null) {
+                throw new IOException("Could not find credentials file in classpath: " + resourcePath);
+            }
+            return stream;
+        } else if (googleCredentialsPath.startsWith("file:")) {
+            // File path
+            String filePath = googleCredentialsPath.substring("file:".length());
+            return new FileInputStream(filePath);
+        } else {
+            // Assume it's a direct file path
+            return new FileInputStream(googleCredentialsPath);
         }
     }
 
