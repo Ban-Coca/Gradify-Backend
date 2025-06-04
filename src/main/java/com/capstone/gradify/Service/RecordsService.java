@@ -8,6 +8,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.capstone.gradify.Entity.user.StudentEntity;
@@ -16,6 +18,7 @@ import java.util.*;
 
 @Service
 public class RecordsService {
+    private static final Logger logger = LoggerFactory.getLogger(RecordsService.class); // Ensure logger is initialized
     @Autowired
     private GradeRecordRepository gradeRecordsRepository;
     @Autowired
@@ -26,7 +29,6 @@ public class RecordsService {
     private ClassService classService;
 
     private final ObjectMapper mapper = new ObjectMapper();
-
     /**
      * DTO for student table data
      */
@@ -60,59 +62,75 @@ public class RecordsService {
     }
 
     public List<StudentTableData> getClassRosterTableData(int classId) {
-        // Get all grade records for this class
+        logger.info("Fetching class roster for class ID: {}", classId);
         List<GradeRecordsEntity> allRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
-
-        // Get grading scheme for this class
         GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
 
-        // Calculate grades and collect student data
+        if (gradingScheme == null) {
+            logger.warn("No grading scheme found for class ID: {}. Grades will be N/A.", classId);
+        } else {
+            logger.info("Using grading scheme for class ID: {}: {}", classId, gradingScheme.getGradingScheme());
+        }
+
         List<StudentTableData> tableData = new ArrayList<>();
 
         for (GradeRecordsEntity record : allRecords) {
-            // Calculate numerical grade
-            double percentageGrade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(), record.getClassRecord().getAssessmentMaxValues());
-            double grade = percentageGrade / 100; // Convert to percentage
-            // Get student information
-            String studentNumber = record.getStudentNumber();
-            Optional<StudentEntity> studentOpt = studentRepository.findByStudentNumber(studentNumber);
+            double percentageForDisplay = 0.0; // This will be the 0-100 scale for the Percentage column
+            String letterGradeToStore = "N/A";
+            String statusToStore = "Scheme Missing";
+
+            if (gradingScheme != null && gradingScheme.getGradingScheme() != null) {
+                percentageForDisplay = calculateGrade( // This returns 0-100
+                        record.getGrades(),
+                        gradingScheme.getGradingScheme(),
+                        record.getClassRecord().getAssessmentMaxValues()
+                );
+
+                // Log the value EXACTLY before passing it to convertToLetterGrade
+                logger.info("Passing to convertToLetterGrade for {}: {}", record.getStudentNumber(), percentageForDisplay);
+                letterGradeToStore = convertToLetterGrade(percentageForDisplay); // Pass the 0-100 scale
+
+                statusToStore = determineStatus(percentageForDisplay);
+
+                logger.info("Calculated for {}: Percentage = {}, Letter Grade = {}, Status = {}",
+                        record.getStudentNumber(), percentageForDisplay, letterGradeToStore, statusToStore);
+            }
+
+            Optional<StudentEntity> studentOpt = studentRepository.findByStudentNumber(record.getStudentNumber());
 
             if (studentOpt.isPresent()) {
                 StudentEntity student = studentOpt.get();
                 String studentName = student.getFirstName() + " " + student.getLastName();
 
-                // Determine letter grade based on percentage
-                String letterGrade = convertToLetterGrade(grade);
-
-                // Determine status based on grade
-                String status = determineStatus(percentageGrade);
-
-                // Create table data object
                 StudentTableData data = new StudentTableData(
                         studentName,
-                        studentNumber,
-                        letterGrade,
-                        percentageGrade,
-                        status,
+                        record.getStudentNumber(),
+                        letterGradeToStore,
+                        percentageForDisplay, // Use the 0-100 scaled value
+                        statusToStore,
                         student.getUserId()
                 );
-
                 tableData.add(data);
+            } else {
+                logger.warn("Student not found for student number: {}", record.getStudentNumber());
             }
         }
-
+        logger.info("Finished processing class roster for class ID: {}. Total students: {}", classId, tableData.size());
         return tableData;
     }
-
     /**
      * Convert numeric percentage to letter grade
      */
-    private String convertToLetterGrade(double percentage) {
-        if (percentage >= 90) return "A";
-        else if (percentage >= 80) return "B";
-        else if (percentage >= 70) return "C";
-        else if (percentage >= 60) return "D";
-        else return "F";
+    private String convertToLetterGrade(double percentage) { // Expects 0-100
+        String grade;
+        if (percentage >= 90) grade = "A";
+        else if (percentage >= 80) grade = "B";
+        else if (percentage >= 70) grade = "C";
+        else if (percentage >= 60) grade = "D";
+        else grade = "F";
+        // This log is critical:
+        logger.info("convertToLetterGrade - Input: {}, Output: {}", percentage, grade);
+        return grade;
     }
 
     /**
@@ -162,8 +180,10 @@ public class RecordsService {
     }
 
     public double calculateGrade(Map<String, String> grades, String schemeJson, Map<String, Integer> assessmentMaxValues) {
+        if (schemeJson == null) { // This check is important
+            return 0.0;
+        }
         try {
-            // Parse the grading scheme from JSON
             List<Map<String, Object>> schemeItems = mapper.readValue(
                     schemeJson, new TypeReference<List<Map<String, Object>>>() {});
 
@@ -172,28 +192,45 @@ public class RecordsService {
 
             for (Map<String, Object> schemeItem : schemeItems) {
                 String name = (String) schemeItem.get("name");
-                double weight = Double.parseDouble(schemeItem.get("weight").toString());
+                // Ensure weight is present and is a number before parsing
+                Object weightObj = schemeItem.get("weight");
+                if (weightObj == null) continue; // Skip if weight is missing
+
+                double weight;
+                try {
+                    weight = Double.parseDouble(weightObj.toString());
+                } catch (NumberFormatException e) {
+                    // logger.warn("Invalid weight format for category '{}': {}", name, weightObj);
+                    continue; // Skip if weight is not a valid number
+                }
+
                 totalAppliedWeight += weight;
-                // Map scheme items to their corresponding grade records
                 double categoryScore = getCategoryScore(grades, name, assessmentMaxValues);
 
-                if (categoryScore >= 0) { // Only include if we found a valid score
+                if (categoryScore >= 0) {
                     totalGrade += (categoryScore * (weight / 100.0));
                 } else {
-                    // Missing category - count as zero instead of ignoring
-                    totalGrade += 0;  // This is effectively adding nothing, but makes the intention clear
+                    totalGrade += 0;
                 }
             }
 
-            // Normalize by the total applied weight if not all categories were found
-            if (totalAppliedWeight > 0) {
-                return (totalGrade / (totalAppliedWeight / 100)) * 100;
-            } else {
+            if (totalAppliedWeight > 0 && totalAppliedWeight <= 100) { // Ensure totalAppliedWeight is reasonable
+                // If totalAppliedWeight sums to 100, this simplifies to totalGrade
+                // If it's less (e.g. some categories had no grades), this will scale appropriately.
+                return (totalGrade / (totalAppliedWeight / 100.0));
+            } else if (totalAppliedWeight == 0) {
                 return 0.0;
+            } else {
+                // If totalAppliedWeight is > 100, it implies an issue with scheme definition
+                // logger.warn("Total applied weight {} is greater than 100 for scheme: {}", totalAppliedWeight, schemeJson);
+                // Decide how to handle this: normalize to 100, or return as is, or return error indicator
+                return totalGrade; // Or (totalGrade / (totalAppliedWeight / 100.0)) if that's intended.
             }
 
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Error parsing grading scheme: " + e.getMessage());
+            // logger.error("Error parsing grading scheme JSON: {}", schemeJson, e);
+            // It might be better to throw a custom, more specific exception or return a special value.
+            throw new RuntimeException("Error parsing grading scheme: " + e.getMessage(), e);
         }
     }
 
@@ -654,59 +691,73 @@ public class RecordsService {
     }
 
     public int countAtRiskStudents(int teacherId) {
-        // Find all classes taught by this teacher
         List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
-
-        // Track unique at-risk students by student number
         Set<String> uniqueAtRiskStudents = new HashSet<>();
 
-        // Check each class taught by this teacher
+        if (teacherClasses == null || teacherClasses.isEmpty()) {
+            return 0;
+        }
+
         for (ClassEntity classEntity : teacherClasses) {
             int classId = classEntity.getClassId();
-            List<GradeRecordsEntity> classRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
-
-            // Get grading scheme for this class
+            // Fetch grading scheme
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+
+            // If no grading scheme, skip grade calculation for this class
+            if (gradingScheme == null || gradingScheme.getGradingScheme() == null) {
+                // Optionally log this:
+                // logger.warn("No grading scheme found for class ID: {}. Skipping for at-risk calculation.", classId);
+                continue;
+            }
+
+            List<GradeRecordsEntity> classRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
 
             for (GradeRecordsEntity record : classRecords) {
                 double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(),
                         record.getClassRecord().getAssessmentMaxValues());
-                double percentage = grade / 100; // Convert to percentage
-                if (percentage < 60 && record.getStudentNumber() != null) {
+                // Assuming calculateGrade returns a percentage (e.g., 85.0 for 85%)
+                // If it returns a 0-1 scale, adjust the condition below.
+                if (grade < 60 && record.getStudentNumber() != null) { // Ensure your 'at-risk' threshold is correct
                     uniqueAtRiskStudents.add(record.getStudentNumber());
                 }
             }
         }
-
         return uniqueAtRiskStudents.size();
     }
 
 
     public int countTopPerformingStudents(int teacherId) {
-        // Find all classes taught by this teacher
         List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
-
-        // Track unique top-performing students by student number
         Set<String> uniqueTopStudents = new HashSet<>();
 
-        // Check each class taught by this teacher
+        if (teacherClasses == null || teacherClasses.isEmpty()) {
+            return 0;
+        }
+
         for (ClassEntity classEntity : teacherClasses) {
             int classId = classEntity.getClassId();
-            List<GradeRecordsEntity> classRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
-
-            // Get grading scheme for this class
+            // Fetch grading scheme
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+
+            // If no grading scheme, skip grade calculation for this class
+            if (gradingScheme == null || gradingScheme.getGradingScheme() == null) {
+                // Optionally log this:
+                // logger.warn("No grading scheme found for class ID: {}. Skipping for top-performer calculation.", classId);
+                continue;
+            }
+
+            List<GradeRecordsEntity> classRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
 
             for (GradeRecordsEntity record : classRecords) {
                 double grade = calculateGrade(record.getGrades(), gradingScheme.getGradingScheme(),
                         record.getClassRecord().getAssessmentMaxValues());
-                double percentage = grade / 100; // Convert to percentage
-                if (percentage >= 80 && record.getStudentNumber() != null) {
+                // Assuming calculateGrade returns a percentage (e.g., 85.0 for 85%)
+                // If it returns a 0-1 scale, adjust the condition below.
+                if (grade >= 80 && record.getStudentNumber() != null) { // Ensure your 'top-performing' threshold is correct
                     uniqueTopStudents.add(record.getStudentNumber());
                 }
             }
         }
-
         return uniqueTopStudents.size();
     }
 
@@ -797,7 +848,6 @@ public class RecordsService {
     }
 
     public Map<String, Integer> getTeacherGradeDistribution(int teacherId) {
-        // Find all classes taught by this teacher
         List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
 
         Map<String, Integer> distribution = new HashMap<>();
@@ -806,17 +856,23 @@ public class RecordsService {
         distribution.put("C", 0);
         distribution.put("D", 0);
         distribution.put("F", 0);
+        distribution.put("N/A", 0); // Add N/A for missing schemes, or choose to ignore these students
 
-        // Process each class
+        if (teacherClasses == null || teacherClasses.isEmpty()) {
+            return distribution; // Return empty distribution if teacher has no classes
+        }
+
         for (ClassEntity classEntity : teacherClasses) {
             List<StudentTableData> classData = getClassRosterTableData(classEntity.getClassId());
 
             for (StudentTableData student : classData) {
-                String grade = student.getGrade();
-                distribution.put(grade, distribution.get(grade) + 1);
+                String grade = student.getGrade(); // This can be "A", "B", ..., "F", or "N/A"
+
+                // Use getOrDefault to handle cases where the grade might not be an expected key (e.g., "N/A")
+                // or if you decide not to pre-initialize "N/A"
+                distribution.put(grade, distribution.getOrDefault(grade, 0) + 1);
             }
         }
-
         return distribution;
     }
 
