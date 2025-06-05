@@ -128,7 +128,6 @@ public class RecordsService {
         else if (percentage >= 70) grade = "C";
         else if (percentage >= 60) grade = "D";
         else grade = "F";
-        // This log is critical:
         logger.info("convertToLetterGrade - Input: {}, Output: {}", percentage, grade);
         return grade;
     }

@@ -5,6 +5,7 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
+import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository; // Ensure this is imported
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetManager;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
+import java.util.stream.Collectors; // Required for stream operations
 
 @RestController
 @RequestMapping("api/spreadsheet")
@@ -30,9 +32,13 @@ public class SpreadSheetController {
     @Autowired
     private CloudSpreadsheetManager cloudSpreadsheetManager;
     @Autowired
+    private ClassSpreadsheetRepository classSpreadsheetRepository; // Added for check-exists
+
+    @Autowired
     public SpreadSheetController(ClassSpreadsheetService classSpreadsheetService) {
         this.classSpreadsheetService = classSpreadsheetService;
     }
+
     @PostMapping("/upload")
     public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
         // Logic to handle spreadsheet upload
@@ -153,38 +159,67 @@ public class SpreadSheetController {
     }
 
     @GetMapping("/get/{id}")
-        public ResponseEntity<?> getSpreadsheetById(@PathVariable("id") Long id) {
-            try {
-                // Validate the ID
-                if (id == null) {
-                    return ResponseEntity.badRequest().body("Spreadsheet ID cannot be null");
-                }
-                
-                Optional<ClassSpreadsheet> classSpreadsheetOpt = classSpreadsheetService.getClassSpreadsheetById(id);
-                
-                if (classSpreadsheetOpt.isPresent()) {
-                    // Return the spreadsheet if found
-                    ClassSpreadsheet spreadsheet = classSpreadsheetOpt.get();
-                    return ResponseEntity.ok(spreadsheet);
-                } else {
-                    // Return 404 if not found
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body("Spreadsheet with ID " + id + " not found");
-                }
-            } catch (Exception e) {
-                return ResponseEntity.status(500)
-                    .body("Error retrieving spreadsheet: " + e.getMessage());
+    public ResponseEntity<?> getSpreadsheetById(@PathVariable("id") Long id) {
+        try {
+            // Validate the ID
+            if (id == null) {
+                return ResponseEntity.badRequest().body("Spreadsheet ID cannot be null");
             }
+
+            Optional<ClassSpreadsheet> classSpreadsheetOpt = classSpreadsheetService.getClassSpreadsheetById(id);
+
+            if (classSpreadsheetOpt.isPresent()) {
+                // Return the spreadsheet if found
+                ClassSpreadsheet spreadsheet = classSpreadsheetOpt.get();
+                return ResponseEntity.ok(spreadsheet);
+            } else {
+                // Return 404 if not found
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("Spreadsheet with ID " + id + " not found");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body("Error retrieving spreadsheet: " + e.getMessage());
         }
+    }
 
     @GetMapping("/check-google-sheets-config")
-        public ResponseEntity<Map<String, Boolean>> checkGoogleSheetsConfig() {
-            Resource resource = new ClassPathResource("credentials/google-sheets-credentials.json");
-            boolean configured = resource.exists();
-            
-            Map<String, Boolean> response = new HashMap<>();
-            response.put("configured", configured);
-            
-            return ResponseEntity.ok(response);
+    public ResponseEntity<Map<String, Boolean>> checkGoogleSheetsConfig() {
+        Resource resource = new ClassPathResource("credentials/google-sheets-credentials.json");
+        boolean configured = resource.exists();
+
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("configured", configured);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // New endpoint to check if a spreadsheet file name already exists for a teacher
+    @GetMapping("/check-exists")
+    public ResponseEntity<Boolean> checkSpreadsheetExists(
+            @RequestParam("fileName") String fileName,
+            @RequestParam("teacherId") Integer teacherId) {
+        try {
+            // Find teacher to ensure they exist
+            teacherRepository.findById(teacherId)
+                    .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + teacherId));
+
+            // Check for existing spreadsheets by file name
+            List<ClassSpreadsheet> existingSpreadsheets = classSpreadsheetRepository.findByFileName(fileName);
+
+            // Filter by teacherId
+            boolean exists = existingSpreadsheets.stream()
+                    .anyMatch(s -> s.getUploadedBy() != null && s.getUploadedBy().getUserId() == teacherId);
+
+            return ResponseEntity.ok(exists);
+        } catch (RuntimeException e) {
+            // Log error and return false, or a more specific HTTP error
+            System.err.println("Error checking spreadsheet existence: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(false); // e.g., if teacher not found
         }
+        catch (Exception e) {
+            System.err.println("Unexpected error checking spreadsheet existence: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(false);
+        }
+    }
 }

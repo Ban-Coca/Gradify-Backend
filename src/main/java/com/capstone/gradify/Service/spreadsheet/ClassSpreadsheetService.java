@@ -168,74 +168,51 @@ public class ClassSpreadsheetService {
         return fileName.substring(0, fileName.lastIndexOf('.'));
     }
 
-    public ClassEntity createClassEntityFromSpreadsheet(MultipartFile file, List<Map<String, String>> records, TeacherEntity teacher) {
+    // Overload createClassEntityFromSpreadsheet to accept an optional custom name
+    public ClassEntity createClassEntityFromSpreadsheet(MultipartFile file, List<Map<String, String>> records, TeacherEntity teacher, String customClassName) {
         ClassEntity classEntity = new ClassEntity();
-
-        // Set the teacher
         classEntity.setTeacher(teacher);
 
-        String filename = file.getOriginalFilename();
+        String filename = (customClassName != null && !customClassName.isEmpty()) ? customClassName : file.getOriginalFilename();
+
         if (filename != null) {
+            String baseName = filename.contains(".") ? filename.substring(0, filename.lastIndexOf('.')) : filename;
+            String[] parts = baseName.split("-");
 
-            if (filename.contains(".")) {
-                filename = filename.substring(0, filename.lastIndexOf('.'));
-            }
-
-            // Split by underscore or other delimiter
-            String[] parts = filename.split("-");
-            if (parts.length >= 4) {
-                classEntity.setClassName(parts[0]);
-                classEntity.setSection(parts[1]);
-                classEntity.setClassCode(generateClassCode(parts[0], parts[1], parts[2], parts[3]));
-            } else if (parts.length >= 2) {
-                // Handle case when fewer parts are available
-                classEntity.setClassName(parts[0]);
-                classEntity.setSection(parts[1]);
-                classEntity.setClassCode(generateRandomClassCode());
+            if (parts.length >= 2 && customClassName == null) { // Only use parts if not custom named for section
+                classEntity.setClassName(parts[0].trim());
+                classEntity.setSection(parts[1].trim());
             } else {
-                // Not enough parts in the filename
-                classEntity.setClassName(extractFileName(filename));
+                classEntity.setClassName(baseName.trim());
+                // If section is not in filename or it's a custom name, it might need to be set differently or default
+                classEntity.setSection(parts.length > 1 && customClassName == null ? parts[1].trim() : "Default Section");
+            }
+
+            if (parts.length >= 4 && customClassName == null) {
+                classEntity.setClassCode(generateClassCode(parts[0], parts[1], parts[2], parts[3]));
+            } else {
                 classEntity.setClassCode(generateRandomClassCode());
             }
+
+        } else {
+            classEntity.setClassName("Untitled Class");
+            classEntity.setSection("Default Section");
+            classEntity.setClassCode(generateRandomClassCode());
         }
 
-        if (records != null && !records.isEmpty()) {
-            // This is just an example - adjust based on your spreadsheet structure
-            Map<String, String> firstRecord = records.get(0);
+        // Default Semester and School Year if not derivable
+        classEntity.setSemester(determineCurrentSemester());
+        classEntity.setSchoolYear(determineCurrentSchoolYear());
 
-            if (classEntity.getClassName() == null && firstRecord.containsKey("Class")) {
-                classEntity.setClassName(firstRecord.get("Class"));
-            }
-
-            // Add more extraction logic as needed
-        }
-
-        // Set timestamps
         Date now = new Date();
         classEntity.setCreatedAt(now);
         classEntity.setUpdatedAt(now);
 
-        // For any missing required fields, set defaults or throw an error
-        if (classEntity.getClassName() == null) {
-            classEntity.setClassName("Untitled Class");
-        }
-
-        if (classEntity.getSemester() == null) {
-            // You could derive the current semester based on the current date
-            classEntity.setSemester(determineCurrentSemester());
-        }
-
-        if (classEntity.getSchoolYear() == null) {
-            // Set the current school year
-            classEntity.setSchoolYear(determineCurrentSchoolYear());
-        }
-
-        if (classEntity.getClassCode() == null) {
-
-            classEntity.setClassCode(generateRandomClassCode());
-        }
-
         return classEntity;
+    }
+    // Keep the original method for compatibility if it's used elsewhere without customClassName
+    public ClassEntity createClassEntityFromSpreadsheet(MultipartFile file, List<Map<String, String>> records, TeacherEntity teacher) {
+        return createClassEntityFromSpreadsheet(file, records, teacher, null);
     }
 
 
@@ -468,4 +445,142 @@ public class ClassSpreadsheetService {
         // If not, you'll need to add one to your repository
         return classSpreadsheetRepository.findByClassEntity_ClassId(classId);
     }
+
+    public Optional<ClassEntity> findClassByNameAndTeacher(String className, TeacherEntity teacher) {
+        List<ClassEntity> teacherClasses = classRepository.findByTeacher(teacher);
+        return teacherClasses.stream()
+                .filter(c -> c.getClassName().equalsIgnoreCase(className))
+                .findFirst();
+    }
+
+    @Transactional
+    public ClassSpreadsheet updateExistingClassData(ClassEntity existingClass, MultipartFile file, TeacherEntity teacher) throws IOException {
+        List<ClassSpreadsheet> existingSpreadsheets = classSpreadsheetRepository.findByClassEntity(existingClass);
+        if (existingSpreadsheets.isEmpty()) {
+            throw new RuntimeException("No existing spreadsheet record found to update for class: " + existingClass.getClassName());
+        }
+        ClassSpreadsheet classSpreadsheetToUpdate = existingSpreadsheets.get(0);
+
+        List<Map<String, String>> newRecordsMaps = parseClassRecord(file);
+        Map<String, Integer> newMaxAssessmentValues = getMaxAssessmentValue(file);
+
+        classSpreadsheetToUpdate.setFileName(file.getOriginalFilename()); // Update filename
+
+        Map<String, Integer> mergedMaxValues = new HashMap<>(classSpreadsheetToUpdate.getAssessmentMaxValues() != null ? classSpreadsheetToUpdate.getAssessmentMaxValues() : new HashMap<>());
+        mergedMaxValues.putAll(newMaxAssessmentValues);
+        classSpreadsheetToUpdate.setAssessmentMaxValues(mergedMaxValues);
+
+        Map<String, GradeRecordsEntity> currentGradeRecordsMap = new HashMap<>();
+        if (classSpreadsheetToUpdate.getGradeRecords() != null) {
+            for (GradeRecordsEntity gre : classSpreadsheetToUpdate.getGradeRecords()) {
+                if (gre.getStudentNumber() != null) {
+                    currentGradeRecordsMap.put(gre.getStudentNumber(), gre);
+                }
+            }
+        } else {
+            classSpreadsheetToUpdate.setGradeRecords(new ArrayList<>());
+        }
+
+
+        Set<StudentEntity> studentsInClass = existingClass.getStudents() != null ? new HashSet<>(existingClass.getStudents()) : new HashSet<>();
+
+        for (Map<String, String> newRecordMap : newRecordsMaps) {
+            String studentNumber = newRecordMap.get("Student Number");
+            String studentFirstName = newRecordMap.get("First Name");
+            String studentLastName = newRecordMap.get("Last Name");
+
+            if (studentNumber == null || studentNumber.trim().isEmpty()) {
+                logger.warn("Skipping record due to missing student number: {}", newRecordMap);
+                continue;
+            }
+
+            GradeRecordsEntity gradeRecordToUpdate = currentGradeRecordsMap.get(studentNumber);
+
+            if (gradeRecordToUpdate != null) {
+                Map<String, String> mergedGrades = new HashMap<>(gradeRecordToUpdate.getGrades());
+                newRecordMap.forEach((key, value) -> {
+                    if (value != null && !value.trim().isEmpty()) {
+                        mergedGrades.put(key, value);
+                    }
+                });
+                gradeRecordToUpdate.setGrades(mergedGrades);
+            } else {
+                gradeRecordToUpdate = createGradeRecordWithStudentAssociation(
+                        studentNumber, studentFirstName, studentLastName, classSpreadsheetToUpdate, newRecordMap);
+                classSpreadsheetToUpdate.getGradeRecords().add(gradeRecordToUpdate);
+            }
+            if (gradeRecordToUpdate.getStudent() != null) {
+                studentsInClass.add(gradeRecordToUpdate.getStudent());
+            }
+        }
+
+        existingClass.setStudents(studentsInClass);
+        existingClass.setUpdatedAt(new Date());
+        classRepository.save(existingClass);
+
+        return classSpreadsheetRepository.save(classSpreadsheetToUpdate);
+    }
+
+    @Transactional
+    public ClassSpreadsheet replaceClassDataFromFile(ClassEntity existingClass, MultipartFile file, TeacherEntity teacher) throws IOException {
+        List<ClassSpreadsheet> existingSpreadsheets = classSpreadsheetRepository.findByClassEntity(existingClass);
+        if (existingSpreadsheets.isEmpty()) {
+            // If no spreadsheet exists, this could technically be a "create new" for this class
+            // but the flow implies we are replacing an existing one.
+            // For robust handling, you might create one if it's missing, or throw a specific error.
+            // For now, let's assume one should exist if we're "replacing" its data.
+            throw new RuntimeException("No spreadsheet found for class " + existingClass.getClassName() + " to replace.");
+        }
+        ClassSpreadsheet spreadsheetToReplace = existingSpreadsheets.get(0);
+
+        // Delete old grade records. Clearing the collection and relying on orphanRemoval=true is cleaner.
+        if (spreadsheetToReplace.getGradeRecords() != null) {
+            gradeRecordRepository.deleteAll(spreadsheetToReplace.getGradeRecords()); // Explicitly delete
+            spreadsheetToReplace.getGradeRecords().clear(); // Clear the collection
+        } else {
+            spreadsheetToReplace.setGradeRecords(new ArrayList<>());
+        }
+        // Flush to ensure deletes are processed before new inserts, if necessary,
+        // especially if student numbers could be re-used immediately (though less likely with UUIDs or sequences for IDs).
+        // classSpreadsheetRepository.flush(); // If issues persist with constraints
+
+        List<Map<String, String>> newRecordsMap = parseClassRecord(file);
+        Map<String, Integer> newMaxAssessmentValues = getMaxAssessmentValue(file);
+
+        spreadsheetToReplace.setFileName(file.getOriginalFilename());
+        // spreadsheetToReplace.setClassName(extractFileName(file.getOriginalFilename())); // ClassName of ClassSpreadsheet entity, not ClassEntity
+        spreadsheetToReplace.setAssessmentMaxValues(newMaxAssessmentValues);
+        // uploadedBy should be the same teacher
+
+        List<GradeRecordsEntity> newGradeRecordsList = new ArrayList<>();
+        Set<StudentEntity> studentsInClass = new HashSet<>();
+
+        for (Map<String, String> recordMap : newRecordsMap) {
+            String studentNumber = recordMap.get("Student Number");
+            String studentFirstName = recordMap.get("First Name");
+            String studentLastName = recordMap.get("Last Name");
+
+            if (studentNumber == null || studentNumber.trim().isEmpty()) {
+                logger.warn("Skipping record in replace due to missing student number: {}", recordMap);
+                continue;
+            }
+
+            GradeRecordsEntity newGradeRecord = createGradeRecordWithStudentAssociation(
+                    studentNumber, studentFirstName, studentLastName, spreadsheetToReplace, recordMap
+            );
+            newGradeRecordsList.add(newGradeRecord);
+            if (newGradeRecord.getStudent() != null) {
+                studentsInClass.add(newGradeRecord.getStudent());
+            }
+        }
+        spreadsheetToReplace.setGradeRecords(newGradeRecordsList); // Set the new list
+
+        existingClass.setStudents(studentsInClass);
+        existingClass.setUpdatedAt(new Date());
+        classRepository.save(existingClass);
+
+        return classSpreadsheetRepository.save(spreadsheetToReplace);
+    }
+
+
 }
