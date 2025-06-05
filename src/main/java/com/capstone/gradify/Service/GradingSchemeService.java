@@ -35,17 +35,22 @@ public class GradingSchemeService {
 
     public GradingSchemes getGradingSchemeByClassEntityId(int id) {
         GradingSchemes gradingSchemes = gradingSchemeRepository.findByClassEntity_ClassId(id);
-        if (gradingSchemes == null) {
-            throw new RuntimeException("Grading scheme not found for class ID: " + id);
-        }
-        return gradingSchemes;
+        // Return null if not found, instead of throwing an exception immediately
+        // The calling service should handle the null case.
+        // if (gradingSchemes == null) {
+        //     throw new RuntimeException("Grading scheme not found for class ID: " + id);
+        // }
+        return gradingSchemes; // This can be null
     }
 
     public GradingSchemes updateGradingScheme(GradingSchemes updatedScheme, Integer classId, Integer teacherId) {
         // Find the existing grading scheme first
         GradingSchemes existingScheme = gradingSchemeRepository.findByClassEntity_ClassId(classId);
         if (existingScheme == null) {
-            throw new RuntimeException("Grading scheme not found for class ID: " + classId);
+            // Option: Or save it as a new one if it doesn't exist?
+            // For now, let's stick to throwing if trying to update a non-existent one,
+            // or you can delegate to saveGradingScheme.
+            throw new RuntimeException("Grading scheme not found for class ID: " + classId + ". Cannot update.");
         }
 
         // Update the grading scheme content
@@ -65,7 +70,8 @@ public class GradingSchemeService {
     public String getGradeSchemeByClassEntityId(int id) {
         GradingSchemes gradingSchemes = gradingSchemeRepository.findByClassEntity_ClassId(id);
         if (gradingSchemes == null) {
-            throw new RuntimeException("Grading scheme not found for class ID: " + id);
+            // Return null if not found
+            return null;
         }
         return gradingSchemes.getGradingScheme();
     }
