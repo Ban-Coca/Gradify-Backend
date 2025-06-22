@@ -1,24 +1,30 @@
 package com.capstone.gradify.Service;
 
+import com.capstone.gradify.Controller.spreadsheet.SpreadSheetController;
 import com.capstone.gradify.Entity.records.*;
+import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.records.GradingSchemeRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
+import com.capstone.gradify.dto.report.ReportDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.mail.MessagingException;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.capstone.gradify.Entity.user.StudentEntity;
+import jakarta.transaction.Transactional;
 
 import java.util.*;
 
 @Service
 public class RecordsService {
-    private static final Logger logger = LoggerFactory.getLogger(RecordsService.class); // Ensure logger is initialized
+    private static final Logger logger = LoggerFactory.getLogger(RecordsService.class);
     @Autowired
     private GradeRecordRepository gradeRecordsRepository;
     @Autowired
@@ -27,6 +33,10 @@ public class RecordsService {
     private GradingSchemeService gradingSchemeService;
     @Autowired
     private ClassService classService;
+    @Autowired
+    private ReportService reportService;
+    @Autowired
+    private ClassRepository classRepository;
 
     private final ObjectMapper mapper = new ObjectMapper();
     /**
@@ -1008,6 +1018,57 @@ public class RecordsService {
             case "midterm exams": return 4;
             case "final exams": return 5;
             default: return 6;
+        }
+    }
+
+    @Transactional
+    public void sendGradesForColumnToStudents(int classId, String columnName) throws MessagingException {
+        List<GradeRecordsEntity> gradeRecords = gradeRecordsRepository.findByClassRecord_ClassEntity_ClassId(classId);
+        if (gradeRecords.isEmpty()) {
+            throw new RuntimeException("No grade records found for this class.");
+        }
+
+        ClassEntity classEntity = classRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+        TeacherEntity teacher = classEntity.getTeacher();
+
+        for (GradeRecordsEntity record : gradeRecords) {
+            StudentEntity student = record.getStudent();
+            if (student != null && record.getGrades().containsKey(columnName)) {
+                String grade = record.getGrades().get(columnName);
+
+                if (grade == null || grade.trim().isEmpty()) {
+                    continue; // Skip if grade is empty
+                }
+
+                String subject = "Your grade for " + columnName;
+                String message = "Hello " + student.getFirstName() + ",<br><br>Your grade for " +
+                        columnName + " is: <strong>" + grade + "</strong>." +
+                        "<br><br>Best regards,<br>" +
+                        teacher.getFirstName() + " " + teacher.getLastName();
+
+                ReportDTO reportDTO = new ReportDTO();
+                reportDTO.setTeacherId(teacher.getUserId());
+                reportDTO.setStudentId(student.getUserId());
+                reportDTO.setClassId(classId);
+                reportDTO.setNotificationType("grade-notification");
+                reportDTO.setSubject(subject);
+                reportDTO.setMessage(message);
+
+                reportService.createReport(reportDTO);
+            }
+        }
+    }
+
+    @Transactional
+    public void updateGrades(List<SpreadSheetController.UpdateGradesRequest> updatedRecords) {
+        for (SpreadSheetController.UpdateGradesRequest req : updatedRecords) {
+            GradeRecordsEntity record = gradeRecordsRepository.findById(req.getGradeRecordId())
+                    .orElseThrow(() -> new RuntimeException("Grade record not found with id: " + req.getGradeRecordId()));
+
+            // Update the grades map
+            record.setGrades(req.getGrades());
+            gradeRecordsRepository.save(record);
         }
     }
 

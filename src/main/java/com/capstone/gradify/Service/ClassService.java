@@ -111,4 +111,9 @@ public class ClassService {
         TeacherEntity teacherEntity = teacherRepository.findById(teacherId).orElse(null);
         return classRepository.findByTeacher(teacherEntity);
     }
+
+    public void addStudentToClass(ClassEntity classEntity, StudentEntity studentEntity) {
+            classEntity.getStudents().add(studentEntity);
+            classRepository.save(classEntity);
+    }
 }

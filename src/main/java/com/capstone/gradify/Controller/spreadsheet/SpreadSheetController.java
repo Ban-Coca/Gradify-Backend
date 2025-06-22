@@ -7,13 +7,16 @@ import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository; // Ensure this is imported
 import com.capstone.gradify.Repository.user.TeacherRepository;
+import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetManager;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,6 +28,8 @@ import java.util.stream.Collectors; // Required for stream operations
 public class SpreadSheetController {
 
     private final ClassSpreadsheetService classSpreadsheetService;
+    private final RecordsService recordsService;
+
     @Autowired
     private TeacherRepository teacherRepository;
     @Autowired
@@ -34,9 +39,11 @@ public class SpreadSheetController {
     @Autowired
     private ClassSpreadsheetRepository classSpreadsheetRepository; // Added for check-exists
 
+
     @Autowired
-    public SpreadSheetController(ClassSpreadsheetService classSpreadsheetService) {
+    public SpreadSheetController(ClassSpreadsheetService classSpreadsheetService, RecordsService recordsService) {
         this.classSpreadsheetService = classSpreadsheetService;
+        this.recordsService = recordsService;
     }
 
     @PostMapping("/upload")
@@ -107,6 +114,26 @@ public class SpreadSheetController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error updating spreadsheet: " + e.getMessage());
+        }
+    }
+
+    // DTO for receiving updated grade data
+    @Data
+    public static class UpdateGradesRequest {
+        private Long gradeRecordId;
+        private Map<String, String> grades;
+    }
+
+    @PutMapping("/update-grades")
+    @PreAuthorize("hasAuthority('TEACHER')")
+    public ResponseEntity<Object> updateGrades(@RequestBody List<UpdateGradesRequest> updatedRecords) {
+        try {
+            recordsService.updateGrades(updatedRecords);
+            return ResponseEntity.ok().body("Grades updated successfully.");
+        } catch (Exception e) {
+            // Log the exception for debugging
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating grades: " + e.getMessage());
         }
     }
 
