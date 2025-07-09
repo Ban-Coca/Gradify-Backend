@@ -4,7 +4,7 @@ import com.capstone.gradify.Entity.NotificationEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.notification.NotificationService;
 import com.capstone.gradify.Service.userservice.UserService;
-import com.capstone.gradify.dto.NotificationResponse;
+import com.capstone.gradify.dto.response.NotificationResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

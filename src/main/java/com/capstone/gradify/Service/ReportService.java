@@ -13,8 +13,8 @@ import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
-import com.capstone.gradify.dto.report.ReportDTO;
-import com.capstone.gradify.dto.report.ReportResponseDTO;
+import com.capstone.gradify.dto.request.ReportRequest;
+import com.capstone.gradify.dto.response.ReportResponse;
 import org.springframework.stereotype.Service;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,27 +49,27 @@ public class ReportService {
      * Create a new report from a teacher to a student
      */
     @Transactional
-    public ReportResponseDTO createReport(ReportDTO reportDTO) {
+    public ReportResponse createReport(ReportRequest reportRequest) {
         // Find the teacher
-        TeacherEntity teacher = teacherRepository.findById(reportDTO.getTeacherId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found with id: " + reportDTO.getTeacherId()));
+        TeacherEntity teacher = teacherRepository.findById(reportRequest.getTeacherId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found with id: " + reportRequest.getTeacherId()));
 
         // Find the student
-        StudentEntity student = studentRepository.findById(reportDTO.getStudentId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found with id: " + reportDTO.getStudentId()));
+        StudentEntity student = studentRepository.findById(reportRequest.getStudentId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found with id: " + reportRequest.getStudentId()));
 
         // Find the class if provided
         ClassEntity classEntity = null;
-        if (reportDTO.getClassId() != null) {
-            classEntity = classRepository.findById(reportDTO.getClassId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Class not found with id: " + reportDTO.getClassId()));
+        if (reportRequest.getClassId() != null) {
+            classEntity = classRepository.findById(reportRequest.getClassId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Class not found with id: " + reportRequest.getClassId()));
         }
 
         // Find the grade record if provided
         GradeRecordsEntity gradeRecord = null;
-        if (reportDTO.getGradeRecordId() != null) {
-            gradeRecord = gradeRecordsRepository.findById(Math.toIntExact(reportDTO.getGradeRecordId()))
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Grade record not found with id: " + reportDTO.getGradeRecordId()));
+        if (reportRequest.getGradeRecordId() != null) {
+            gradeRecord = gradeRecordsRepository.findById(Math.toIntExact(reportRequest.getGradeRecordId()))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Grade record not found with id: " + reportRequest.getGradeRecordId()));
         }
 
         // Create new report entity
@@ -78,9 +78,9 @@ public class ReportService {
         report.setStudent(student);
         report.setRelatedClass(classEntity);
         report.setGradeRecord(gradeRecord);
-        report.setNotificationType(reportDTO.getNotificationType());
-        report.setSubject(reportDTO.getSubject());
-        report.setMessage(reportDTO.getMessage());
+        report.setNotificationType(reportRequest.getNotificationType());
+        report.setSubject(reportRequest.getSubject());
+        report.setMessage(reportRequest.getMessage());
 
         // Set report date to current timestamp
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -96,7 +96,7 @@ public class ReportService {
     /**
      * Get all reports for a specific student
      */
-    public List<ReportResponseDTO> getReportsByStudentId(int studentId) {
+    public List<ReportResponse> getReportsByStudentId(int studentId) {
         // Verify student exists
         studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found with id: " + studentId));
@@ -110,7 +110,7 @@ public class ReportService {
     /**
      * Get all reports created by a specific teacher
      */
-    public List<ReportResponseDTO> getReportsByTeacherId(int teacherId) {
+    public List<ReportResponse> getReportsByTeacherId(int teacherId) {
         // Verify teacher exists
         teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found with id: " + teacherId));
@@ -124,7 +124,7 @@ public class ReportService {
     /**
      * Get all reports for a specific class
      */
-    public List<ReportResponseDTO> getReportsByClassId(int classId) {
+    public List<ReportResponse> getReportsByClassId(int classId) {
         // Verify class exists
         classRepository.findById(classId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Class not found with id: " + classId));
@@ -138,7 +138,7 @@ public class ReportService {
     /**
      * Get a specific report by ID
      */
-    public ReportResponseDTO getReportById(int reportId) {
+    public ReportResponse getReportById(int reportId) {
         ReportEntity report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with id: " + reportId));
 
@@ -160,34 +160,34 @@ public class ReportService {
      * Update an existing report
      */
     @Transactional
-    public ReportResponseDTO updateReport(int reportId, ReportDTO reportDTO) {
+    public ReportResponse updateReport(int reportId, ReportRequest reportRequest) {
         ReportEntity report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found with id: " + reportId));
 
         // Update only non-null fields
-        if (reportDTO.getNotificationType() != null) {
-            report.setNotificationType(reportDTO.getNotificationType());
+        if (reportRequest.getNotificationType() != null) {
+            report.setNotificationType(reportRequest.getNotificationType());
         }
 
-        if (reportDTO.getSubject() != null) {
-            report.setSubject(reportDTO.getSubject());
+        if (reportRequest.getSubject() != null) {
+            report.setSubject(reportRequest.getSubject());
         }
 
-        if (reportDTO.getMessage() != null) {
-            report.setMessage(reportDTO.getMessage());
+        if (reportRequest.getMessage() != null) {
+            report.setMessage(reportRequest.getMessage());
         }
 
         // Update class reference if provided
-        if (reportDTO.getClassId() != null) {
-            ClassEntity classEntity = classRepository.findById(reportDTO.getClassId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Class not found with id: " + reportDTO.getClassId()));
+        if (reportRequest.getClassId() != null) {
+            ClassEntity classEntity = classRepository.findById(reportRequest.getClassId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Class not found with id: " + reportRequest.getClassId()));
             report.setRelatedClass(classEntity);
         }
 
         // Update grade record reference if provided
-        if (reportDTO.getGradeRecordId() != null) {
-            GradeRecordsEntity gradeRecord = gradeRecordsRepository.findById(Math.toIntExact(reportDTO.getGradeRecordId()))
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Grade record not found with id: " + reportDTO.getGradeRecordId()));
+        if (reportRequest.getGradeRecordId() != null) {
+            GradeRecordsEntity gradeRecord = gradeRecordsRepository.findById(Math.toIntExact(reportRequest.getGradeRecordId()))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Grade record not found with id: " + reportRequest.getGradeRecordId()));
             report.setGradeRecord(gradeRecord);
         }
 
@@ -198,8 +198,8 @@ public class ReportService {
     /**
      * Helper method to convert Report entity to DTO
      */
-    private ReportResponseDTO convertToResponseDTO(ReportEntity report) {
-        ReportResponseDTO dto = new ReportResponseDTO();
+    private ReportResponse convertToResponseDTO(ReportEntity report) {
+        ReportResponse dto = new ReportResponse();
         dto.setReportId(report.getReportId());
         dto.setNotificationType(report.getNotificationType());
         dto.setSubject(report.getSubject());
@@ -229,12 +229,12 @@ public class ReportService {
 
         return dto;
     }
-    public ReportEntity mapToReportEntity(ReportResponseDTO reportResponseDTO) {
+    public ReportEntity mapToReportEntity(ReportResponse reportResponse) {
         ReportEntity report = new ReportEntity();
-        report.setReportId(reportResponseDTO.getReportId());
-        report.setStudent(studentService.findByUserId(reportResponseDTO.getStudentId()));
-        report.setSubject(reportResponseDTO.getSubject());
-        report.setMessage(reportResponseDTO.getMessage());
+        report.setReportId(reportResponse.getReportId());
+        report.setStudent(studentService.findByUserId(reportResponse.getStudentId()));
+        report.setSubject(reportResponse.getSubject());
+        report.setMessage(reportResponse.getMessage());
         report.setNotificationType("REPORT_CREATED");
         return report;
     }

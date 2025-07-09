@@ -4,20 +4,16 @@ import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.records.GradingSchemes;
-import com.capstone.gradify.Entity.user.TeacherEntity;
-import com.capstone.gradify.Repository.user.TeacherRepository;
-import com.capstone.gradify.Service.ClassService;
 import com.capstone.gradify.Service.GradingSchemeService;
 import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.ReportService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.userservice.TeacherService;
-import com.capstone.gradify.dto.report.ReportResponseDTO;
+import com.capstone.gradify.dto.response.ReportResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
 
@@ -82,7 +78,7 @@ public class StudentController {
 
     @GetMapping("/{studentId}/reports")
     public ResponseEntity<?> getReportsByStudentId(@PathVariable int studentId) {
-        List<ReportResponseDTO> reports = reportService.getReportsByStudentId(studentId);
+        List<ReportResponse> reports = reportService.getReportsByStudentId(studentId);
         return ResponseEntity.ok(reports);
     }
 

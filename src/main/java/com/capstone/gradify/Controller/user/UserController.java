@@ -14,95 +14,65 @@ import com.capstone.gradify.Service.notification.EmailService;
 import com.capstone.gradify.Service.userservice.VerificationCodeService;
 import com.capstone.gradify.Service.userservice.StudentService;
 import com.capstone.gradify.Service.userservice.TeacherService;
+import com.capstone.gradify.dto.response.LoginResponse;
+import com.capstone.gradify.dto.response.UserResponse;
+import com.capstone.gradify.mapper.UserMapper;
 import com.capstone.gradify.util.VerificationCodeGenerator;
 import jakarta.persistence.EntityManager;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.userservice.UserService;
-
+import com.capstone.gradify.dto.request.LoginRequest;
 
 @RestController
 @RequestMapping("api/user")
 @CrossOrigin(origins = "http://localhost:5173")
+@RequiredArgsConstructor
 public class UserController {
 
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
-    @Autowired
-    private UserService userv;
-
-    @Autowired
-    private VerificationCodeService codeService;
-
-    @Autowired
-    private EmailService emailService;
-
-    @Autowired
-    private StudentService studentService;
-
-    @Autowired
-    private TeacherService teacherService;
-
+    private final UserService userv;
+    private final VerificationCodeService codeService;
+    private final EmailService emailService;
+    private final StudentService studentService;
+    private final TeacherService teacherService;
+    private final BCryptPasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
+    private final StudentRepository studentRepository;
+    private final TeacherRepository teacherRepository;
+    private final EntityManager entityManager;
+    private final UserMapper userMapper;
     @Value("${jwt.secret}")
     private String jwtSecret;
-
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
-
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
-
     @Value("${GOOGLE_CLIENT_ID}")
     private String googleClientId;
-
     @Value("${GOOGLE_CLIENT_SECRET}")
     private String googleClientSecret;
-
     @Value("${MICROSOFT_CLIENT_ID}")
     private String microsoftClientId;
-
     @Value("${MICROSOFT_CLIENT_SECRET}")
     private String microsoftClientSecret;
-
     @Value("${google.redirect-uri}")
     private String googleRedirectUri;
-
     @Value("${microsoft.redirect-uri}")
     private String microsoftRedirectUri;
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private StudentRepository studentRepository;
-    @Autowired
-    private TeacherRepository teacherRepository;
-
-    @Autowired
-    private EntityManager entityManager;
-
-    @GetMapping("/print")
-    public String print() {
-        return "Hello, User";
-    }
-
-    @GetMapping("/")
-    public ResponseEntity<String> home() {
-        return ResponseEntity.ok("API is running on port 8080.");
-    }
 
     // Helper method to serialize UserEntity to a JSON string
     private String serializeUser(UserEntity user) {
@@ -137,12 +107,11 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
         try {
             logger.info("Login request received: {}", loginRequest);
-
-            String email = loginRequest.get("email");
-            String password = loginRequest.get("password");
+            String email = loginRequest.getEmail();
+            String password = loginRequest.getPassword();
 
             if (email == null || password == null) {
                 logger.warn("Email or password is null: email={}, password={}", email, password);
@@ -171,13 +140,10 @@ public class UserController {
             // Generate JWT token
             String token = generateToken(user);
             logger.info("Successfully generated token for user: {}", email);
+            UserResponse userDTO = userMapper.toResponseDTO(user);
+            LoginResponse loginResponse = new LoginResponse(userDTO, token);
 
-            // Create response
-            Map<String, Object> response = new HashMap<>();
-            response.put("token", token);
-            response.put("user", getUserResponseMap(user));
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(loginResponse);
 
         } catch (Exception e) {
             logger.error("Login error: ", e);
@@ -186,7 +152,7 @@ public class UserController {
         }
     }
 
-    @PostMapping("/postuserrecord")
+    @PostMapping("/")
     public ResponseEntity<?> postUserRecord(@RequestBody Map<String, Object> userMap) {
         try {
             String roleStr = (String) userMap.get("role");
@@ -282,12 +248,12 @@ public class UserController {
         }
     }
 
-    @GetMapping("/getallusers")
+    @GetMapping("/")
     public List<UserEntity> getAllUsers() {
         return userv.getAllUsers();
     }
 
-    @DeleteMapping("/deleteuserdetails/{userId}")
+    @DeleteMapping("/{userId}")
     public String deleteUser(@PathVariable int userId) {
         return userv.deleteUser(userId);
     }
@@ -449,7 +415,7 @@ public class UserController {
         }
     }
 
-    @GetMapping("/getuserdetails/{userId}")
+    @GetMapping("/{userId}")
     public ResponseEntity<?> getUserDetails(@PathVariable int userId) {
         try {
             UserEntity user = userv.findById(userId);
@@ -467,21 +433,7 @@ public class UserController {
             return ResponseEntity.status(500).body(Map.of("error", "Error fetching user details: " + e.getMessage()));
         }
     }
-    // Helper method to copy user properties
 
-    private void copyUserProperties(UserEntity source, UserEntity target) {
-        target.setUserId(source.getUserId());
-        target.setEmail(source.getEmail());
-        target.setFirstName(source.getFirstName());
-        target.setLastName(source.getLastName());
-        target.setPassword(source.getPassword());
-        target.setIsActive(source.isActive());
-        target.setCreatedAt(source.getCreatedAt());
-        target.setLastLogin(source.getLastLogin());
-        target.setProvider(source.getProvider());
-        target.setFailedLoginAttempts(source.getFailedLoginAttempts());
-        target.setRole(source.getRole());
-    }
     private Map<String, Object> getUserResponseMap(UserEntity user) {
         Map<String, Object> userMap = new HashMap<>();
         userMap.put("userId", user.getUserId());

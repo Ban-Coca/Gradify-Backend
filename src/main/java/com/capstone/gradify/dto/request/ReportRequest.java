@@ -1,4 +1,4 @@
-package com.capstone.gradify.dto.report;
+package com.capstone.gradify.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -8,13 +8,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * DTO for creating or updating a report
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReportDTO {
+public class ReportRequest {
 
     @NotNull(message = "Teacher ID is required")
     private Integer teacherId;
