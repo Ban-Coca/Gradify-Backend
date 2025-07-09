@@ -1,4 +1,4 @@
-package com.capstone.gradify.dto.report;
+package com.capstone.gradify.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReportResponseDTO {
+public class ReportResponse {
 
     private int reportId;
     private String notificationType;

@@ -347,7 +347,7 @@ public class ClassSpreadsheetService {
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
             }
-
+    
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,

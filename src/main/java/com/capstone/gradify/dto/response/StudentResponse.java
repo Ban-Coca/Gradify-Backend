@@ -1,9 +1,9 @@
-package com.capstone.gradify.dto.student;
+package com.capstone.gradify.dto.response;
 
 import lombok.Data;
 
 @Data
-public class StudentDTO {
+public class StudentResponse {
     private Integer userId;
     private String firstName;
     private String lastName;

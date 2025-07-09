@@ -2,7 +2,7 @@ package com.capstone.gradify.Controller.notification;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.userservice.UserService;
-import com.capstone.gradify.dto.DeviceRegistrationRequest;
+import com.capstone.gradify.dto.request.DeviceRegistrationRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

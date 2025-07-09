@@ -10,7 +10,7 @@ import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.RecordsService;
-import com.capstone.gradify.dto.student.StudentDTO;
+import com.capstone.gradify.dto.response.StudentResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -165,16 +165,16 @@ public class ClassController {
     }
 
     @GetMapping("/{classId}/students")
-    public ResponseEntity<List<StudentDTO>> getStudentsByClassId(@PathVariable int classId) {
+    public ResponseEntity<List<StudentResponse>> getStudentsByClassId(@PathVariable int classId) {
         Set<StudentEntity> students = classService.getStudentsByClassId(classId);
-        List<StudentDTO> studentDTOs = students.stream()
+        List<StudentResponse> studentDTOs = students.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(studentDTOs);
     }
 
-    private StudentDTO convertToDTO(StudentEntity student) {
-        StudentDTO dto = new StudentDTO();
+    private StudentResponse convertToDTO(StudentEntity student) {
+        StudentResponse dto = new StudentResponse();
         dto.setUserId(student.getUserId());
         dto.setFirstName(student.getFirstName());
         dto.setLastName(student.getLastName());
