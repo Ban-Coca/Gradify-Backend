@@ -1,5 +1,6 @@
 package com.capstone.gradify.dto.request;
 
+import com.capstone.gradify.Entity.user.Role;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,13 +12,12 @@ import org.checkerframework.checker.units.qual.N;
 @NoArgsConstructor
 public class UserUpdateRequest {
 
-    @NotBlank(message = "User ID is required")
-    private Integer userId;
-
     private String firstName;
     private String lastName;
     private String email;
     private String password; // Optional, can be null if not updating password
+    private Role role;
+    private boolean isActive;
 
     /* Teacher-specific fields */
     private String institution;

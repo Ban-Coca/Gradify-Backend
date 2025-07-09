@@ -14,6 +14,7 @@ import com.capstone.gradify.Service.notification.EmailService;
 import com.capstone.gradify.Service.userservice.VerificationCodeService;
 import com.capstone.gradify.Service.userservice.StudentService;
 import com.capstone.gradify.Service.userservice.TeacherService;
+import com.capstone.gradify.dto.request.UserUpdateRequest;
 import com.capstone.gradify.dto.response.LoginResponse;
 import com.capstone.gradify.dto.response.UserResponse;
 import com.capstone.gradify.mapper.UserMapper;
@@ -221,7 +222,7 @@ public class UserController {
     }
     
     @PutMapping("/update-profile")
-    public ResponseEntity<?> updateProfile(@RequestBody UserEntity updatedUserDetails, @RequestParam("userId") int userId) {
+    public ResponseEntity<?> updateProfile(@RequestBody UserUpdateRequest userUpdateRequest, @RequestParam("userId") int userId) {
         try {
             logger.info("Received profile update request for user: {}", userId);
 
@@ -232,15 +233,16 @@ public class UserController {
             }
 
             // Update user details
-            user.setFirstName(updatedUserDetails.getFirstName());
-            user.setLastName(updatedUserDetails.getLastName());
-            user.setRole(updatedUserDetails.getRole());
-            user.setIsActive(updatedUserDetails.isActive());
+            user.setFirstName(userUpdateRequest.getFirstName());
+            user.setLastName(userUpdateRequest.getLastName());
+            user.setRole(userUpdateRequest.getRole());
+            user.setIsActive(userUpdateRequest.isActive());
 
             // Save updated user
             UserEntity updatedUser = userv.postUserRecord(user);
+            UserResponse userDTO = userMapper.toResponseDTO(updatedUser);
 
-            return ResponseEntity.ok(getUserResponseMap(updatedUser));
+            return ResponseEntity.ok(userDTO);
 
         } catch (Exception e) {
             logger.error("Error updating profile: ", e);
@@ -406,8 +408,9 @@ public class UserController {
             // Update user role
             user.setRole(Role.valueOf(role));
             userv.changeUserRole(userId, user.getRole());
+            UserResponse userResponse = userMapper.toResponseDTO(user);
 
-            return ResponseEntity.ok(getUserResponseMap(user));
+            return ResponseEntity.ok(userResponse);
 
         } catch (Exception e) {
             logger.error("Error updating role: ", e);
@@ -422,30 +425,12 @@ public class UserController {
             if (user == null) {
                 return ResponseEntity.status(404).body(Map.of("error", "User not found"));
             }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("user", getUserResponseMap(user));
-
+            UserResponse response = userMapper.toResponseDTO(user);
             return ResponseEntity.ok(response);
-
         } catch (Exception e) {
             logger.error("Error fetching user details: ", e);
             return ResponseEntity.status(500).body(Map.of("error", "Error fetching user details: " + e.getMessage()));
         }
-    }
-
-    private Map<String, Object> getUserResponseMap(UserEntity user) {
-        Map<String, Object> userMap = new HashMap<>();
-        userMap.put("userId", user.getUserId());
-        userMap.put("email", user.getEmail());
-        userMap.put("firstName", user.getFirstName());
-        userMap.put("lastName", user.getLastName());
-        userMap.put("role", user.getRole().name());
-        userMap.put("isActive", user.isActive());
-        userMap.put("createdAt", user.getCreatedAt());
-        userMap.put("lastLogin", user.getLastLogin());
-        userMap.put("provider", user.getProvider());
-        return userMap;
     }
 
     private String generateToken(UserEntity user) {
