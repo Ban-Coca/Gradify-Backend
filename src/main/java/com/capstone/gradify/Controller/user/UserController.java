@@ -468,6 +468,7 @@ public class UserController {
         }
     }
     // Helper method to copy user properties
+
     private void copyUserProperties(UserEntity source, UserEntity target) {
         target.setUserId(source.getUserId());
         target.setEmail(source.getEmail());
