@@ -18,5 +18,5 @@ public class ClassResponse {
     private String section;
     private String schedule;
     private String room;
-    private List<StudentGradesResponse> students;
+    private List<StudentResponse> students;
 }

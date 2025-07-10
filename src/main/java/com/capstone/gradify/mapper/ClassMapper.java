@@ -27,6 +27,19 @@ public interface ClassMapper {
     @Mapping(target = "grades", source = "grades")
     GradeRecordResponse toGradeRecordResponse(GradeRecordsEntity gradeRecord);
 
+    @Mapping(target = "classId", source = "classId")
+    @Mapping(target = "className", source = "className")
+    @Mapping(target = "semester", source = "semester")
+    @Mapping(target = "schoolYear", source = "schoolYear")
+    @Mapping(target = "classCode", source = "classCode")
+    @Mapping(target = "section", source = "section")
+    @Mapping(target = "schedule", source = "schedule")
+    @Mapping(target = "room", source = "room")
+    @Mapping(target = "students", source = "students")
+    ClassResponse toClassResponse(ClassEntity classEntity);
+
+    List<ClassResponse> toClassResponseList(List<ClassEntity> classes);
+
     @Mapping(target = "userId", source = "userId")
     @Mapping(target = "firstName", source = "firstName")
     @Mapping(target = "lastName", source = "lastName")
