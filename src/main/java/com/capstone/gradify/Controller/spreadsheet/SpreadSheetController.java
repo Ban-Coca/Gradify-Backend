@@ -9,7 +9,9 @@ import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository; // En
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetManager;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.capstone.gradify.dto.response.ClassDetailResponse;
+import com.capstone.gradify.mapper.ClassMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
@@ -18,26 +20,18 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
-import java.util.stream.Collectors; // Required for stream operations
 
 @RestController
 @RequestMapping("api/spreadsheet")
+@RequiredArgsConstructor
 public class SpreadSheetController {
 
     private final ClassSpreadsheetService classSpreadsheetService;
-    @Autowired
-    private TeacherRepository teacherRepository;
-    @Autowired
-    private ClassRepository classRepository;
-    @Autowired
-    private CloudSpreadsheetManager cloudSpreadsheetManager;
-    @Autowired
-    private ClassSpreadsheetRepository classSpreadsheetRepository; // Added for check-exists
-
-    @Autowired
-    public SpreadSheetController(ClassSpreadsheetService classSpreadsheetService) {
-        this.classSpreadsheetService = classSpreadsheetService;
-    }
+    private final TeacherRepository teacherRepository;
+    private final ClassRepository classRepository;
+    private final CloudSpreadsheetManager cloudSpreadsheetManager;
+    private final ClassSpreadsheetRepository classSpreadsheetRepository; // Added for check-exists
+    private final ClassMapper classMapper;
 
     @PostMapping("/upload")
     public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
@@ -99,10 +93,7 @@ public class SpreadSheetController {
             );
 
             // Create response
-            Map<String, Object> response = new HashMap<>();
-            response.put("spreadsheet", updatedSpreadsheet);
-            response.put("class", updatedSpreadsheet.getClassEntity());
-
+            ClassDetailResponse response = classMapper.toClassDetailResponse(updatedSpreadsheet);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -158,7 +149,7 @@ public class SpreadSheetController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/get/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<?> getSpreadsheetById(@PathVariable("id") Long id) {
         try {
             // Validate the ID
@@ -171,7 +162,8 @@ public class SpreadSheetController {
             if (classSpreadsheetOpt.isPresent()) {
                 // Return the spreadsheet if found
                 ClassSpreadsheet spreadsheet = classSpreadsheetOpt.get();
-                return ResponseEntity.ok(spreadsheet);
+                ClassDetailResponse response = classMapper.toClassDetailResponse(spreadsheet);
+                return ResponseEntity.ok(response);
             } else {
                 // Return 404 if not found
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
