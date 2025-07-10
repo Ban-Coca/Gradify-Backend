@@ -3,15 +3,17 @@ package com.capstone.gradify.Controller.records;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.RecordsService;
+import com.capstone.gradify.dto.response.ClassResponse;
 import com.capstone.gradify.dto.response.StudentResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.capstone.gradify.mapper.ClassMapper;
+import com.capstone.gradify.mapper.StudentMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,17 +30,16 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
-@RequestMapping("/api/class")
+@RequestMapping("/api/classes")
+@RequiredArgsConstructor
 public class ClassController {
-    
-    @Autowired
-    private ClassService classService;
-    @Autowired
-    private RecordsService recordsService;
-     @Autowired
-    private TeacherRepository teacherRepository;
 
-    @PostMapping("/createclass")
+    private final ClassService classService;
+    private final RecordsService recordsService;
+    private final TeacherRepository teacherRepository;
+    private final StudentMapper studentMapper;
+    private final ClassMapper classMapper;
+    @PostMapping("/")
     public ResponseEntity<Object> createClass(
             @RequestParam("className") String className,
             @RequestParam("semester") String semester,
@@ -87,22 +88,25 @@ public class ClassController {
         }
     }
 
-    @GetMapping("/getallclasses")
-    public ResponseEntity<Object> getAllClasses() {
-        return ResponseEntity.status(200).body(classService.getAllClasses());
+    @GetMapping("/")
+    public ResponseEntity<List<ClassResponse>> getAllClasses() {
+        List<ClassEntity> classes = classService.getAllClasses();
+        List<ClassResponse> classResponses = classMapper.toClassResponseList(classes);
+        return ResponseEntity.status(200).body(classResponses);
     }
 
-    @GetMapping("/getclassbyid/{classId}")
+    @GetMapping("/{classId}")
     public ResponseEntity<Object> getClassById(@PathVariable int classId) {
         ClassEntity classEntity = classService.getClassById(classId);
         if (classEntity != null) {
-            return ResponseEntity.status(200).body(classEntity);
+            ClassResponse classResponse = classMapper.toClassResponse(classEntity);
+            return ResponseEntity.status(200).body(classResponse);
         } else {
             return ResponseEntity.status(404).body("Class not found");
         }
     }
     
-    @PutMapping("putclasses/{classId}")
+    @PutMapping("/{classId}")
     public ResponseEntity<Object> updateClasses(@PathVariable int classId, @RequestBody ClassEntity classEntity) {
         try{
             ClassEntity updatedClass = classService.updateClass(classId, classEntity);
@@ -112,13 +116,13 @@ public class ClassController {
         }
     }
 
-    @DeleteMapping("/deleteclass/{classId}")
+    @DeleteMapping("/{classId}")
     public ResponseEntity<Object> deleteClass(@PathVariable int classId) {
         String msg = classService.deleteClass(classId);
         return ResponseEntity.status(200).body(msg);
     }
 
-    @GetMapping("/getspreadsheetbyclassid/{classId}")
+    @GetMapping("/{classId}/spreadsheets")
     public ResponseEntity<Object> getSpreadsheetByClassId(@PathVariable int classId) {
         ClassEntity classEntity = classService.getClassById(classId);
         if (classEntity == null) {
@@ -135,10 +139,11 @@ public class ClassController {
             return ResponseEntity.status(404).body("Teacher not found");
         }
         List<ClassEntity> classes = classService.getClassesByTeacherId(teacherId);
-        return ResponseEntity.ok(classes);
+        List<ClassResponse> classResponses = classMapper.toClassResponseList(classes);
+        return ResponseEntity.ok(classResponses);
     }
 
-    @GetMapping("/{classId}/roster")
+    @GetMapping("/{classId}/students")
     public ResponseEntity<List<RecordsService.StudentTableData>> getClassRoster(@PathVariable int classId) {
         List<RecordsService.StudentTableData> rosterData = recordsService.getClassRosterTableData(classId);
         return ResponseEntity.ok(rosterData);
@@ -152,36 +157,22 @@ public class ClassController {
         return ResponseEntity.ok(grade);
     }
 
-    @GetMapping("/{classId}/avgclassgrade")
+    @GetMapping("/{classId}/grade/average")
     public ResponseEntity<Double> getAvgClassGrade(@PathVariable int classId){
         double avgClassGrade = recordsService.calculateClassAverageGrade(classId);
         return ResponseEntity.ok(avgClassGrade);
     }
 
-    @GetMapping("/{classId}/studentcount")
+    @GetMapping("/{classId}/students/count")
     public ResponseEntity<Integer> getClassCount(@PathVariable int classId) {
         int classCount = recordsService.getStudentCount(classId);
         return ResponseEntity.ok(classCount);
     }
 
-    @GetMapping("/{classId}/students")
+    @GetMapping("/{classId}/students/details")
     public ResponseEntity<List<StudentResponse>> getStudentsByClassId(@PathVariable int classId) {
         Set<StudentEntity> students = classService.getStudentsByClassId(classId);
-        List<StudentResponse> studentDTOs = students.stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        List<StudentResponse> studentDTOs = studentMapper.toDtoList(students);
         return ResponseEntity.ok(studentDTOs);
-    }
-
-    private StudentResponse convertToDTO(StudentEntity student) {
-        StudentResponse dto = new StudentResponse();
-        dto.setUserId(student.getUserId());
-        dto.setFirstName(student.getFirstName());
-        dto.setLastName(student.getLastName());
-        dto.setEmail(student.getEmail());
-        dto.setStudentNumber(student.getStudentNumber());
-        dto.setMajor(student.getMajor());
-        dto.setYearLevel(student.getYearLevel());
-        return dto;
     }
 }
