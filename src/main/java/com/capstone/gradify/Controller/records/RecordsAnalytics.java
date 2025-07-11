@@ -1,6 +1,7 @@
 package com.capstone.gradify.Controller.records;
 
 import com.capstone.gradify.Service.RecordsService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,10 +10,10 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/records")
+@RequiredArgsConstructor
 public class RecordsAnalytics {
 
-    @Autowired
-    private RecordsService recordsService;
+    private final RecordsService recordsService;
 
     @GetMapping("/calculate/student")
     public ResponseEntity<?> calculateStudentGrade(

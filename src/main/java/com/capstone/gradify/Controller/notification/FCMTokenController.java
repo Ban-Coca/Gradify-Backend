@@ -3,9 +3,9 @@ package com.capstone.gradify.Controller.notification;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.dto.request.DeviceRegistrationRequest;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,11 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/fcm")
+@RequiredArgsConstructor
 public class FCMTokenController {
 
     private static final Logger log = LoggerFactory.getLogger(FCMTokenController.class);
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
     @PostMapping("/register-device")
     public ResponseEntity<String> registerDevice(@RequestBody DeviceRegistrationRequest request) {

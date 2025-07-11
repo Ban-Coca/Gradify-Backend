@@ -11,6 +11,7 @@ import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.userservice.TeacherService;
 import com.capstone.gradify.dto.response.ReportResponse;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,18 +21,14 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/student")
+@RequiredArgsConstructor
 public class StudentController {
-    
-    @Autowired
-    private RecordsService recordsService;
-    @Autowired
-    private GradingSchemeService gradingSchemeService;
-    @Autowired
-    private TeacherService teacherService;
-    @Autowired
-    private ReportService reportService;
-    @Autowired
-    private ClassSpreadsheetService classSpreadsheetService;
+
+    private final RecordsService recordsService;
+    private final GradingSchemeService gradingSchemeService;
+    private final TeacherService teacherService;
+    private final ReportService reportService;
+    private final ClassSpreadsheetService classSpreadsheetService;
 
     @GetMapping("/{studentId}/classes")
     public ResponseEntity<?> getStudentClasses(@PathVariable int studentId) {
@@ -56,7 +53,7 @@ public class StudentController {
         return ResponseEntity.ok(grades);
     }
 
-    @GetMapping("/classes/{classId}/gradingscheme")
+    @GetMapping("/classes/{classId}/grading-scheme")
     public ResponseEntity<?> getGradingSchemeByClassEntityId(@PathVariable int classId) {
         try {
             String gradingScheme = gradingSchemeService.getGradeSchemeByClassEntityId(classId);

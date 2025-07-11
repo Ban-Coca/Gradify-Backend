@@ -55,18 +55,18 @@ public class TeacherController {
 //        }
 //    }
 
-    @GetMapping("/get")
-    public ResponseEntity<?> getSpreadsheetById(@RequestParam("id") Long id) {
-        // Logic to handle spreadsheet upload
-        try{
-            Optional<ClassSpreadsheet> classSpreadsheet = classSpreadsheetService.getClassSpreadsheetById(id);
-            return ResponseEntity.ok(classSpreadsheet);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
-        }
-    }
+//    @GetMapping("/get")
+//    public ResponseEntity<?> getSpreadsheetById(@RequestParam("id") Long id) {
+//        // Logic to handle spreadsheet upload
+//        try{
+//            Optional<ClassSpreadsheet> classSpreadsheet = classSpreadsheetService.getClassSpreadsheetById(id);
+//            return ResponseEntity.ok(classSpreadsheet);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
+//        }
+//    }
 
-    @PostMapping("/createclass")
+    @PostMapping
     public ResponseEntity<Object> createClass(@RequestBody ClassEntity classEntity) {
         // Set createdAt and updatedAt to the current date
         Date now = new Date();
@@ -78,12 +78,12 @@ public class TeacherController {
         return ResponseEntity.status(201).body(createdClass);
     }
 
-    @GetMapping("/getallclasses")
+    @GetMapping
     public ResponseEntity<Object> getAllClasses() {
         return ResponseEntity.status(200).body(classService.getAllClasses());
     }
 
-    @GetMapping("/getclassbyid/{classId}")
+    @GetMapping("/{classId}")
     public ResponseEntity<Object> getClassById(@PathVariable int classId) {
         ClassEntity classEntity = classService.getClassById(classId);
         if (classEntity != null) {
@@ -93,7 +93,7 @@ public class TeacherController {
         }
     }
     
-    @PutMapping("putclasses/{classId}")
+    @PutMapping("/{classId}")
     public ResponseEntity<Object> updateClasses(@PathVariable int classId, @RequestBody ClassEntity classEntity) {
         try{
             ClassEntity updatedClass = classService.updateClass(classId, classEntity);
@@ -103,26 +103,26 @@ public class TeacherController {
         }
     }
 
-    @DeleteMapping("/deleteclass/{classId}")
+    @DeleteMapping("/{classId}")
     public ResponseEntity<Object> deleteClass(@PathVariable int classId) {
         String msg = classService.deleteClass(classId);
         return ResponseEntity.status(200).body(msg);
     }
 
-    @GetMapping("/getstudentcount/{teacherId}")
+    @GetMapping("/{teacherId}/students/count")
     public int getStudentCountByTeacherId(@PathVariable int teacherId) {
         return recordsService.getStudentCountByTeacher(teacherId);
     }
-    @GetMapping("/getatriskstudents/{teacherId}")
+    @GetMapping("/{teacherId}/risk/students/count")
     public int getAtRiskStudentsByTeacherId(@PathVariable int teacherId) {
         return recordsService.countAtRiskStudents(teacherId);
     }
-    @GetMapping("/gettopstudents/{teacherId}")
+    @GetMapping("/{teacherId}/top/students/count")
     public int getTopStudentsByTeacherId(@PathVariable int teacherId) {
         return recordsService.countTopPerformingStudents(teacherId);
     }
 
-    @GetMapping("/teacher-grade-distribution/{teacherId}")
+    @GetMapping("/{teacherId}/grade/distribution")
     public ResponseEntity<Map<String, Integer>> getTeacherGradeDistribution(@PathVariable int teacherId) {
         try {
             Map<String, Integer> distribution = recordsService.getTeacherGradeDistribution(teacherId);
@@ -131,7 +131,7 @@ public class TeacherController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-    @GetMapping("/class-performance/{teacherId}")
+    @GetMapping("/{teacherId}/class/performance")
     public ResponseEntity<List<RecordsService.TeacherAssessmentPerformance>> getClassPerformance(@PathVariable int teacherId) {
         try {
             List<RecordsService.TeacherAssessmentPerformance> performanceData = recordsService.getClassPerformanceData(teacherId);
@@ -140,7 +140,7 @@ public class TeacherController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-    @GetMapping("/class-ai-analytics/{classId}")
+    @GetMapping("/{classId}/ai/analytics")
     public ResponseEntity<?> getClassAIAnalytics(@PathVariable int classId) {
         try {
             ClassEntity classEntity = classService.getClassById(classId);

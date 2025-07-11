@@ -3,6 +3,7 @@ package com.capstone.gradify.Controller.records;
 import com.capstone.gradify.Entity.records.GradingSchemes;
 import com.capstone.gradify.Service.GradingSchemeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus; // Import HttpStatus
 import org.springframework.http.ResponseEntity;
@@ -14,13 +15,12 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/grading")
+@RequiredArgsConstructor
 public class GradingSchemeController {
 
-    @Autowired
-    private GradingSchemeService gradingSchemeService;
+    private final GradingSchemeService gradingSchemeService;
 
-
-    @PostMapping("/savescheme")
+    @PostMapping
     public ResponseEntity<?> saveGradingScheme(@RequestBody Map<String, Object> requestBody,
                                                @RequestParam int classId,
                                                @RequestParam int teacherId) {
@@ -43,7 +43,7 @@ public class GradingSchemeController {
         }
     }
 
-    @GetMapping("/getscheme")
+    @GetMapping
     public ResponseEntity<?> getGradingScheme(@RequestParam int classId) {
         try {
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
@@ -71,7 +71,7 @@ public class GradingSchemeController {
         }
     }
 
-    @PutMapping("/updatescheme/{classId}/teacher/{teacherId}")
+    @PutMapping("/{classId}/teacher/{teacherId}")
     public ResponseEntity<?> updateGradingScheme(@PathVariable Integer classId,
                                                  @PathVariable Integer teacherId,
                                                  @RequestBody Map<String, Object> requestBody) {
