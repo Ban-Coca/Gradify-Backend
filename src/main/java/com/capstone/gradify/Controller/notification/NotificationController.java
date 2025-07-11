@@ -5,9 +5,9 @@ import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.notification.NotificationService;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.dto.response.NotificationResponse;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -18,12 +18,11 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/notification")
+@RequiredArgsConstructor
 public class NotificationController {
     private static final Logger log = LoggerFactory.getLogger(NotificationController.class);
-    @Autowired
-    private NotificationService notificationService;
-    @Autowired
-    private UserService userService;
+    private final NotificationService notificationService;
+    private final UserService userService;
 
     @GetMapping("/get-notifications/{userId}")
     public ResponseEntity<NotificationResponse> getUserNotifications(

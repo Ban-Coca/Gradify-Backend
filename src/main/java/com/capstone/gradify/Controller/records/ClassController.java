@@ -39,7 +39,7 @@ public class ClassController {
     private final TeacherRepository teacherRepository;
     private final StudentMapper studentMapper;
     private final ClassMapper classMapper;
-    @PostMapping("/")
+    @PostMapping()
     public ResponseEntity<Object> createClass(
             @RequestParam("className") String className,
             @RequestParam("semester") String semester,
@@ -88,7 +88,7 @@ public class ClassController {
         }
     }
 
-    @GetMapping("/")
+    @GetMapping()
     public ResponseEntity<List<ClassResponse>> getAllClasses() {
         List<ClassEntity> classes = classService.getAllClasses();
         List<ClassResponse> classResponses = classMapper.toClassResponseList(classes);

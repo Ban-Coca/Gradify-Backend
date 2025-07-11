@@ -153,7 +153,7 @@ public class UserController {
         }
     }
 
-    @PostMapping("/")
+    @PostMapping
     public ResponseEntity<?> postUserRecord(@RequestBody Map<String, Object> userMap) {
         try {
             String roleStr = (String) userMap.get("role");
@@ -250,7 +250,7 @@ public class UserController {
         }
     }
 
-    @GetMapping("/")
+    @GetMapping
     public List<UserEntity> getAllUsers() {
         return userv.getAllUsers();
     }

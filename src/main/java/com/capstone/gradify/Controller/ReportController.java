@@ -8,6 +8,7 @@ import com.capstone.gradify.dto.request.ReportRequest;
 import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,18 +21,14 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/reports")
+@RequiredArgsConstructor
 public class ReportController {
 
-    @Autowired
-    private ReportService reportService;
-    @Autowired
-    private GenerateFeedbackAIService generateFeedbackAIService;
-    @Autowired
-    private StudentService studentService;
-    @Autowired
-    private EmailService emailService;
-    @Autowired
-    private NotificationService notificationService;
+    private final ReportService reportService;
+    private final GenerateFeedbackAIService generateFeedbackAIService;
+    private final StudentService studentService;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
     /**
      * Create a new report
      * Only teachers should be able to create reports
