@@ -3,6 +3,7 @@ package com.capstone.gradify.Service.spreadsheet;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetInterface;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,14 +17,10 @@ import java.util.Map;
  * This service handles accessing and processing spreadsheet data from cloud providers.
  */
 @Service
+@RequiredArgsConstructor
 public class CloudSpreadsheetManager {
 
     private final List<CloudSpreadsheetInterface> cloudSpreadsheetServices;
-
-    @Autowired
-    public CloudSpreadsheetManager(List<CloudSpreadsheetInterface> cloudSpreadsheetServices) {
-        this.cloudSpreadsheetServices = cloudSpreadsheetServices;
-    }
 
     /**
      * Process a spreadsheet from a shared cloud link

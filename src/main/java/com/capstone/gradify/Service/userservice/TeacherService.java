@@ -5,21 +5,16 @@ import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class TeacherService {
 
-    @Autowired
-    private TeacherRepository teacherRepository;
-
-    @Autowired
-    private ClassRepository classRepository;
-
-    public TeacherService() {
-        super();
-    }
+    private final TeacherRepository teacherRepository;
+    private final ClassRepository classRepository;
 
     public TeacherEntity save(TeacherEntity teacher) {
         return teacherRepository.save(teacher);

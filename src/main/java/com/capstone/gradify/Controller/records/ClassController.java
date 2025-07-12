@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Service.ClassService;
-
+import com.capstone.gradify.dto.response.StudentTableData;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -144,8 +144,8 @@ public class ClassController {
     }
 
     @GetMapping("/{classId}/students")
-    public ResponseEntity<List<RecordsService.StudentTableData>> getClassRoster(@PathVariable int classId) {
-        List<RecordsService.StudentTableData> rosterData = recordsService.getClassRosterTableData(classId);
+    public ResponseEntity<List<StudentTableData>> getClassRoster(@PathVariable int classId) {
+        List<StudentTableData> rosterData = recordsService.getClassRosterTableData(classId);
         return ResponseEntity.ok(rosterData);
     }
 

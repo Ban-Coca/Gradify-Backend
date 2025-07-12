@@ -2,64 +2,29 @@ package com.capstone.gradify.Service;
 
 import com.capstone.gradify.Entity.records.*;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
-import com.capstone.gradify.Repository.records.GradingSchemeRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.capstone.gradify.Entity.user.StudentEntity;
-
+import com.capstone.gradify.dto.response.StudentTableData;
+import com.capstone.gradify.dto.response.TeacherAssessmentPerformance;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class RecordsService {
     private static final Logger logger = LoggerFactory.getLogger(RecordsService.class); // Ensure logger is initialized
-    @Autowired
-    private GradeRecordRepository gradeRecordsRepository;
-    @Autowired
-    private StudentRepository studentRepository;
-    @Autowired
-    private GradingSchemeService gradingSchemeService;
-    @Autowired
-    private ClassService classService;
+    private final GradeRecordRepository gradeRecordsRepository;
+    private final StudentRepository studentRepository;
+    private final GradingSchemeService gradingSchemeService;
+    private final ClassService classService;
 
     private final ObjectMapper mapper = new ObjectMapper();
-    /**
-     * DTO for student table data
-     */
-    public static class StudentTableData {
-        private String studentName;
-        private String studentNumber;
-        private String grade;
-        private double percentage;
-        private String status;
-        private int userId;
-        public StudentTableData(String studentName, String studentNumber, String grade, double percentage, String status, int userId) {
-            this.studentName = studentName;
-            this.studentNumber = studentNumber;
-            this.grade = grade;
-            this.percentage = percentage;
-            this.status = status;
-            this.userId = userId;
-        }
-        public String getStudentName() { return studentName; }
-        public void setStudentName(String studentName) { this.studentName = studentName; }
-        public String getStudentNumber() { return studentNumber; }
-        public void setStudentNumber(String studentNumber) { this.studentNumber = studentNumber; }
-        public String getGrade() { return grade; }
-        public void setGrade(String grade) { this.grade = grade; }
-        public double getPercentage() { return percentage; }
-        public void setPercentage(double percentage) { this.percentage = percentage; }
-        public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
-        public int getUserId() { return userId; }
-        public void setUserId(int userId) { this.userId = userId; }
-    }
 
     public List<StudentTableData> getClassRosterTableData(int classId) {
         logger.info("Fetching class roster for class ID: {}", classId);
@@ -118,6 +83,7 @@ public class RecordsService {
         logger.info("Finished processing class roster for class ID: {}. Total students: {}", classId, tableData.size());
         return tableData;
     }
+
     /**
      * Convert numeric percentage to letter grade
      */
@@ -874,36 +840,6 @@ public class RecordsService {
         }
         return distribution;
     }
-
-    public static class TeacherAssessmentPerformance {
-        private String assessmentType;
-        private double overallAverage;
-        private double topQuartileAverage;
-        private double bottomQuartileAverage;
-        private int totalStudents;
-
-        public TeacherAssessmentPerformance(String assessmentType, double overallAverage,
-                                            double topQuartileAverage, double bottomQuartileAverage, int totalStudents) {
-            this.assessmentType = assessmentType;
-            this.overallAverage = overallAverage;
-            this.topQuartileAverage = topQuartileAverage;
-            this.bottomQuartileAverage = bottomQuartileAverage;
-            this.totalStudents = totalStudents;
-        }
-
-        // Getters and setters
-        public String getAssessmentType() { return assessmentType; }
-        public void setAssessmentType(String assessmentType) { this.assessmentType = assessmentType; }
-        public double getOverallAverage() { return overallAverage; }
-        public void setOverallAverage(double overallAverage) { this.overallAverage = overallAverage; }
-        public double getTopQuartileAverage() { return topQuartileAverage; }
-        public void setTopQuartileAverage(double topQuartileAverage) { this.topQuartileAverage = topQuartileAverage; }
-        public double getBottomQuartileAverage() { return bottomQuartileAverage; }
-        public void setBottomQuartileAverage(double bottomQuartileAverage) { this.bottomQuartileAverage = bottomQuartileAverage; }
-        public int getTotalStudents() { return totalStudents; }
-        public void setTotalStudents(int totalStudents) { this.totalStudents = totalStudents; }
-    }
-
 
     public List<TeacherAssessmentPerformance> getClassPerformanceData(int teacherId) {
         // Find all classes taught by this teacher

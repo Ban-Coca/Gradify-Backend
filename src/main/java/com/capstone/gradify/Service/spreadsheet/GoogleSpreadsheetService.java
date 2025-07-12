@@ -16,6 +16,7 @@ import com.google.api.services.sheets.v4.model.Spreadsheet;
 import com.google.api.services.sheets.v4.model.ValueRange;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -35,6 +36,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
 
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
@@ -43,11 +45,8 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
     @Value("${GOOGLE_SHEETS_CREDENTIALS}")
     private String googleCredentialsPath;
 
-    @Autowired
-    private ClassSpreadsheetService classSpreadsheetService;
-
-    @Autowired
-    private ClassRepository classRepository;
+    private final ClassSpreadsheetService classSpreadsheetService;
+    private final ClassRepository classRepository;
 
     @Override
     public ClassSpreadsheet processSharedSpreadsheet(String sharedLink, TeacherEntity teacher)

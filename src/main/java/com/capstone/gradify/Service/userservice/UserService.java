@@ -8,20 +8,16 @@ import java.util.Optional;
 
 import javax.naming.NameNotFoundException;
 
-import com.capstone.gradify.Controller.user.UserController;
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.PersistenceContext;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -31,23 +27,17 @@ import com.capstone.gradify.Repository.user.UserRepository;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class UserService {
-	private static final Logger logger = LoggerFactory.getLogger(UserService.class);
-	@Autowired
-	UserRepository urepo;
 
-	@PersistenceContext
-	private EntityManager entityManager;
+	private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
+	private final UserRepository urepo;
+	private final TeacherRepository teacherRepository;
+	private final StudentRepository studentRepository;
+
 	@Value("${app.upload.dir}")
   	private String uploadDir;
-    @Autowired
-    private TeacherRepository teacherRepository;
-	@Autowired
-	private StudentRepository studentRepository;
-
-	public UserService() {
-		super();
-	}
 
 	public UserEntity findByEmail(String email) {
 		return urepo.findByEmail(email);
@@ -139,7 +129,11 @@ public class UserService {
 
 	//find by ID
 	public UserEntity findById(int userId) {
-		return urepo.findById(userId).get();
+		if(urepo.findById(userId).isPresent()) {
+			return urepo.findById(userId).get();
+		} else {
+			throw new NoSuchElementException("User with ID " + userId + " not found");
+		}
 	}
 	
 	//Read of CRUD
@@ -151,7 +145,6 @@ public class UserService {
 	//     return urepo.findByRole(role);
 	// }
 
-	@SuppressWarnings("finally")
 	public UserEntity putUserDetails(int userId, UserEntity newUserDetails) {
 		UserEntity user;
 

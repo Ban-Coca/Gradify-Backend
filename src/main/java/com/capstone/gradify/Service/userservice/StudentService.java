@@ -5,15 +5,16 @@ import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class StudentService {
-    @Autowired
-    private StudentRepository studentRepository;
+    private final StudentRepository studentRepository;
 
 //    @Transactional
 //    public StudentEntity registerStudentAccount(String studentNumber, String major, String yearLevel) {
