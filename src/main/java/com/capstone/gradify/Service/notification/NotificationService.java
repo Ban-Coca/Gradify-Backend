@@ -9,6 +9,7 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,16 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private final FirebaseApp firebaseApp;
-    @Autowired
-    private NotificationRepository notificationRepository;
-    @Autowired
-    private UserService userService;
-    public NotificationService(FirebaseApp firebaseApp) {
-        this.firebaseApp = firebaseApp;
-    }
+    private final NotificationRepository notificationRepository;
+    private final UserService userService;
 
     @Transactional
     public void sendNotification(ReportEntity report) {

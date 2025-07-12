@@ -14,6 +14,7 @@ import com.capstone.gradify.Repository.ReportRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradingSchemeRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,18 +26,15 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@RequiredArgsConstructor
 public class ClassService {
-    
-    @Autowired
-    private ClassRepository classRepository;
-    @Autowired
-    private ClassSpreadsheetRepository classSpreadsheetRepository;
-    @Autowired
-    private TeacherRepository teacherRepository;
-    @Autowired
-    private ReportRepository reportRepository;
-    @Autowired
-    private GradingSchemeRepository gradingSchemeRepository;
+
+    private final ClassRepository classRepository;
+    private final ClassSpreadsheetRepository classSpreadsheetRepository;
+    private final TeacherRepository teacherRepository;
+    private final ReportRepository reportRepository;
+    private final GradingSchemeRepository gradingSchemeRepository;
+
     public ClassEntity createClass(ClassEntity classEntity) {
         return classRepository.save(classEntity);
     }

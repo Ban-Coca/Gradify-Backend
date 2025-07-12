@@ -1,43 +1,30 @@
 package com.capstone.gradify.Controller.user;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
-import com.capstone.gradify.Entity.records.ClassSpreadsheet;
-import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.AiServices.AiAnalysisService;
 import com.capstone.gradify.Service.ClassService;
 import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.capstone.gradify.dto.response.TeacherAssessmentPerformance;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/teacher")
+@RequiredArgsConstructor
 public class TeacherController {
     private final ClassSpreadsheetService classSpreadsheetService;
-
-    
-    @Autowired
-    private ClassService classService;
-    @Autowired
-    private TeacherRepository teacherRepository;
-    @Autowired
-    private RecordsService recordsService;
-    @Autowired
-    private AiAnalysisService aiAnalysisService;
-
-    @Autowired
-    public TeacherController(ClassSpreadsheetService classSpreadsheetService) {
-        this.classSpreadsheetService = classSpreadsheetService;
-    }
+    private final  ClassService classService;
+    private final TeacherRepository teacherRepository;
+    private final RecordsService recordsService;
+    private final AiAnalysisService aiAnalysisService;
 
 //    @PostMapping("/upload")
 //    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
@@ -132,9 +119,9 @@ public class TeacherController {
         }
     }
     @GetMapping("/{teacherId}/class/performance")
-    public ResponseEntity<List<RecordsService.TeacherAssessmentPerformance>> getClassPerformance(@PathVariable int teacherId) {
+    public ResponseEntity<List<TeacherAssessmentPerformance>> getClassPerformance(@PathVariable int teacherId) {
         try {
-            List<RecordsService.TeacherAssessmentPerformance> performanceData = recordsService.getClassPerformanceData(teacherId);
+            List<TeacherAssessmentPerformance> performanceData = recordsService.getClassPerformanceData(teacherId);
             return ResponseEntity.ok(performanceData);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);

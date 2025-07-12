@@ -10,6 +10,7 @@ import com.capstone.gradify.Entity.records.GradingSchemes;
 import com.capstone.gradify.Service.GradingSchemeService;
 import com.capstone.gradify.Service.RecordsService;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,11 +21,11 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class GenerateFeedbackAIService {
-    @Autowired
-    private RecordsService recordsService;
-    @Autowired
-    private GradingSchemeService gradingSchemeService;
+
+    private final RecordsService recordsService;
+    private final GradingSchemeService gradingSchemeService;
 
     @Value("${anthropic.api.key}")
     private String anthropicApiKey;

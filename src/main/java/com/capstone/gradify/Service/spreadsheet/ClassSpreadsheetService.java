@@ -9,6 +9,7 @@ import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
+import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,19 +23,13 @@ import java.io.IOException;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class ClassSpreadsheetService {
     Logger logger = LoggerFactory.getLogger(ClassSpreadsheetService.class);
-    @Autowired
-    private ClassSpreadsheetRepository classSpreadsheetRepository;
-    @Autowired
-    private StudentRepository studentRepository;
-    @Autowired
-    private GradeRecordRepository gradeRecordRepository;
-    @Autowired
-    private ClassRepository classRepository;
-    public ClassSpreadsheetService() {
-        super();
-    }
+    private final ClassSpreadsheetRepository classSpreadsheetRepository;
+    private final StudentRepository studentRepository;
+    private final GradeRecordRepository gradeRecordRepository;
+    private final ClassRepository classRepository;
 
     public ClassSpreadsheet saveRecord(String fileName, TeacherEntity teacher, List<Map<String, String>> records, Map<String, Integer> maxAssessmentValues) {
         ClassSpreadsheet classSpreadsheet = new ClassSpreadsheet();

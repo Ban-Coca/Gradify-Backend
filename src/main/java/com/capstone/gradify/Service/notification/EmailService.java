@@ -1,6 +1,7 @@
 package com.capstone.gradify.Service.notification;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -10,11 +11,11 @@ import org.thymeleaf.context.Context;
 
 
 @Service
+@RequiredArgsConstructor
 public class EmailService {
-    @Autowired
-    private JavaMailSender mailSender;
-    @Autowired
-    private TemplateEngine templateEngine;
+
+    private final JavaMailSender mailSender;
+    private final TemplateEngine templateEngine;
 
     public void sendVerificationEmail(String toEmail, String verificationCode) throws MessagingException {
         Context context = new Context();

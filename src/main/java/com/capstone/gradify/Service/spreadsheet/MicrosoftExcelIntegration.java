@@ -1,5 +1,6 @@
 package com.capstone.gradify.Service.spreadsheet;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.nio.file.Files;
 import java.io.IOException;
@@ -40,6 +41,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
+@RequiredArgsConstructor
 public class MicrosoftExcelIntegration implements CloudSpreadsheetInterface {
 
     private final ClassSpreadsheetService classSpreadsheetService;
@@ -53,13 +55,6 @@ public class MicrosoftExcelIntegration implements CloudSpreadsheetInterface {
     
     @Value("${microsoft.graph.tenant.id:}")
     private String tenantId;
-
-    @Autowired
-    public MicrosoftExcelIntegration(ClassSpreadsheetService classSpreadsheetService, 
-                                   ClassRepository classRepository) {
-        this.classSpreadsheetService = classSpreadsheetService;
-        this.classRepository = classRepository;
-    }
 
     @Override
     public ClassSpreadsheet processSharedSpreadsheet(String sharedLink, TeacherEntity teacher) 

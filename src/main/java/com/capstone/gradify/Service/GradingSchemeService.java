@@ -6,19 +6,16 @@ import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.GradingSchemeRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class GradingSchemeService {
-    @Autowired
-    private GradingSchemeRepository gradingSchemeRepository;
-
-    @Autowired
-    private TeacherRepository teacherRepository;
-
-    @Autowired
-    private ClassRepository classRepository;
+    private final GradingSchemeRepository gradingSchemeRepository;
+    private final TeacherRepository teacherRepository;
+    private final ClassRepository classRepository;
 
     public GradingSchemes saveGradingScheme(GradingSchemes gradingScheme, Integer classId, Integer teacherId) {
         TeacherEntity teacher = teacherRepository.findById(teacherId)

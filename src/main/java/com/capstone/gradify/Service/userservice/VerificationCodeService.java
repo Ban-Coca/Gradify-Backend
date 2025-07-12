@@ -3,6 +3,7 @@ package com.capstone.gradify.Service.userservice;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Entity.user.VerificationCode;
 import com.capstone.gradify.Repository.UserVerificationRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -10,9 +11,9 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class VerificationCodeService {
-    @Autowired
-    private UserVerificationRepository verificationRepo;
+    private final UserVerificationRepository verificationRepo;
     private static final int EXPIRATION_MINUTES = 30;
 
     public VerificationCode createVerificationCode(UserEntity user, String code) {

@@ -10,9 +10,9 @@ import com.capstone.gradify.Service.GradingSchemeService;
 import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.ClassService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
@@ -22,24 +22,18 @@ import com.anthropic.client.AnthropicClient;
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class AiAnalysisService {
 
     @Value("${anthropic.api.key}")
     private String anthropicApiKey;
 
-    @Autowired
-    private ClassService classService;
 
-    @Autowired
-    private ClassSpreadsheetService classSpreadsheetService;
-
-    @Autowired
-    private RecordsService recordsService;
-
-    @Autowired
-    private GradingSchemeService gradingSchemeService;
-    @Autowired
-    private ClassSpreadsheetRepository classSpreadsheetRepository;
+    private final ClassService classService;
+    private final ClassSpreadsheetService classSpreadsheetService;
+    private final RecordsService recordsService;
+    private final GradingSchemeService gradingSchemeService;
+    private final ClassSpreadsheetRepository classSpreadsheetRepository;
     private AnthropicClient client;
 
     @PostConstruct

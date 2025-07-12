@@ -1,6 +1,7 @@
 package com.capstone.gradify.Service;
 
 import com.capstone.gradify.Service.userservice.StudentService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import com.capstone.gradify.Entity.ReportEntity;
@@ -25,25 +26,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class ReportService {
 
-    @Autowired
-    private ReportRepository reportRepository;
-
-    @Autowired
-    private TeacherRepository teacherRepository;
-
-    @Autowired
-    private StudentRepository studentRepository;
-
-    @Autowired
-    private ClassRepository classRepository;
-
-    @Autowired
-    private GradeRecordRepository gradeRecordsRepository;
-
-    @Autowired
-    private StudentService studentService;
+    private final ReportRepository reportRepository;
+    private final TeacherRepository teacherRepository;
+    private final StudentRepository studentRepository;
+    private final ClassRepository classRepository;
+    private final GradeRecordRepository gradeRecordsRepository;
+    private final StudentService studentService;
 
     /**
      * Create a new report from a teacher to a student
