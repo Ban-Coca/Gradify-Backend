@@ -326,6 +326,9 @@ public class ClassSpreadsheetService {
         spreadsheet.setClassEntity(classEntity);
         spreadsheet.setAssessmentMaxValues(maxAssessmentValues);
         // Create grade records
+
+        spreadsheet.setVisibleAssessments(new HashSet<>());
+
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
         for (Map<String, String> record : records) {
             String studentFirstName = record.get("First Name");

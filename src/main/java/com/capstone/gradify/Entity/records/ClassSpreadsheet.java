@@ -12,6 +12,7 @@ import org.hibernate.type.SqlTypes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -35,6 +36,10 @@ public class ClassSpreadsheet {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private Map<String, Integer> assessmentMaxValues;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private Set<String> visibleAssessments;
 
     @OneToMany(mappedBy = "classRecord", cascade = CascadeType.ALL)
     @JsonManagedReference
