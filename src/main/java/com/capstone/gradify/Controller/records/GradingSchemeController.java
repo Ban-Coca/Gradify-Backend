@@ -20,7 +20,7 @@ public class GradingSchemeController {
 
     private final GradingSchemeService gradingSchemeService;
 
-    @PostMapping
+    @PostMapping("/save")
     public ResponseEntity<?> saveGradingScheme(@RequestBody Map<String, Object> requestBody,
                                                @RequestParam int classId,
                                                @RequestParam int teacherId) {
@@ -43,7 +43,7 @@ public class GradingSchemeController {
         }
     }
 
-    @GetMapping
+    @GetMapping("/schemes")
     public ResponseEntity<?> getGradingScheme(@RequestParam int classId) {
         try {
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
@@ -71,7 +71,7 @@ public class GradingSchemeController {
         }
     }
 
-    @PutMapping("/{classId}/teacher/{teacherId}")
+    @PutMapping("/class/{classId}/teacher/{teacherId}")
     public ResponseEntity<?> updateGradingScheme(@PathVariable Integer classId,
                                                  @PathVariable Integer teacherId,
                                                  @RequestBody Map<String, Object> requestBody) {

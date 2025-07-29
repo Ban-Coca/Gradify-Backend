@@ -580,5 +580,11 @@ public class ClassSpreadsheetService {
         return classSpreadsheetRepository.save(spreadsheetToReplace);
     }
 
-
+    public Map<String, Integer> getMaxAssessmentValuesByClassId(Integer classId) {
+        List<ClassSpreadsheet> spreadsheets = classSpreadsheetRepository.findByClassEntity_ClassId(classId);
+        if (spreadsheets.isEmpty()) {
+            throw new RuntimeException("No class spreadsheet found for class ID: " + classId);
+        }
+        return spreadsheets.get(0).getAssessmentMaxValues();
+    }
 }

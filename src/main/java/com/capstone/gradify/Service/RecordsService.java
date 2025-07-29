@@ -607,6 +607,11 @@ public class RecordsService {
         // Get grading scheme for this class
         GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
 
+        if (gradingScheme == null || gradingScheme.getGradingScheme() == null) {
+            // Handle missing scheme (return 0, "N/A", or a message)
+            return 0.0;
+        }
+
         // Calculate grade for each student and sum them
         double totalGrades = 0.0;
         int studentCount = 0;
