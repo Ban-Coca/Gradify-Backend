@@ -129,11 +129,8 @@ public class UserService {
 
 	//find by ID
 	public UserEntity findById(int userId) {
-		if(urepo.findById(userId).isPresent()) {
-			return urepo.findById(userId).get();
-		} else {
-			throw new NoSuchElementException("User with ID " + userId + " not found");
-		}
+		return urepo.findById(userId)
+				.orElseThrow(() -> new NoSuchElementException("User with ID " + userId + " not found"));
 	}
 	
 	//Read of CRUD
@@ -250,34 +247,6 @@ public class UserService {
 	public UserEntity updateUser(UserEntity user) {
 		return urepo.save(user);
 	}
-
-//	@Transactional
-//	public void detachUser(int userId) {
-//		// First find the user
-//		UserEntity user = urepo.findById(userId).orElse(null);
-//		if (user == null) {
-//			return;
-//		}
-//
-//		// Check the type of entity and delete accordingly
-//		if (user instanceof StudentEntity) {
-//			// Use native query to delete only from the student_entity table
-//			// This preserves the base user record
-//			entityManager.createNativeQuery("DELETE FROM student_entity WHERE user_id = ? ")
-//					.setParameter(1, userId)
-//					.executeUpdate();
-//		} else if (user instanceof TeacherEntity) {
-//			// Use native query to delete only from the teacher_entity table
-//			// This preserves the base user record
-//			entityManager.createNativeQuery("DELETE FROM teacher_entity WHERE user_id = ?")
-//					.setParameter(1, userId)
-//					.executeUpdate();
-//		}
-//
-//		// Clear the persistence context to avoid any cached entities
-//		entityManager.flush();
-//		entityManager.clear();
-//	}
 
 	//Delete of CRUD
 	public String deleteUser(int userId) {

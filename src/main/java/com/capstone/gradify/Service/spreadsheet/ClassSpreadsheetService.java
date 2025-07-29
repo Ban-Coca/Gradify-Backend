@@ -326,6 +326,9 @@ public class ClassSpreadsheetService {
         spreadsheet.setClassEntity(classEntity);
         spreadsheet.setAssessmentMaxValues(maxAssessmentValues);
         // Create grade records
+
+        spreadsheet.setVisibleAssessments(new HashSet<>());
+
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
         for (Map<String, String> record : records) {
             String studentFirstName = record.get("First Name");
@@ -577,5 +580,11 @@ public class ClassSpreadsheetService {
         return classSpreadsheetRepository.save(spreadsheetToReplace);
     }
 
-
+    public Map<String, Integer> getMaxAssessmentValuesByClassId(Integer classId) {
+        List<ClassSpreadsheet> spreadsheets = classSpreadsheetRepository.findByClassEntity_ClassId(classId);
+        if (spreadsheets.isEmpty()) {
+            throw new RuntimeException("No class spreadsheet found for class ID: " + classId);
+        }
+        return spreadsheets.get(0).getAssessmentMaxValues();
+    }
 }

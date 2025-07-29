@@ -153,7 +153,7 @@ public class UserController {
         }
     }
 
-    @PostMapping
+    @PostMapping("/register")
     public ResponseEntity<?> postUserRecord(@RequestBody Map<String, Object> userMap) {
         try {
             String roleStr = (String) userMap.get("role");

@@ -14,6 +14,8 @@ import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.dto.response.StudentTableData;
 import com.capstone.gradify.dto.response.TeacherAssessmentPerformance;
 import java.util.*;
+import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +25,6 @@ public class RecordsService {
     private final StudentRepository studentRepository;
     private final GradingSchemeService gradingSchemeService;
     private final ClassService classService;
-
     private final ObjectMapper mapper = new ObjectMapper();
 
     public List<StudentTableData> getClassRosterTableData(int classId) {
@@ -83,7 +84,6 @@ public class RecordsService {
         logger.info("Finished processing class roster for class ID: {}. Total students: {}", classId, tableData.size());
         return tableData;
     }
-
     /**
      * Convert numeric percentage to letter grade
      */
@@ -607,6 +607,11 @@ public class RecordsService {
         // Get grading scheme for this class
         GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
 
+        if (gradingScheme == null || gradingScheme.getGradingScheme() == null) {
+            // Handle missing scheme (return 0, "N/A", or a message)
+            return 0.0;
+        }
+
         // Calculate grade for each student and sum them
         double totalGrades = 0.0;
         int studentCount = 0;
@@ -689,7 +694,6 @@ public class RecordsService {
         }
         return uniqueAtRiskStudents.size();
     }
-
 
     public int countTopPerformingStudents(int teacherId) {
         List<ClassEntity> teacherClasses = classService.getClassesByTeacherId(teacherId);
@@ -932,7 +936,6 @@ public class RecordsService {
             return "Other";
         }
     }
-
     /**
      * Get assessment type order for sorting
      */

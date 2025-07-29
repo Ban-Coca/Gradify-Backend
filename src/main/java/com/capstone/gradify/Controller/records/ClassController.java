@@ -132,7 +132,7 @@ public class ClassController {
         return ResponseEntity.ok(spreadsheets);
     }
 
-    @GetMapping("/getclassbyteacherid/{teacherId}")
+    @GetMapping("/teacher/{teacherId}")
     public ResponseEntity<Object> getClassByTeacherId(@PathVariable int teacherId) {
         boolean teacherExists = teacherRepository.existsById(teacherId);
         if (!teacherExists) {
