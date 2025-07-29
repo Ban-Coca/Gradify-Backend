@@ -1,9 +1,11 @@
 package com.capstone.gradify.Controller.user;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
+import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.AiServices.AiAnalysisService;
 import com.capstone.gradify.Service.ClassService;
+import com.capstone.gradify.Service.GradeService;
 import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.dto.response.TeacherAssessmentPerformance;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/teacher")
@@ -25,6 +29,7 @@ public class TeacherController {
     private final TeacherRepository teacherRepository;
     private final RecordsService recordsService;
     private final AiAnalysisService aiAnalysisService;
+    private final GradeService gradeService;
 
 //    @PostMapping("/upload")
 //    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
@@ -139,5 +144,75 @@ public class TeacherController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error retrieving AI analytics: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/class-spreadsheet/{classId}/assessments/available")
+    public ResponseEntity<Set<String>> getAvailableAssessments(@PathVariable int classId) {
+        try {
+            Set<String> assessments = gradeService.getAvailableAssessments(classId);
+            return ResponseEntity.ok(assessments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @GetMapping("/class-spreadsheet/{classId}/assessments/visible")
+    public ResponseEntity<Set<String>> getVisibleAssessments(@PathVariable int classId) {
+        try {
+            Set<String> assessments = gradeService.getVisibleAssessments(classId);
+            return ResponseEntity.ok(assessments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PutMapping("/class-spreadsheet/{classSpreadsheetId}/assessments/visible")
+    public ResponseEntity<Set<String>> updateAssessmentVisibility(@PathVariable Long classSpreadsheetId, @RequestBody Set<String> assessments) {
+        try {
+            gradeService.updateAssessmentVisibility(classSpreadsheetId, assessments);
+            return ResponseEntity.ok(assessments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PostMapping("/{classSpreadsheetId}/assessments/{assessmentName}/toggle")
+    public ResponseEntity<Void> toggleAssessmentVisibility(
+            @PathVariable Long classSpreadsheetId,
+            @PathVariable String assessmentName) {
+
+        gradeService.toggleAssessmentVisibility(classSpreadsheetId, assessmentName);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Get assessment visibility status (for UI display)
+     */
+    @GetMapping("/{classSpreadsheetId}/assessments/status")
+    public ResponseEntity<Map<String, Boolean>> getAssessmentVisibilityStatus(
+            @PathVariable int classSpreadsheetId) {
+
+        Set<String> available = gradeService.getAvailableAssessments(classSpreadsheetId);
+        Set<String> visible = gradeService.getVisibleAssessments(classSpreadsheetId);
+
+        Map<String, Boolean> status = available.stream()
+                .collect(Collectors.toMap(
+                        assessment -> assessment,
+                        assessment -> visible.contains(assessment)
+                ));
+
+        return ResponseEntity.ok(status);
+    }
+
+    /**
+     * Get teacher view of all grades (unfiltered)
+     */
+    @GetMapping("/{classSpreadsheetId}/grades/teacher-view")
+    public ResponseEntity<List<GradeRecordsEntity>> getTeacherViewGrades(
+            @PathVariable Long classSpreadsheetId) {
+
+        // Implementation to get all grades for teacher view
+        // This would need to be implemented based on your repository methods
+        return ResponseEntity.ok().build();
     }
 }
