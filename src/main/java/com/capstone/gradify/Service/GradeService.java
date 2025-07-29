@@ -20,7 +20,7 @@ public class GradeService {
     private final GradeRecordRepository gradeRecordsRepository;
     private final ClassSpreadsheetRepository classSpreadsheetRepository;
 
-    public GradeRecordsEntity getStudentVisibility(String studentNumber, int classId) {
+    public GradeRecordsEntity getStudentVisibleGrades(String studentNumber, int classId) {
 
         GradeRecordsEntity originalRecord = gradeRecordsRepository.findByStudentNumberAndClassRecord_ClassEntity_ClassId(studentNumber, classId);
 

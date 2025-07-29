@@ -4,6 +4,7 @@ import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.records.GradingSchemes;
+import com.capstone.gradify.Service.GradeService;
 import com.capstone.gradify.Service.GradingSchemeService;
 import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.ReportService;
@@ -13,7 +14,10 @@ import com.capstone.gradify.dto.response.ReportResponse;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -29,6 +33,7 @@ public class StudentController {
     private final TeacherService teacherService;
     private final ReportService reportService;
     private final ClassSpreadsheetService classSpreadsheetService;
+    private final GradeService gradeService;
 
     @GetMapping("/{studentId}/classes")
     public ResponseEntity<?> getStudentClasses(@PathVariable int studentId) {
@@ -153,5 +158,25 @@ public class StudentController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(null);
         }
+    }
+
+    @GetMapping("/{studentNumber}/class/{classId}")
+    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER')")
+    public ResponseEntity<GradeRecordsEntity> getStudentGrades(@PathVariable String studentNumber, @PathVariable int classId) {
+        if( studentNumber == null || studentNumber.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        GradeRecordsEntity grades = gradeService.getStudentVisibleGrades(studentNumber, classId);
+        return grades != null ? ResponseEntity.ok(grades) : ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/{studentNumber}/all")
+    @PreAuthorize("hasAuthority('STUDENT') or hasAuthority('TEACHER')")
+    public ResponseEntity<List<GradeRecordsEntity>> getAllStudentGrades(@PathVariable String studentNumber) {
+        if( studentNumber == null || studentNumber.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        List<GradeRecordsEntity> grades = gradeService.getStudentVisibleGradesAllClasses(studentNumber);
+        return grades != null ? ResponseEntity.ok(grades) : ResponseEntity.notFound().build();
     }
 }

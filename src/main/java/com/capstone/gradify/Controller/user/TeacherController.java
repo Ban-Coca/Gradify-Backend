@@ -200,19 +200,7 @@ public class TeacherController {
                         assessment -> assessment,
                         assessment -> visible.contains(assessment)
                 ));
-
         return ResponseEntity.ok(status);
     }
 
-    /**
-     * Get teacher view of all grades (unfiltered)
-     */
-    @GetMapping("/{classSpreadsheetId}/grades/teacher-view")
-    public ResponseEntity<List<GradeRecordsEntity>> getTeacherViewGrades(
-            @PathVariable Long classSpreadsheetId) {
-
-        // Implementation to get all grades for teacher view
-        // This would need to be implemented based on your repository methods
-        return ResponseEntity.ok().build();
-    }
 }
