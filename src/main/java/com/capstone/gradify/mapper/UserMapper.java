@@ -1,5 +1,7 @@
 package com.capstone.gradify.mapper;
 
+import com.capstone.gradify.Entity.user.StudentEntity;
+import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.dto.response.LoginResponse;
 import com.capstone.gradify.dto.response.UserResponse;
@@ -18,7 +20,17 @@ public interface UserMapper {
         return new LoginResponse(userResponse, token);
     }
 
-    UserResponse toResponseDTO(UserEntity user);
+    default UserResponse toResponseDTO(UserEntity user) {
+        UserResponse response = toUserResponse(user);
+
+        if (user instanceof TeacherEntity teacher) {
+            response.setInstitution(teacher.getInstitution());
+            response.setDepartment(teacher.getDepartment());
+        } else if (user instanceof StudentEntity student) {
+            response.setStudentNumber(student.getStudentNumber());
+        }
+        return response;
+    }
 
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

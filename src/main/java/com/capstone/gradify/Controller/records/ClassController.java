@@ -13,6 +13,8 @@ import com.capstone.gradify.dto.response.ClassResponse;
 import com.capstone.gradify.dto.response.StudentResponse;
 import com.capstone.gradify.mapper.ClassMapper;
 import com.capstone.gradify.mapper.StudentMapper;
+import com.capstone.gradify.dto.response.SpreadsheetResponse;
+import com.capstone.gradify.mapper.SpreadsheetMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +41,8 @@ public class ClassController {
     private final TeacherRepository teacherRepository;
     private final StudentMapper studentMapper;
     private final ClassMapper classMapper;
+    private final SpreadsheetMapper spreadsheetMapper;
+
     @PostMapping()
     public ResponseEntity<Object> createClass(
             @RequestParam("className") String className,
@@ -129,7 +133,8 @@ public class ClassController {
             return ResponseEntity.status(404).body("Class not found");
         }
         List<ClassSpreadsheet> spreadsheets = classService.getSpreadsheetsByClassId(classId);
-        return ResponseEntity.ok(spreadsheets);
+        List<SpreadsheetResponse> response = spreadsheetMapper.toSpreadsheetResponseList(spreadsheets);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/teacher/{teacherId}")
