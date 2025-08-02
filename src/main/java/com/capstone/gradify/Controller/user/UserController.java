@@ -28,7 +28,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
-
+import com.capstone.gradify.util.JwtUtil;
 
 
 import io.jsonwebtoken.Jwts;
@@ -58,10 +58,7 @@ public class UserController {
     private final TeacherRepository teacherRepository;
     private final EntityManager entityManager;
     private final UserMapper userMapper;
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-    @Value("${jwt.expiration}")
-    private Long jwtExpiration;
+    private JwtUtil jwtUtil;
     @Value("${GOOGLE_CLIENT_ID}")
     private String googleClientId;
     @Value("${GOOGLE_CLIENT_SECRET}")
@@ -139,7 +136,7 @@ public class UserController {
             }
 
             // Generate JWT token
-            String token = generateToken(user);
+            String token = jwtUtil.generateToken(user);
             logger.info("Successfully generated token for user: {}", email);
             UserResponse userDTO = userMapper.toResponseDTO(user);
             LoginResponse loginResponse = new LoginResponse(userDTO, token);
@@ -206,7 +203,7 @@ public class UserController {
 
             UserEntity savedUser = userv.postUserRecord(user);
 
-            String token = generateToken(savedUser);
+            String token = jwtUtil.generateToken(savedUser);
             savedUser.setPassword(null);
 
             UserResponse userDTO = userMapper.toResponseDTO(savedUser);
@@ -431,14 +428,5 @@ public class UserController {
         }
     }
 
-    private String generateToken(UserEntity user) {
-        return Jwts.builder()
-                .setSubject(String.valueOf(user.getUserId()))
-                .claim("email", user.getEmail())
-                .claim("role", user.getRole().name())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
-                .signWith(SignatureAlgorithm.HS256, jwtSecret)
-                .compact();
-    }  
+
 }

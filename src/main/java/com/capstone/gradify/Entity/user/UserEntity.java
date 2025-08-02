@@ -4,9 +4,11 @@ import java.util.*;
 
 import com.capstone.gradify.Entity.NotificationEntity;
 import jakarta.persistence.*;
+import lombok.Data;
 
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
+@Data
 public class UserEntity {
     
     @Id
@@ -15,8 +17,11 @@ public class UserEntity {
     
     private String firstName;
     private String lastName;
+    @Column(unique = true)
     private String email;
     private String password;
+    @Column(unique = true)
+    private String azureId;
     private boolean isActive;
     private String provider;
     private Date createdAt;

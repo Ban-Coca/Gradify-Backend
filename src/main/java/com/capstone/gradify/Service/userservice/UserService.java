@@ -21,6 +21,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import com.microsoft.graph.models.User;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.user.UserRepository;
@@ -259,6 +260,37 @@ public class UserService {
 			msg = "User ID "+ userId +" NOT FOUND!";
 		}
 		return msg;
+	}
+
+	public UserEntity findOrCreateFromAzure(User azureUser) {
+		String azureId = azureUser.getId();
+		String email = azureUser.getMail() != null ? azureUser.getMail() : azureUser.getUserPrincipalName();
+
+		// Check if user exists by Azure ID
+		Optional<UserEntity> existingByAzureId = urepo.findByAzureId(azureId);
+		if (existingByAzureId.isPresent()) {
+			UserEntity user = existingByAzureId.get();
+			// Update user info if needed
+			user.setEmail(email);
+			return urepo.save(user);
+		}
+
+		// Check if user exists by email (manual registration)
+		Optional<UserEntity> existingByEmail = Optional.ofNullable(urepo.findByEmail(email));
+		if (existingByEmail.isPresent()) {
+			// Link Azure account to existing manual account
+			UserEntity user = existingByEmail.get();
+			user.setAzureId(azureId);
+			return urepo.save(user);
+		}
+
+		// Create new Azure user
+		UserEntity newUser = new UserEntity();
+		newUser.setEmail(email);
+		newUser.setAzureId(azureId);
+		// Password is null for Azure users
+
+		return urepo.save(newUser);
 	}
 
     @Scheduled(cron = "0 0 0 * * ?") // Runs daily at midnight

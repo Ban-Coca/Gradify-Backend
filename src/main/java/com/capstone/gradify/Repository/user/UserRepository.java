@@ -6,10 +6,11 @@ import org.springframework.stereotype.Repository;
 import com.capstone.gradify.Entity.user.UserEntity;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<UserEntity, Integer>{
   UserEntity findByEmail(String email);
   List<UserEntity> findByRole(String role);
-
+  Optional<UserEntity> findByAzureId(String azureId);
 }
