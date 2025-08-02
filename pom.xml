@@ -118,9 +118,9 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.commons</groupId>
+				<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
-			<version>3.17.0</version>
+			<version>3.18.0</version>
 		</dependency>
 		<dependency>
 			<groupId>com.sun.xml.messaging.saaj</groupId>
@@ -180,15 +180,15 @@
 		<dependency>
 			<groupId>com.microsoft.graph</groupId>
 			<artifactId>microsoft-graph</artifactId>
-			<version>5.47.0</version>
+			<version>6.48.0</version>
 		</dependency>
 
 
 		<!-- Microsoft Authentication Library -->
 		<dependency>
-			<groupId>com.microsoft.azure</groupId>
-			<artifactId>msal4j</artifactId>
-			<version>1.13.8</version>
+			<groupId>com.azure</groupId>
+			<artifactId>azure-identity</artifactId>
+			<version>1.16.3</version>
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/com.squareup.okhttp3/okhttp -->

@@ -209,11 +209,9 @@ public class UserController {
             String token = generateToken(savedUser);
             savedUser.setPassword(null);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("user", savedUser);
-            response.put("token", token);
-
-            return ResponseEntity.ok(response);
+            UserResponse userDTO = userMapper.toResponseDTO(savedUser);
+            LoginResponse loginResponse = new LoginResponse(userDTO, token);
+            return ResponseEntity.ok(loginResponse);
 
         } catch (Exception e) {
             logger.error("Error creating user: ", e);
