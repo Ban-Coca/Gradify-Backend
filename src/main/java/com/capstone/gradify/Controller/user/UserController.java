@@ -40,7 +40,7 @@ import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.dto.request.LoginRequest;
 
 @RestController
-@RequestMapping("api/user")
+@RequestMapping("/api/user")
 @CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class UserController {
@@ -58,19 +58,19 @@ public class UserController {
     private final TeacherRepository teacherRepository;
     private final EntityManager entityManager;
     private final UserMapper userMapper;
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
     @Value("${GOOGLE_CLIENT_ID}")
     private String googleClientId;
     @Value("${GOOGLE_CLIENT_SECRET}")
     private String googleClientSecret;
-    @Value("${MICROSOFT_CLIENT_ID}")
-    private String microsoftClientId;
-    @Value("${MICROSOFT_CLIENT_SECRET}")
-    private String microsoftClientSecret;
+//    @Value("${MICROSOFT_CLIENT_ID}")
+//    private String microsoftClientId;
+//    @Value("${MICROSOFT_CLIENT_SECRET}")
+//    private String microsoftClientSecret;
     @Value("${google.redirect-uri}")
     private String googleRedirectUri;
-    @Value("${microsoft.redirect-uri}")
-    private String microsoftRedirectUri;
+//    @Value("${microsoft.redirect-uri}")
+//    private String microsoftRedirectUri;
 
     // Helper method to serialize UserEntity to a JSON string
     private String serializeUser(UserEntity user) {
@@ -88,15 +88,15 @@ public class UserController {
         response.sendRedirect(googleAuthUrl);
     }
 
-    @GetMapping("/oauth2/authorize/microsoft")
-    public void redirectToMicrosoft(HttpServletResponse response) throws IOException {
-        String microsoftAuthUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-            + "?client_id=" + microsoftClientId
-            + "&redirect_uri=" + microsoftRedirectUri
-            + "&response_type=code"
-            + "&scope=openid%20email%20profile";
-        response.sendRedirect(microsoftAuthUrl);
-    }
+//    @GetMapping("/oauth2/authorize/microsoft")
+//    public void redirectToMicrosoft(HttpServletResponse response) throws IOException {
+//        String microsoftAuthUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+//            + "?client_id=" + microsoftClientId
+//            + "&redirect_uri=" + microsoftRedirectUri
+//            + "&response_type=code"
+//            + "&scope=openid%20email%20profile";
+//        response.sendRedirect(microsoftAuthUrl);
+//    }
     
     @GetMapping("/oauth2/failure")
     public ResponseEntity<?> oauth2LoginFailure() {

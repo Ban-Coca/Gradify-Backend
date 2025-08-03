@@ -272,6 +272,9 @@ public class UserService {
 			UserEntity user = existingByAzureId.get();
 			// Update user info if needed
 			user.setEmail(email);
+			if (user.getRole() == null) {
+				user.setRole(Role.PENDING);
+			}
 			return urepo.save(user);
 		}
 
@@ -281,13 +284,21 @@ public class UserService {
 			// Link Azure account to existing manual account
 			UserEntity user = existingByEmail.get();
 			user.setAzureId(azureId);
+			if (user.getRole() == null) {
+				user.setRole(Role.PENDING);
+			}
 			return urepo.save(user);
 		}
 
 		// Create new Azure user
 		UserEntity newUser = new UserEntity();
 		newUser.setEmail(email);
+		newUser.setRole(Role.PENDING);
 		newUser.setAzureId(azureId);
+		String displayName = azureUser.getDisplayName();
+		String[] names = splitDisplayName(displayName);
+		newUser.setFirstName(names[0]);
+		newUser.setLastName(names[1]);
 		// Password is null for Azure users
 
 		return urepo.save(newUser);
@@ -310,4 +321,17 @@ public class UserService {
             }
         }
     }
+
+	public static String[] splitDisplayName(String displayName) {
+		if (displayName == null || displayName.trim().isEmpty()) {
+			return new String[]{"", ""};
+		}
+		String[] parts = displayName.trim().split("\\s+");
+		if (parts.length == 1) {
+			return new String[]{parts[0], ""};
+		}
+		String lastName = parts[parts.length - 1];
+		String firstName = String.join(" ", java.util.Arrays.copyOf(parts, parts.length - 1));
+		return new String[]{firstName, lastName};
+	}
 }

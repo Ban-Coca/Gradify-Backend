@@ -21,7 +21,8 @@ import java.util.Objects;
 public class AuthController {
     private final AuthService authService;
     private final UserService userService;
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
+
     @GetMapping("/azure/login")
     public ResponseEntity<?> initialAzureLogin(){
         try {
@@ -30,6 +31,7 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", "Failed to generate authentication URL", "message", e.getMessage()));
         }
+
     }
 
     @GetMapping("/azure/callback")
