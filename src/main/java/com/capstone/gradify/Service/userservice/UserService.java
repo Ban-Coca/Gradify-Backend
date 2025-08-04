@@ -295,10 +295,9 @@ public class UserService {
 		newUser.setEmail(email);
 		newUser.setRole(Role.PENDING);
 		newUser.setAzureId(azureId);
-		String displayName = azureUser.getDisplayName();
-		String[] names = splitDisplayName(displayName);
-		newUser.setFirstName(names[0]);
-		newUser.setLastName(names[1]);
+		newUser.setFirstName(azureUser.getGivenName());
+		newUser.setLastName(azureUser.getSurname());
+		newUser.setProvider("Microsoft");
 		// Password is null for Azure users
 
 		return urepo.save(newUser);
@@ -322,16 +321,4 @@ public class UserService {
         }
     }
 
-	public static String[] splitDisplayName(String displayName) {
-		if (displayName == null || displayName.trim().isEmpty()) {
-			return new String[]{"", ""};
-		}
-		String[] parts = displayName.trim().split("\\s+");
-		if (parts.length == 1) {
-			return new String[]{parts[0], ""};
-		}
-		String lastName = parts[parts.length - 1];
-		String firstName = String.join(" ", java.util.Arrays.copyOf(parts, parts.length - 1));
-		return new String[]{firstName, lastName};
-	}
 }

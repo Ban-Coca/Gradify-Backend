@@ -61,6 +61,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/register",
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/graph/**").permitAll()
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/reports/**").hasAnyAuthority("TEACHER", "STUDENT")

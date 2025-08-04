@@ -1,8 +1,11 @@
 package com.capstone.gradify.Controller.user;
 
+import com.azure.core.credential.AccessToken;
 import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Service.spreadsheet.MicrosoftGraphTokenService;
 import com.capstone.gradify.Service.userservice.AuthService;
 import com.capstone.gradify.Service.userservice.UserService;
+import com.capstone.gradify.dto.response.AuthResult;
 import com.capstone.gradify.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +25,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserService userService;
     private final JwtUtil jwtUtil;
-
+    private final MicrosoftGraphTokenService microsoftGraphTokenService;
     @GetMapping("/azure/login")
     public ResponseEntity<?> initialAzureLogin(){
         try {
@@ -45,9 +48,13 @@ public class AuthController {
         }
 
         try{
-            User azureUser = authService.authenticateWithCode(code);
+            AuthResult authResult = authService.authenticateWithCode(code);
+            User azureUser = authResult.getUser();
+            AccessToken accessToken = authResult.getToken();
 
             UserEntity user = userService.findOrCreateFromAzure(azureUser);
+
+            microsoftGraphTokenService.storeUserTokenDirect(user.getUserId(), accessToken);
 
             String jwtToken = jwtUtil.generateToken(user);
 
@@ -57,7 +64,8 @@ public class AuthController {
                             "id", user.getUserId(),
                             "email", user.getEmail(),
                             "name", Objects.requireNonNull(azureUser.getDisplayName())
-                    )
+                    ),
+                    "hasAccess", true
             ));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", "Authentication failed", "message", e.getMessage()));
