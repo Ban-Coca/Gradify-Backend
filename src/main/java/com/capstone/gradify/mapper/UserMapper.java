@@ -5,7 +5,6 @@ import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.dto.response.LoginResponse;
 import com.capstone.gradify.dto.response.UserResponse;
-import com.microsoft.graph.requests.UserRequest;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -32,9 +31,9 @@ public interface UserMapper {
         return response;
     }
 
-    @Mapping(target = "userId", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "lastLogin", ignore = true)
-    @Mapping(target = "password", ignore = true)  // Handle separately
-    UserEntity toEntity(UserRequest dto);
+//    @Mapping(target = "userId", ignore = true)
+//    @Mapping(target = "createdAt", ignore = true)
+//    @Mapping(target = "lastLogin", ignore = true)
+//    @Mapping(target = "password", ignore = true)  // Handle separately
+//    UserEntity toEntity(UserRequest dto);
 }

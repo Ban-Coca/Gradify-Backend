@@ -4,7 +4,6 @@ import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Entity.user.VerificationCode;
 import com.capstone.gradify.Repository.UserVerificationRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,7 +15,7 @@ public class VerificationCodeService {
     private final UserVerificationRepository verificationRepo;
     private static final int EXPIRATION_MINUTES = 30;
 
-    public VerificationCode createVerificationCode(UserEntity user, String code) {
+    public void createVerificationCode(UserEntity user, String code) {
         // Delete any existing codes for this user first
         deleteByUser(user);
 
@@ -25,7 +24,7 @@ public class VerificationCodeService {
         verificationCode.setUser(user);
         verificationCode.setCode(code);
         verificationCode.setCreatedAt(LocalDateTime.now());
-        return verificationRepo.save(verificationCode);
+        verificationRepo.save(verificationCode);
     }
 
     public Optional<VerificationCode> findByUser(UserEntity user) {

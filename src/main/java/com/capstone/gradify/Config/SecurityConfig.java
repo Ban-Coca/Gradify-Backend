@@ -60,6 +60,8 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/register",
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/graph/**").permitAll()
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/reports/**").hasAnyAuthority("TEACHER", "STUDENT")
@@ -80,7 +82,7 @@ public class SecurityConfig {
                         String firstName = oAuth2User.getAttribute("given_name");
                         String lastName = oAuth2User.getAttribute("family_name");
 
-                        String provider = request.getRequestURI().contains("google") ? "Google" : "Microsoft";
+                        String provider = "Google";
 
                         UserEntity user = userService.findByEmail(email);
                         if (user == null) {
@@ -89,7 +91,7 @@ public class SecurityConfig {
                             user.setEmail(email);
                             user.setFirstName(firstName);
                             user.setLastName(lastName);
-                            user.setRole(Role.STUDENT); // Default role
+                            user.setRole(Role.PENDING); // Default role
                             user.setIsActive(true);
                             user.setCreatedAt(new Date());
                             user.setProvider(provider);

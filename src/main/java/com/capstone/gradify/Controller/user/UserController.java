@@ -28,7 +28,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
-
+import com.capstone.gradify.util.JwtUtil;
 
 
 import io.jsonwebtoken.Jwts;
@@ -40,7 +40,7 @@ import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.dto.request.LoginRequest;
 
 @RestController
-@RequestMapping("api/user")
+@RequestMapping("/api/user")
 @CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class UserController {
@@ -58,22 +58,19 @@ public class UserController {
     private final TeacherRepository teacherRepository;
     private final EntityManager entityManager;
     private final UserMapper userMapper;
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-    @Value("${jwt.expiration}")
-    private Long jwtExpiration;
+    private final JwtUtil jwtUtil;
     @Value("${GOOGLE_CLIENT_ID}")
     private String googleClientId;
     @Value("${GOOGLE_CLIENT_SECRET}")
     private String googleClientSecret;
-    @Value("${MICROSOFT_CLIENT_ID}")
-    private String microsoftClientId;
-    @Value("${MICROSOFT_CLIENT_SECRET}")
-    private String microsoftClientSecret;
+//    @Value("${MICROSOFT_CLIENT_ID}")
+//    private String microsoftClientId;
+//    @Value("${MICROSOFT_CLIENT_SECRET}")
+//    private String microsoftClientSecret;
     @Value("${google.redirect-uri}")
     private String googleRedirectUri;
-    @Value("${microsoft.redirect-uri}")
-    private String microsoftRedirectUri;
+//    @Value("${microsoft.redirect-uri}")
+//    private String microsoftRedirectUri;
 
     // Helper method to serialize UserEntity to a JSON string
     private String serializeUser(UserEntity user) {
@@ -91,15 +88,15 @@ public class UserController {
         response.sendRedirect(googleAuthUrl);
     }
 
-    @GetMapping("/oauth2/authorize/microsoft")
-    public void redirectToMicrosoft(HttpServletResponse response) throws IOException {
-        String microsoftAuthUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-            + "?client_id=" + microsoftClientId
-            + "&redirect_uri=" + microsoftRedirectUri
-            + "&response_type=code"
-            + "&scope=openid%20email%20profile";
-        response.sendRedirect(microsoftAuthUrl);
-    }
+//    @GetMapping("/oauth2/authorize/microsoft")
+//    public void redirectToMicrosoft(HttpServletResponse response) throws IOException {
+//        String microsoftAuthUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+//            + "?client_id=" + microsoftClientId
+//            + "&redirect_uri=" + microsoftRedirectUri
+//            + "&response_type=code"
+//            + "&scope=openid%20email%20profile";
+//        response.sendRedirect(microsoftAuthUrl);
+//    }
     
     @GetMapping("/oauth2/failure")
     public ResponseEntity<?> oauth2LoginFailure() {
@@ -139,7 +136,7 @@ public class UserController {
             }
 
             // Generate JWT token
-            String token = generateToken(user);
+            String token = jwtUtil.generateToken(user);
             logger.info("Successfully generated token for user: {}", email);
             UserResponse userDTO = userMapper.toResponseDTO(user);
             LoginResponse loginResponse = new LoginResponse(userDTO, token);
@@ -206,14 +203,12 @@ public class UserController {
 
             UserEntity savedUser = userv.postUserRecord(user);
 
-            String token = generateToken(savedUser);
+            String token = jwtUtil.generateToken(savedUser);
             savedUser.setPassword(null);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("user", savedUser);
-            response.put("token", token);
-
-            return ResponseEntity.ok(response);
+            UserResponse userDTO = userMapper.toResponseDTO(savedUser);
+            LoginResponse loginResponse = new LoginResponse(userDTO, token);
+            return ResponseEntity.ok(loginResponse);
 
         } catch (Exception e) {
             logger.error("Error creating user: ", e);
@@ -433,14 +428,5 @@ public class UserController {
         }
     }
 
-    private String generateToken(UserEntity user) {
-        return Jwts.builder()
-                .setSubject(String.valueOf(user.getUserId()))
-                .claim("email", user.getEmail())
-                .claim("role", user.getRole().name())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
-                .signWith(SignatureAlgorithm.HS256, jwtSecret)
-                .compact();
-    }  
+
 }
