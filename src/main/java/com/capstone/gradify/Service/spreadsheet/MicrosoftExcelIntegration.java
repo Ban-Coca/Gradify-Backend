@@ -5,6 +5,7 @@ import com.azure.core.credential.TokenRequestContext;
 import com.capstone.gradify.Config.AzureConfig;
 import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
+import com.capstone.gradify.dto.response.TokenResponse;
 import com.microsoft.graph.models.Drive;
 import com.microsoft.graph.models.DriveItem;
 import com.microsoft.graph.models.DriveItemCollectionResponse;
@@ -26,7 +27,7 @@ public class MicrosoftExcelIntegration {
     private final ClassRepository classRepository;
     private final UserTokenRepository userTokenRepository;
     private final AzureConfig azureConfig;
-
+    private final MicrosoftGraphTokenService microsoftGraphTokenService;
 //    public List<DriveItem> getRootFiles(int userId) {
 //        UserToken userToken = getUserToken(userId);
 //        GraphServiceClient client = createGraphClient(userToken.getAccessToken());
@@ -59,11 +60,8 @@ public class MicrosoftExcelIntegration {
 
         DriveItemCollectionResponse response = client.drives().byDriveId(getUserDriveIds(userId)).items().byDriveItemId(getRootDriveItemId(userId)).children().get(
                 requestConfiguration -> {
-                    if (requestConfiguration
-                            .queryParameters != null) {
-                        requestConfiguration
-                                .queryParameters.select = new String[]{"id", "name", "size", "lastModifiedDateTime", "folder", "file", "webUrl"};
-                    }
+                    assert requestConfiguration.queryParameters != null;
+                    requestConfiguration.queryParameters.select = new String []{"id", "name", "size", "lastModifiedDateTime", "folder", "file", "webUrl"};
                 }
         );
         return response;
@@ -89,9 +87,29 @@ public class MicrosoftExcelIntegration {
                 .orElseThrow(() -> new RuntimeException("User not authenticated with Microsoft Graph"));
 
         // Check if token is expired and refresh if needed
-        if (userToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            // TODO: Implement token refresh
-            throw new RuntimeException("Token expired, please re-authenticate");
+        if (userToken.getExpiresAt().isBefore(LocalDateTime.now().plusMinutes(5))) { // Add 5min buffer
+            if (userToken.getRefreshToken() == null || userToken.getRefreshToken().isEmpty()) {
+                throw new RuntimeException("Token expired and no refresh token available, please re-authenticate");
+            }
+
+            try {
+                // Use the correct refresh method
+                TokenResponse refreshed = microsoftGraphTokenService.refreshAccessToken(userToken.getRefreshToken());
+
+                // Update the token
+                userToken.setAccessToken(refreshed.getAccessToken());
+                if (refreshed.getRefreshToken() != null) {
+                    userToken.setRefreshToken(refreshed.getRefreshToken());
+                }
+                userToken.setExpiresAt(LocalDateTime.now().plusSeconds(refreshed.getExpiresAt()));
+                userTokenRepository.save(userToken);
+
+                // Return the refreshed token - don't throw exception!
+                return userToken;
+
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to refresh token, please re-authenticate", e);
+            }
         }
 
         return userToken;

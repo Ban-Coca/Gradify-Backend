@@ -3,8 +3,6 @@ package com.capstone.gradify.Service.userservice;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import javax.naming.NameNotFoundException;
-
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
@@ -14,7 +12,6 @@ import com.capstone.gradify.dto.request.UserUpdateRequest;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -27,7 +24,6 @@ import com.microsoft.graph.models.User;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.user.UserRepository;
-import org.springframework.transaction.annotation.Propagation;
 
 @Service
 @Transactional
@@ -36,10 +32,9 @@ public class UserService {
 
 	private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
-	private final UserRepository urepo;
+	private final UserRepository userRepository;
 	private final TeacherRepository teacherRepository;
 	private final StudentRepository studentRepository;
-    private final UserRepository userRepository;
     @PersistenceContext
 	private EntityManager entityManager;
 
@@ -49,13 +44,13 @@ public class UserService {
   	private String uploadDir;
 
 	public UserEntity findByEmail(String email) {
-		return urepo.findByEmail(email);
+		return userRepository.findByEmail(email);
 	}
 	
 	//Create of CRUD
 	public UserEntity postUserRecord(UserEntity user) {
 		if (user.getRole() == Role.PENDING) {
-			return urepo.save(user);
+			return userRepository.save(user);
 		}
 		if (user.getRole() == Role.TEACHER) {
 
@@ -115,7 +110,7 @@ public class UserService {
 				return studentRepository.save(student);
 			}
 		} else {
-			return urepo.save(user);
+			return userRepository.save(user);
 		}
 	}
 
@@ -138,13 +133,13 @@ public class UserService {
 
 	//find by ID
 	public UserEntity findById(int userId) {
-		return urepo.findById(userId)
+		return userRepository.findById(userId)
 				.orElseThrow(() -> new NoSuchElementException("User with ID " + userId + " not found"));
 	}
 	
 	//Read of CRUD
 	public List<UserEntity> getAllUsers(){
-		return urepo.findAll();
+		return userRepository.findAll();
 	}
 	
 	// public List<UserEntity> getUsersByRole(String role) {
@@ -175,7 +170,7 @@ public class UserService {
 			TeacherEntity teacher = new TeacherEntity();
 			BeanUtils.copyProperties(user, teacher);
 			teacher.setRole(Role.TEACHER);
-			urepo.save(teacher);
+			userRepository.save(teacher);
 			return;
 		}
 		else if (newRole == Role.STUDENT && !(user instanceof StudentEntity)) {
@@ -183,25 +178,25 @@ public class UserService {
 			StudentEntity student = new StudentEntity();
 			BeanUtils.copyProperties(user, student);
 			student.setRole(Role.STUDENT);
-			urepo.save(student);
+			userRepository.save(student);
 			return;
 		}
 
 		// If just updating role without changing entity type
 		user.setRole(newRole);
-		urepo.save(user);
+		userRepository.save(user);
 	}
 
 	public UserEntity updateUser(UserEntity user) {
-		return urepo.save(user);
+		return userRepository.save(user);
 	}
 
 	//Delete of CRUD
 	public String deleteUser(int userId) {
 		String msg = "";
 		
-		if(urepo.findById(userId).isPresent()) {
-			urepo.deleteById(userId);
+		if(userRepository.findById(userId).isPresent()) {
+			userRepository.deleteById(userId);
 			msg = "User record successfully deleted!";
 		}else {
 			msg = "User ID "+ userId +" NOT FOUND!";
@@ -214,22 +209,24 @@ public class UserService {
 		String email = azureUser.getMail() != null ? azureUser.getMail() : azureUser.getUserPrincipalName();
 
 		// Check if user exists by Azure ID
-		Optional<UserEntity> existingByAzureId = urepo.findByAzureId(azureId);
+		Optional<UserEntity> existingByAzureId = userRepository.findByAzureId(azureId);
 		if (existingByAzureId.isPresent()) {
 			UserEntity user = existingByAzureId.get();
 			// Update user info if needed
 			user.setEmail(email);
-
-			return urepo.save(user);
+			if(!user.isActive()){
+				user.setActive(true); // Reactivate if previously inactive
+			}
+			return userRepository.save(user);
 		}
 
 		// Check if user exists by email (manual registration)
-		Optional<UserEntity> existingByEmail = Optional.ofNullable(urepo.findByEmail(email));
+		Optional<UserEntity> existingByEmail = Optional.ofNullable(userRepository.findByEmail(email));
 		if (existingByEmail.isPresent()) {
 			// Link Azure account to existing manual account
 			UserEntity user = existingByEmail.get();
 			user.setAzureId(azureId);
-			return urepo.save(user);
+			return userRepository.save(user);
 		}
 
 		// Create new Azure user
@@ -239,14 +236,16 @@ public class UserService {
 		newUser.setFirstName(azureUser.getGivenName());
 		newUser.setLastName(azureUser.getSurname());
 		newUser.setRole(Role.PENDING);
+		newUser.setActive(true); // Activate new users by default
+		newUser.setCreatedAt(new Date());
 		newUser.setProvider("Microsoft");
 		// Password is null for Azure users
-		return urepo.save(newUser);
+		return userRepository.save(newUser);
 	}
 
     @Scheduled(cron = "0 0 0 * * ?") // Runs daily at midnight
     public void deactivateInactiveUsers() {
-        List<UserEntity> users = urepo.findAll();
+        List<UserEntity> users = userRepository.findAll();
         Date now = new Date();
 
         for (UserEntity user : users) {
@@ -256,7 +255,7 @@ public class UserService {
 
                 if (diffInDays > 30 && user.isActive()) {
                     user.setActive(false);
-                    urepo.save(user);
+                    userRepository.save(user);
                 }
             }
         }
@@ -267,7 +266,7 @@ public class UserService {
 		String currentUserType = userRepository.getUserType(userId);
 
 		// Check if user can be converted (not already a teacher or student)
-		if (!"PENDING".equals(currentUserType)) {
+		if (!Role.PENDING.name().equals(currentUserType)) {
 			throw new IllegalStateException("User already has a role: " + currentUserType);
 		}
 
