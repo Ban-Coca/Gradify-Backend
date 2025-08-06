@@ -69,7 +69,7 @@ public class SecurityConfig {
                                 "/api/reports/teacher/**",
                                 "/api/reports/class/**"
                         ).hasAuthority("TEACHER")
-                        .requestMatchers("/api/user/update-profile", "/api/user/update-role", "/api/user/getuserdetails/").authenticated()
+                        .requestMatchers("/api/user/update-profile", "/api/user/update-role", "/api/user/getuserdetails/", "/api/notification/**", "/api/fcm/**").authenticated()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                     .authorizationEndpoint(authorization -> authorization

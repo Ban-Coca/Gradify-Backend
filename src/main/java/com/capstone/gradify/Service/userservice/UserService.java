@@ -1,10 +1,7 @@
 package com.capstone.gradify.Service.userservice;
 
-import java.util.Date;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.Optional;
 
 import javax.naming.NameNotFoundException;
 
@@ -13,7 +10,12 @@ import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
-import jakarta.transaction.Transactional;
+import com.capstone.gradify.dto.request.UserUpdateRequest;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.PersistenceContext;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +27,7 @@ import com.microsoft.graph.models.User;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.user.UserRepository;
+import org.springframework.transaction.annotation.Propagation;
 
 @Service
 @Transactional
@@ -36,7 +39,12 @@ public class UserService {
 	private final UserRepository urepo;
 	private final TeacherRepository teacherRepository;
 	private final StudentRepository studentRepository;
+    private final UserRepository userRepository;
+    @PersistenceContext
+	private EntityManager entityManager;
 
+  	// Directory for file uploads, injected from application properties
+  	// This is used to store user profile pictures or other uploaded files
 	@Value("${app.upload.dir}")
   	private String uploadDir;
 
@@ -143,86 +151,23 @@ public class UserService {
 	//     return urepo.findByRole(role);
 	// }
 
-	public UserEntity putUserDetails(int userId, UserEntity newUserDetails) {
-		UserEntity user;
-
-		try {
-			user = urepo.findById(userId).orElseThrow(() ->
-					new NameNotFoundException("User " + userId + " not found"));
-
-			// Check if we need to convert user type based on role change
-			if (newUserDetails.getRole() != user.getRole()) {
-				// If role is changing, we may need to create a different entity type
-				if (newUserDetails.getRole() == Role.TEACHER && !(user instanceof TeacherEntity)) {
-					TeacherEntity teacher = new TeacherEntity();
-					copyUserProperties(user, teacher);
-					teacher.setRole(Role.TEACHER);
-					user = teacher;
-				}
-				else if (newUserDetails.getRole() == Role.STUDENT && !(user instanceof StudentEntity)) {
-					StudentEntity student = new StudentEntity();
-					copyUserProperties(user, student);
-					student.setRole(Role.STUDENT);
-					user = student;
-				}
-			}
-
-			// Update basic user properties
-			user.setFirstName(newUserDetails.getFirstName());
-			user.setLastLogin(newUserDetails.getLastLogin());
-			user.setLastName(newUserDetails.getLastName());
-			user.setEmail(newUserDetails.getEmail());
-
-			// Only update password if provided (not null or empty)
-			if (newUserDetails.getPassword() != null && !newUserDetails.getPassword().isEmpty()) {
-				user.setPassword(newUserDetails.getPassword());
-			}
-
-			user.setCreatedAt(newUserDetails.getCreatedAt());
-			user.setFailedLoginAttempts(newUserDetails.getFailedLoginAttempts());
-			user.setRole(newUserDetails.getRole());
-			user.setIsActive(newUserDetails.isActive());
-
-			// Handle role-specific properties
-			if (user instanceof StudentEntity && newUserDetails instanceof StudentEntity) {
-				StudentEntity studentUser = (StudentEntity) user;
-				StudentEntity newStudent = (StudentEntity) newUserDetails;
-
-				if (newStudent.getStudentNumber() != null) {
-					studentUser.setStudentNumber(newStudent.getStudentNumber());
-				}
-				if (newStudent.getMajor() != null) {
-					studentUser.setMajor(newStudent.getMajor());
-				}
-				if (newStudent.getYearLevel() != null) {
-					studentUser.setYearLevel(newStudent.getYearLevel());
-				}
-			}
-			else if (user instanceof TeacherEntity && newUserDetails instanceof TeacherEntity) {
-				TeacherEntity teacherUser = (TeacherEntity) user;
-				TeacherEntity newTeacher = (TeacherEntity) newUserDetails;
-
-				if (newTeacher.getDepartment() != null) {
-					teacherUser.setDepartment(newTeacher.getDepartment());
-				}
-			}
-
-			// Save the updated user
-			return postUserRecord(user);
-
-		} catch (NoSuchElementException | NameNotFoundException ex) {
-			throw new RuntimeException("User " + userId + " not found", ex);
+	@Transactional
+	public UserEntity putUserDetails(int userId, UserUpdateRequest request) {
+		UserEntity user = findById(userId);
+		if (request.getRole() != null) {
+			return handleRoleConversion(userId, request);
 		}
+		return user;
 	}
 
 	@Transactional
-	public UserEntity changeUserRole(int userId, Role newRole) {
+	public void changeUserRole(int userId, Role newRole) {
 		UserEntity user = findById(userId);
 		if (user == null) {
-			return null;
+			return;
 		}
 		if (user.getRole() == newRole) {
-			return user; // No change needed
+			return; // No change needed
 		}
 		// Instead of delete+save, use a more direct approach
 		if (newRole == Role.TEACHER && !(user instanceof TeacherEntity)) {
@@ -230,19 +175,21 @@ public class UserService {
 			TeacherEntity teacher = new TeacherEntity();
 			BeanUtils.copyProperties(user, teacher);
 			teacher.setRole(Role.TEACHER);
-			return urepo.save(teacher);
+			urepo.save(teacher);
+			return;
 		}
 		else if (newRole == Role.STUDENT && !(user instanceof StudentEntity)) {
 			// Create new student and transfer ID + data
 			StudentEntity student = new StudentEntity();
 			BeanUtils.copyProperties(user, student);
 			student.setRole(Role.STUDENT);
-			return urepo.save(student);
+			urepo.save(student);
+			return;
 		}
 
 		// If just updating role without changing entity type
 		user.setRole(newRole);
-		return urepo.save(user);
+		urepo.save(user);
 	}
 
 	public UserEntity updateUser(UserEntity user) {
@@ -272,9 +219,7 @@ public class UserService {
 			UserEntity user = existingByAzureId.get();
 			// Update user info if needed
 			user.setEmail(email);
-			if (user.getRole() == null) {
-				user.setRole(Role.PENDING);
-			}
+
 			return urepo.save(user);
 		}
 
@@ -284,22 +229,18 @@ public class UserService {
 			// Link Azure account to existing manual account
 			UserEntity user = existingByEmail.get();
 			user.setAzureId(azureId);
-			if (user.getRole() == null) {
-				user.setRole(Role.PENDING);
-			}
 			return urepo.save(user);
 		}
 
 		// Create new Azure user
 		UserEntity newUser = new UserEntity();
 		newUser.setEmail(email);
-		newUser.setRole(Role.PENDING);
 		newUser.setAzureId(azureId);
 		newUser.setFirstName(azureUser.getGivenName());
 		newUser.setLastName(azureUser.getSurname());
+		newUser.setRole(Role.PENDING);
 		newUser.setProvider("Microsoft");
 		// Password is null for Azure users
-
 		return urepo.save(newUser);
 	}
 
@@ -321,4 +262,77 @@ public class UserService {
         }
     }
 
+	private UserEntity handleRoleConversion(int userId, UserUpdateRequest request) {
+		Role targetRole = request.getRole();
+		String currentUserType = userRepository.getUserType(userId);
+
+		// Check if user can be converted (not already a teacher or student)
+		if (!"PENDING".equals(currentUserType)) {
+			throw new IllegalStateException("User already has a role: " + currentUserType);
+		}
+
+		switch (targetRole) {
+			case TEACHER:
+				return convertToTeacher(userId, request);
+			// case STUDENT:
+			//    return convertToStudent(userId, request);
+			default:
+				throw new IllegalArgumentException("Invalid role for conversion: " + targetRole);
+		}
+	}
+
+	private UserEntity convertToTeacher(int userId, UserUpdateRequest request) {
+		// Validate required fields
+		if (request.getInstitution() == null || request.getDepartment() == null) {
+			throw new IllegalArgumentException("Institution and department are required for teacher role");
+		}
+
+		// Update role in users table
+		int updatedRows = userRepository.updateUserRoleToTeacher(userId);
+		if (updatedRows == 0) {
+			throw new EntityNotFoundException("User with ID " + userId + " not found");
+		}
+
+		// Create teacher record
+		teacherRepository.createTeacherRecord(userId, request.getInstitution(), request.getDepartment());
+
+		// Verify using count instead of findByUserId
+		int teacherRecordCount = teacherRepository.teacherRecordExists(userId);
+		if (teacherRecordCount == 0) {
+			throw new EntityNotFoundException("Teacher entity not created properly");
+		}
+
+		// Return the updated UserEntity
+		return findById(userId);
+	}
+
+
+
+//	private StudentEntity convertToStudent(int userId, UserUpdateRequest request) {
+//		// Validate required fields
+//		if (request.getStudentNumber() == null || request.getMajor() == null ||
+//				request.getYearLevel() == null || request.getInstitution() == null) {
+//			throw new IllegalArgumentException("Student number, major, year level, and institution are required for student role");
+//		}
+//
+//		// Check if student number is unique
+//		if (studentRepository.isStudentNumberTaken(request.getStudentNumber(), userId) > 0) {
+//			throw new IllegalArgumentException("Student number already exists");
+//		}
+//
+//		// Update role in users table
+//		int updatedRows = userRepository.updateUserRoleToStudent(userId);
+//		if (updatedRows == 0) {
+//			throw new EntityNotFoundException("User with ID " + userId + " not found");
+//		}
+//
+//		// Create student record
+//		studentRepository.createStudentRecord(userId, request.getStudentNumber(),
+//				request.getMajor(), request.getYearLevel(),
+//				request.getInstitution());
+//
+//		// Return the complete student entity
+//		return studentRepository.findById(userId)
+//				.orElseThrow(() -> new EntityNotFoundException("Student entity not created properly"));
+//	}
 }

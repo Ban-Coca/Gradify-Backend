@@ -9,6 +9,7 @@ import lombok.Data;
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 @Data
+@Table(name = "users")
 public class UserEntity {
     
     @Id
@@ -27,8 +28,6 @@ public class UserEntity {
     private Date createdAt;
     private Date lastLogin;
     private int failedLoginAttempts;
-    @Version
-    private Long version;
     private String FCMToken;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -37,10 +36,11 @@ public class UserEntity {
     private transient Map<String, Object> attributes = new HashMap<>();
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
     private Role role;
     
     public UserEntity() {
-        this.version = 0L; // Ensure version is always initialized
+
         this.attributes = new HashMap<>();
     }
     
@@ -143,12 +143,6 @@ public class UserEntity {
     }
     public boolean hasRole(String role) {
         return this.role != null && this.role.name().equalsIgnoreCase(role);
-    }
-    public Long getVersion() {
-        return version;
-    }
-    public void setVersion(Long version) {
-        this.version = version;
     }
     public void setAttribute(String key, Object value) {
         attributes.put(key, value);

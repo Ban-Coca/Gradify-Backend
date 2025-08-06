@@ -48,9 +48,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     UserEntity user = userService.findById(Integer.parseInt(userId));
                     
                     if (user != null) {
-                        List<SimpleGrantedAuthority> authorities = Collections.singletonList(
-                                new SimpleGrantedAuthority(user.getRole().name())
-                        );
+                        List<SimpleGrantedAuthority> authorities = user.getRole() != null
+                                ? Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()))
+                                : Collections.emptyList();
                         UsernamePasswordAuthenticationToken authentication = 
                             new UsernamePasswordAuthenticationToken(user, null, authorities);
                         
