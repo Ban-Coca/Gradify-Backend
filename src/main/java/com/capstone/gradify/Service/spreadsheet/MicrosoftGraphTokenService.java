@@ -10,6 +10,7 @@ import com.capstone.gradify.Repository.user.UserTokenRepository;
 import com.capstone.gradify.dto.response.TokenResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,7 +41,7 @@ public class MicrosoftGraphTokenService {
             throw new RuntimeException("Failed to store user token: " + e.getMessage(), e);
         }
     }
-
+    @Transactional
     public void storeUserTokenDirect(int userId, AccessToken accessToken) {
         try {
             userTokenRepository.deleteByUserId(userId);

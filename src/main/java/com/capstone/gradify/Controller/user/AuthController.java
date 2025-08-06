@@ -7,6 +7,7 @@ import com.capstone.gradify.Service.userservice.AuthService;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.dto.response.AuthResult;
 import com.capstone.gradify.util.JwtUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.microsoft.graph.models.User;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 
@@ -41,10 +45,12 @@ public class AuthController {
     public ResponseEntity<?> handleAzureCallback(
             @RequestParam String code,
             @RequestParam(value = "state", required = false) String state,
-            @RequestParam(value = "error", required = false) String error) {
+            @RequestParam(value = "error", required = false) String error,
+            HttpServletResponse response) throws IOException {
 
         if (error != null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Authentication failed", "message", error));
+            response.sendRedirect("http://localhost:5173/auth/azure/callback?error=" + error);
+            return null;
         }
 
         try{
@@ -58,17 +64,20 @@ public class AuthController {
 
             String jwtToken = jwtUtil.generateToken(user);
 
-            return ResponseEntity.ok(Map.of(
-                    "token", jwtToken,
-                    "user", Map.of(
-                            "id", user.getUserId(),
-                            "email", user.getEmail(),
-                            "name", Objects.requireNonNull(azureUser.getDisplayName())
-                    ),
-                    "hasAccess", true
-            ));
+            String redirectUrl = String.format(
+                    "http://localhost:5173/auth/azure/callback?token=%s&userId=%d&email=%s&name=%s&role=%s&provider=Microsoft",
+                    jwtToken,
+                    user.getUserId(),
+                    user.getEmail(),
+                    Objects.requireNonNull(azureUser.getDisplayName()),
+                    user.getRole() != null ? user.getRole().name() : "UNKNOWN"
+            );
+            response.sendRedirect(redirectUrl);
+            return null;
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Authentication failed", "message", e.getMessage()));
+            response.sendRedirect("http://localhost:5173/auth/azure/callback?error=auth_failed&message=" +
+                    URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8));
+            return null;
         }
     }
 }

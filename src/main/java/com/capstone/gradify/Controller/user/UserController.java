@@ -196,7 +196,7 @@ public class UserController {
             }
             user.setCreatedAt(new Date());
             user.setLastLogin(new Date());
-            user.setIsActive(true);
+            user.setActive(true);
             user.setProvider(user.getProvider() != null ? user.getProvider() : "Email");
             user.setFailedLoginAttempts(0);
             user.setRole(user.getRole() != null ? user.getRole() : Role.PENDING);
@@ -231,7 +231,7 @@ public class UserController {
             user.setFirstName(userUpdateRequest.getFirstName());
             user.setLastName(userUpdateRequest.getLastName());
             user.setRole(userUpdateRequest.getRole());
-            user.setIsActive(userUpdateRequest.isActive());
+            user.setActive(userUpdateRequest.isActive());
 
             // Save updated user
             UserEntity updatedUser = userv.postUserRecord(user);
@@ -387,32 +387,51 @@ public class UserController {
     }
 
     @PutMapping("/update-role/{userId}")
-    public ResponseEntity<?> updateRole(@PathVariable int userId, @RequestBody Map<String, String> payload) {
+    public ResponseEntity<?> updateRole(@PathVariable int userId, @RequestParam String role) {
         try {
             // Validate user
             UserEntity user = userv.findById(userId);
             if (user == null) {
                 return ResponseEntity.status(404).body(Map.of("error", "User not found"));
             }
-
-            String role = payload.get("role");
-            if (role == null) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Role is required"));
+            Role newRole;
+            try {
+                newRole = Role.valueOf(role);
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid role value"));
             }
 
             // Update user role
-            user.setRole(Role.valueOf(role));
+            user.setRole(newRole);
             userv.changeUserRole(userId, user.getRole());
+
+            UserEntity updatedUser = userv.findById(userId);
             UserResponse userResponse = userMapper.toResponseDTO(user);
 
-            return ResponseEntity.ok(userResponse);
+            String token = jwtUtil.generateToken(updatedUser);
 
+            return ResponseEntity.ok(new LoginResponse(userResponse, token));
+//TODO: update this method to update the user role and different role details
         } catch (Exception e) {
             logger.error("Error updating role: ", e);
             return ResponseEntity.status(500).body(Map.of("error", "Role update failed: " + e.getMessage()));
         }
     }
-
+    @PutMapping("/update-user/{userId}")
+    public ResponseEntity<?> updateUser(@PathVariable int userId, @RequestBody UserUpdateRequest request){
+        try {
+            UserEntity updateUser = userv.putUserDetails(userId, request);
+            if (updateUser == null) {
+                return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+            }
+            UserResponse userResponse = userMapper.toResponseDTO(updateUser);
+            String token = jwtUtil.generateToken(updateUser);
+            return ResponseEntity.ok(new LoginResponse(userResponse, token));
+        } catch (Exception e){
+            logger.error("Error updating user: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "User update failed"));
+        }
+    }
     @GetMapping("/{userId}")
     public ResponseEntity<?> getUserDetails(@PathVariable int userId) {
         try {

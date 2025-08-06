@@ -27,6 +27,5 @@ public class UserUpdateRequest {
     private String studentNumber;
     private String major;
     private String yearLevel;
-
 //    private String profilePictureUrl; Optional, can be null if not updating profile picture
 }
