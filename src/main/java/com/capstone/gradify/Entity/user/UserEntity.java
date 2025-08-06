@@ -5,10 +5,14 @@ import java.util.*;
 import com.capstone.gradify.Entity.NotificationEntity;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Entity
 @Inheritance(strategy = InheritanceType.JOINED)
 @Data
+@ToString(exclude = "notifications")
+@EqualsAndHashCode(exclude = "notifications")
 @Table(name = "users")
 public class UserEntity {
     

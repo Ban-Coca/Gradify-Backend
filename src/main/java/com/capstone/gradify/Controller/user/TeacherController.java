@@ -102,34 +102,58 @@ public class TeacherController {
     }
 
     @GetMapping("/{teacherId}/students/count")
-    public int getStudentCountByTeacherId(@PathVariable int teacherId) {
-        return recordsService.getStudentCountByTeacher(teacherId);
+    public ResponseEntity<Integer> getStudentCountByTeacherId(@PathVariable int teacherId) {
+        try {
+            int count = recordsService.getStudentCountByTeacher(teacherId);
+            return ResponseEntity.ok(count);
+        } catch (Exception e) {
+            return ResponseEntity.ok(0);
+        }
     }
+
     @GetMapping("/{teacherId}/risk/students/count")
-    public int getAtRiskStudentsByTeacherId(@PathVariable int teacherId) {
-        return recordsService.countAtRiskStudents(teacherId);
+    public ResponseEntity<Integer> getAtRiskStudentsByTeacherId(@PathVariable int teacherId) {
+        try {
+            int count = recordsService.countAtRiskStudents(teacherId);
+            return ResponseEntity.ok(count);
+        } catch (Exception e) {
+            return ResponseEntity.ok(0);
+        }
     }
+
     @GetMapping("/{teacherId}/top/students/count")
-    public int getTopStudentsByTeacherId(@PathVariable int teacherId) {
-        return recordsService.countTopPerformingStudents(teacherId);
+    public ResponseEntity<Integer> getTopStudentsByTeacherId(@PathVariable int teacherId) {
+        try {
+            int count = recordsService.countTopPerformingStudents(teacherId);
+            return ResponseEntity.ok(count);
+        } catch (Exception e) {
+            return ResponseEntity.ok(0);
+        }
     }
 
     @GetMapping("/{teacherId}/grade/distribution")
     public ResponseEntity<Map<String, Integer>> getTeacherGradeDistribution(@PathVariable int teacherId) {
         try {
             Map<String, Integer> distribution = recordsService.getTeacherGradeDistribution(teacherId);
+            if (distribution == null || distribution.isEmpty()) {
+                return ResponseEntity.ok(Map.of());
+            }
             return ResponseEntity.ok(distribution);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.ok(Map.of());
         }
     }
+
     @GetMapping("/{teacherId}/class/performance")
     public ResponseEntity<List<TeacherAssessmentPerformance>> getClassPerformance(@PathVariable int teacherId) {
         try {
             List<TeacherAssessmentPerformance> performanceData = recordsService.getClassPerformanceData(teacherId);
+            if (performanceData == null || performanceData.isEmpty()) {
+                return ResponseEntity.ok(List.of());
+            }
             return ResponseEntity.ok(performanceData);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.ok(List.of());
         }
     }
     @GetMapping("/{classId}/ai/analytics")
