@@ -196,7 +196,7 @@ public class UserController {
             }
             user.setCreatedAt(new Date());
             user.setLastLogin(new Date());
-            user.setIsActive(true);
+            user.setActive(true);
             user.setProvider(user.getProvider() != null ? user.getProvider() : "Email");
             user.setFailedLoginAttempts(0);
             user.setRole(user.getRole() != null ? user.getRole() : Role.PENDING);
@@ -231,7 +231,7 @@ public class UserController {
             user.setFirstName(userUpdateRequest.getFirstName());
             user.setLastName(userUpdateRequest.getLastName());
             user.setRole(userUpdateRequest.getRole());
-            user.setIsActive(userUpdateRequest.isActive());
+            user.setActive(userUpdateRequest.isActive());
 
             // Save updated user
             UserEntity updatedUser = userv.postUserRecord(user);

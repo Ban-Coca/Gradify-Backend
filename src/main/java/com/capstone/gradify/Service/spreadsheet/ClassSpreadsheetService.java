@@ -296,7 +296,7 @@ public class ClassSpreadsheetService {
                     newStudent.setFirstName(studentFirstName);
                     newStudent.setLastName(studentLastName);
                     newStudent.setRole(Role.STUDENT);
-                    newStudent.setIsActive(true);
+                    newStudent.setActive(true);
                     newStudent.setCreatedAt(new Date());
 
                     // You might need a temporary email and password if these are required

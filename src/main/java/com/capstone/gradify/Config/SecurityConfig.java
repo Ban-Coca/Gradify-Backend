@@ -92,7 +92,7 @@ public class SecurityConfig {
                             user.setFirstName(firstName);
                             user.setLastName(lastName);
                             user.setRole(Role.PENDING); // Default role
-                            user.setIsActive(true);
+                            user.setActive(true);
                             user.setCreatedAt(new Date());
                             user.setProvider(provider);
                         }

@@ -26,51 +26,85 @@ public class NotificationController {
 
     @GetMapping("/get-notifications/{userId}")
     public ResponseEntity<NotificationResponse> getUserNotifications(
-            @PathVariable(required = false) int userId,
+            @PathVariable int userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-
-        UserEntity currentUser = userService.findById(userId);
-        log.debug("Getting user notifications with username: {}", currentUser);
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("date").descending());
-        Page<NotificationEntity> notifications = notificationService.getUserNotifications(currentUser, pageRequest);
-
-        return ResponseEntity.ok(NotificationResponse.fromPage(notifications));
+        try {
+            UserEntity currentUser = userService.findById(userId);
+            if (currentUser == null) {
+                return ResponseEntity.ok(NotificationResponse.fromPage(Page.empty()));
+            }
+            log.debug("Getting user notifications for userId: {}", currentUser.getUserId());
+            PageRequest pageRequest = PageRequest.of(page, size, Sort.by("date").descending());
+            Page<NotificationEntity> notifications = notificationService.getUserNotifications(currentUser, pageRequest);
+            return ResponseEntity.ok(NotificationResponse.fromPage(notifications));
+        } catch (Exception e) {
+            log.error("Error fetching notifications", e);
+            return ResponseEntity.status(500).body(NotificationResponse.fromPage(Page.empty()));
+        }
     }
 
     @GetMapping("/unread/count/{userId}")
-    public ResponseEntity<Map<String, Long>> getUnreadCount(@PathVariable (required = false) int userId) {
-        UserEntity currentUser = userService.findById(userId);
-        long count = notificationService.getUnreadCount(currentUser);
-
+    public ResponseEntity<Map<String, Long>> getUnreadCount(@PathVariable int userId) {
         Map<String, Long> response = new HashMap<>();
-        response.put("count", count);
-
-        return ResponseEntity.ok(response);
+        try {
+            UserEntity currentUser = userService.findById(userId);
+            if (currentUser == null) {
+                response.put("count", 0L);
+                return ResponseEntity.ok(response);
+            }
+            long count = notificationService.getUnreadCount(currentUser);
+            response.put("count", count);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching unread count", e);
+            response.put("count", 0L);
+            return ResponseEntity.ok(response);
+        }
     }
 
     @GetMapping("/unread/{userId}")
-    public ResponseEntity<List<NotificationEntity>> getUnreadNotifications(@PathVariable (required = false) int userId) {
-        UserEntity currentUser = userService.findById(userId);
-        List<NotificationEntity> notifications = notificationService.getUnreadNotifications(currentUser);
-
-        return ResponseEntity.ok(notifications);
+    public ResponseEntity<List<NotificationEntity>> getUnreadNotifications(@PathVariable int userId) {
+        try {
+            UserEntity currentUser = userService.findById(userId);
+            if (currentUser == null) {
+                return ResponseEntity.ok(Collections.emptyList());
+            }
+            List<NotificationEntity> notifications = notificationService.getUnreadNotifications(currentUser);
+            return ResponseEntity.ok(notifications);
+        } catch (Exception e) {
+            log.error("Error fetching unread notifications", e);
+            return ResponseEntity.ok(Collections.emptyList());
+        }
     }
 
     @PutMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable int id) {
-        notificationService.markAsRead(id);
-        return ResponseEntity.ok().build();
+        try {
+            notificationService.markAsRead(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            log.error("Error marking notification as read", e);
+            return ResponseEntity.ok().build();
+        }
     }
 
     @PutMapping("/read-all/{userId}")
-    public ResponseEntity<Map<String, Integer>> markAllAsRead(@PathVariable (required = false) int userId) {
-        UserEntity currentUser = userService.findById(userId);
-        int updatedCount = notificationService.markAllAsRead(currentUser);
-
+    public ResponseEntity<Map<String, Integer>> markAllAsRead(@PathVariable int userId) {
         Map<String, Integer> response = new HashMap<>();
-        response.put("markedAsRead", updatedCount);
-
-        return ResponseEntity.ok(response);
+        try {
+            UserEntity currentUser = userService.findById(userId);
+            if (currentUser == null) {
+                response.put("markedAsRead", 0);
+                return ResponseEntity.ok(response);
+            }
+            int updatedCount = notificationService.markAllAsRead(currentUser);
+            response.put("markedAsRead", updatedCount);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error marking all notifications as read", e);
+            response.put("markedAsRead", 0);
+            return ResponseEntity.ok(response);
+        }
     }
 }

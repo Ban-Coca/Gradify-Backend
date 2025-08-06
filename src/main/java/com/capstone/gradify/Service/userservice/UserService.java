@@ -129,7 +129,7 @@ public class UserService {
 		target.setLastName(source.getLastName());
 		target.setEmail(source.getEmail());
 		target.setPassword(source.getPassword());
-		target.setIsActive(source.isActive());
+		target.setActive(source.isActive());
 		target.setProvider(source.getProvider());
 		target.setCreatedAt(source.getCreatedAt());
 		target.setLastLogin(source.getLastLogin());
@@ -255,7 +255,7 @@ public class UserService {
                 long diffInDays = TimeUnit.MILLISECONDS.toDays(diffInMillis);
 
                 if (diffInDays > 30 && user.isActive()) {
-                    user.setIsActive(false);
+                    user.setActive(false);
                     urepo.save(user);
                 }
             }

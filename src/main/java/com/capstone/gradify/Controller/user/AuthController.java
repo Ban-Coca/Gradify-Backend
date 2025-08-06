@@ -65,7 +65,7 @@ public class AuthController {
             String jwtToken = jwtUtil.generateToken(user);
 
             String redirectUrl = String.format(
-                    "http://localhost:5173/auth/azure/callback?token=%s&userId=%d&email=%s&name=%s&role=%s",
+                    "http://localhost:5173/auth/azure/callback?token=%s&userId=%d&email=%s&name=%s&role=%s&provider=Microsoft",
                     jwtToken,
                     user.getUserId(),
                     user.getEmail(),
