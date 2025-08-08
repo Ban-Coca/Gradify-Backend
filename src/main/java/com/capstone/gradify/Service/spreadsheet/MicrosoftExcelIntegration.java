@@ -63,7 +63,7 @@ public class MicrosoftExcelIntegration {
         return driveItemMapper.toDTO(response);
     }
 
-    public DriveItemCollectionResponse getFolderFiles(int userId, String folderId) {
+    public List<DriveItemResponse> getFolderFiles(int userId, String folderId) {
         UserToken userToken = getUserToken(userId);
         GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
 
@@ -75,7 +75,7 @@ public class MicrosoftExcelIntegration {
                     }
                 }
         );
-        return response;
+        return driveItemMapper.toDTO(response);
     }
 
     private UserToken getUserToken(int userId) {
