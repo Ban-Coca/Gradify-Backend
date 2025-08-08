@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -37,7 +38,7 @@ public class MicrosoftGraphTokenService {
             userToken.setUserId(userId);
             userToken.setAccessToken(tokens.getAccessToken());
             userToken.setRefreshToken(tokens.getRefreshToken());
-            userToken.setExpiresAt(LocalDateTime.now().plusSeconds(tokens.getExpiresAt()));
+            userToken.setExpiresAt(LocalDateTime.now().plusSeconds(tokens.getExpiresIn()));
             userToken.setCreatedAt(LocalDateTime.now());
 
             userTokenRepository.save(userToken);
@@ -125,8 +126,18 @@ public class MicrosoftGraphTokenService {
             ResponseEntity<Map> response = restTemplate.postForEntity(tokenEndpoint, request, Map.class);
             Map body = response.getBody();
 
-            if (body == null || !body.containsKey("access_token")) {
-                throw new RuntimeException("Failed to refresh access token");
+            if (body == null) {
+                throw new RuntimeException("Empty response from token endpoint");
+            }
+
+            if (body.containsKey("error")) {
+                String error = (String) body.get("error");
+                String errorDescription = (String) body.get("error_description");
+                throw new RuntimeException("Token refresh failed: " + error + " - " + errorDescription);
+            }
+
+            if (!body.containsKey("access_token")) {
+                throw new RuntimeException("No access_token in response: " + body);
             }
 
             return new TokenResponse(
@@ -134,9 +145,12 @@ public class MicrosoftGraphTokenService {
                     (String) body.get("refresh_token"),
                     ((Number) body.get("expires_in")).intValue()
             );
+        } catch (RestClientException e) {
+            throw new RuntimeException("Network error during token refresh: " + e.getMessage(), e);
         } catch (Exception e) {
-            throw new RuntimeException("Refresh token expired or invalid, please re-authenticate", e);
+            throw new RuntimeException("Unexpected error during token refresh: " + e.getMessage(), e);
         }
+
     }
 
 }

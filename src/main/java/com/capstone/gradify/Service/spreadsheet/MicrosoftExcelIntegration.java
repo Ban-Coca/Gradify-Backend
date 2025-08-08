@@ -5,7 +5,9 @@ import com.azure.core.credential.TokenRequestContext;
 import com.capstone.gradify.Config.AzureConfig;
 import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
+import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.TokenResponse;
+import com.capstone.gradify.mapper.DriveItemMapper;
 import com.microsoft.graph.models.Drive;
 import com.microsoft.graph.models.DriveItem;
 import com.microsoft.graph.models.DriveItemCollectionResponse;
@@ -18,6 +20,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -28,14 +31,7 @@ public class MicrosoftExcelIntegration {
     private final UserTokenRepository userTokenRepository;
     private final AzureConfig azureConfig;
     private final MicrosoftGraphTokenService microsoftGraphTokenService;
-//    public List<DriveItem> getRootFiles(int userId) {
-//        UserToken userToken = getUserToken(userId);
-//        GraphServiceClient client = createGraphClient(userToken.getAccessToken());
-//
-//
-//        return List;
-//    }
-
+    private final DriveItemMapper driveItemMapper;
     public String getUserDriveIds(int userId) {
         UserToken userToken = getUserToken(userId);
         GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
@@ -54,7 +50,7 @@ public class MicrosoftExcelIntegration {
         return driveItemId != null ? driveItemId.getId() : null;
     }
 
-    public DriveItemCollectionResponse getRootFiles(int userId){
+    public List<DriveItemResponse> getRootFiles(int userId){
         UserToken userToken = getUserToken(userId);
         GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
 
@@ -64,7 +60,7 @@ public class MicrosoftExcelIntegration {
                     requestConfiguration.queryParameters.select = new String []{"id", "name", "size", "lastModifiedDateTime", "folder", "file", "webUrl"};
                 }
         );
-        return response;
+        return driveItemMapper.toDTO(response);
     }
 
     public DriveItemCollectionResponse getFolderFiles(int userId, String folderId) {
@@ -98,10 +94,10 @@ public class MicrosoftExcelIntegration {
 
                 // Update the token
                 userToken.setAccessToken(refreshed.getAccessToken());
-                if (refreshed.getRefreshToken() != null) {
+                if (refreshed.getRefreshToken() != null && !refreshed.getRefreshToken().isEmpty()) {
                     userToken.setRefreshToken(refreshed.getRefreshToken());
                 }
-                userToken.setExpiresAt(LocalDateTime.now().plusSeconds(refreshed.getExpiresAt()));
+                userToken.setExpiresAt(LocalDateTime.now().plusSeconds(refreshed.getExpiresIn()));
                 userTokenRepository.save(userToken);
 
                 // Return the refreshed token - don't throw exception!
@@ -128,45 +124,4 @@ public class MicrosoftExcelIntegration {
         return new GraphServiceClient(credential);
     }
 
-    /**
-     * Extract filename from URL for display purposes
-     */
-    private String extractFileName(String url) {
-        try {
-            // Try to extract filename from URL path
-            String[] pathParts = url.split("/");
-            for (int i = pathParts.length - 1; i >= 0; i--) {
-                if (pathParts[i].contains(".xlsx") || pathParts[i].contains(".xls")) {
-                    return pathParts[i];
-                }
-            }
-            return "Shared Excel File";
-        } catch (Exception e) {
-            return "Shared Excel File";
-        }
-    }
-
-    public static class DriveIds {
-        private final String driveId;
-        private final String rootDriveItemId;
-
-        public DriveIds(String driveId, String rootDriveItemId) {
-            this.driveId = driveId;
-            this.rootDriveItemId = rootDriveItemId;
-        }
-
-        public String getDriveId() { return driveId; }
-        public String getRootDriveItemId() { return rootDriveItemId; }
-    }
-
-//    public DriveIds getUserDriveIds(int userId) {
-//        UserToken userToken = getUserToken(userId);
-//        GraphServiceClient client = createGraphClient(userToken.getAccessToken());
-//
-//        Drive drive = client.me().drive().get();
-//        String driveId = drive.id;
-//        String rootDriveItemId = drive.root != null ? drive.root.id : null;
-//
-//        return new DriveIds(driveId, rootDriveItemId);
-//    }
 }

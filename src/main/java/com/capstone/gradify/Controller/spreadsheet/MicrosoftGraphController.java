@@ -1,10 +1,13 @@
 package com.capstone.gradify.Controller.spreadsheet;
 
 import com.capstone.gradify.Service.spreadsheet.MicrosoftExcelIntegration;
+import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.microsoft.graph.models.DriveItemCollectionResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/graph")
@@ -15,7 +18,7 @@ public class MicrosoftGraphController {
     @GetMapping("/drive/root")
     public ResponseEntity<?> getUserRootFiles(@RequestParam int userId){
         try{
-            DriveItemCollectionResponse rootFiles = microsoftExcelIntegration.getRootFiles(userId);
+            List<DriveItemResponse> rootFiles = microsoftExcelIntegration.getRootFiles(userId);
             return ResponseEntity.ok(rootFiles);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error retrieving drive files: "+ e.getMessage());

@@ -67,7 +67,7 @@ public class AuthController {
             User azureUser = getUserInfoFromToken(tokenResponse.getAccessToken());
 
             UserEntity user = userService.findOrCreateFromAzure(azureUser);
-            microsoftGraphTokenService.storeUserTokenDirect(user.getUserId(), tokenResponse.getAccessToken(), tokenResponse.getRefreshToken(), tokenResponse.getExpiresAt());
+            microsoftGraphTokenService.storeUserTokenDirect(user.getUserId(), tokenResponse.getAccessToken(), tokenResponse.getRefreshToken(), tokenResponse.getExpiresIn());
 
             String jwtToken = jwtUtil.generateToken(user);
 
