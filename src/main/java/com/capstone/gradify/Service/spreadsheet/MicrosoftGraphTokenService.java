@@ -2,10 +2,13 @@ package com.capstone.gradify.Service.spreadsheet;
 
 import com.azure.core.credential.AccessToken;
 import com.capstone.gradify.Config.AzureConfig;
+import com.capstone.gradify.Controller.notification.NotificationController;
 import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
 import com.capstone.gradify.dto.response.TokenResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -25,6 +28,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class MicrosoftGraphTokenService {
+    private static final Logger logger = LoggerFactory.getLogger(MicrosoftGraphTokenService.class);
     private final UserTokenRepository userTokenRepository;
     private final AzureConfig azureConfig;
 
@@ -65,7 +69,7 @@ public class MicrosoftGraphTokenService {
     }
 
     public TokenResponse exchangeCodeForTokens(String code) {
-        // Use /common/ for multi-tenant applications that accept personal Microsoft accounts
+
         String tokenEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
@@ -97,11 +101,11 @@ public class MicrosoftGraphTokenService {
             );
         } catch (HttpClientErrorException e) {
             // Log the error response for debugging
-            System.err.println("Token exchange failed with status: " + e.getStatusCode());
-            System.err.println("Error response body: " + e.getResponseBodyAsString());
+            logger.error("Token exchange failed with status: {}", e.getStatusCode());
+            logger.error("Error response body: {}", e.getResponseBodyAsString());
             throw new RuntimeException("Token exchange failed: " + e.getMessage() + " - " + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
-            System.err.println("Unexpected error during token exchange: " + e.getMessage());
+            logger.error("Unexpected error during token exchange: " + e.getMessage());
             throw new RuntimeException("Token exchange failed: " + e.getMessage(), e);
         }
     }

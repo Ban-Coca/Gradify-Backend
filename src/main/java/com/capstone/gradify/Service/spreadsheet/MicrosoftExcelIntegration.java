@@ -3,9 +3,11 @@ package com.capstone.gradify.Service.spreadsheet;
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenRequestContext;
 import com.capstone.gradify.Config.AzureConfig;
+import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
 import com.capstone.gradify.dto.response.DriveItemResponse;
+import com.capstone.gradify.dto.response.ExtractedExcelResponse;
 import com.capstone.gradify.dto.response.TokenResponse;
 import com.capstone.gradify.mapper.DriveItemMapper;
 import com.microsoft.graph.models.Drive;
@@ -13,25 +15,35 @@ import com.microsoft.graph.models.DriveItem;
 import com.microsoft.graph.models.DriveItemCollectionResponse;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import com.capstone.gradify.Repository.records.ClassRepository;
 import com.azure.core.credential.TokenCredential;
 import reactor.core.publisher.Mono;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.HttpHeaders;
+import org.springframework.stereotype.Service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class MicrosoftExcelIntegration {
-
+    private static final Logger logger = LoggerFactory.getLogger(MicrosoftExcelIntegration.class);
     private final ClassSpreadsheetService classSpreadsheetService;
     private final ClassRepository classRepository;
     private final UserTokenRepository userTokenRepository;
     private final AzureConfig azureConfig;
     private final MicrosoftGraphTokenService microsoftGraphTokenService;
     private final DriveItemMapper driveItemMapper;
+    private final WebClient webClient;
     public String getUserDriveIds(int userId) {
         UserToken userToken = getUserToken(userId);
         GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
@@ -56,12 +68,36 @@ public class MicrosoftExcelIntegration {
 
         DriveItemCollectionResponse response = client.drives().byDriveId(getUserDriveIds(userId)).items().byDriveItemId(getRootDriveItemId(userId)).children().get(
                 requestConfiguration -> {
-                    assert requestConfiguration.queryParameters != null;
-                    requestConfiguration.queryParameters.select = new String []{"id", "name", "size", "lastModifiedDateTime", "folder", "file", "webUrl"};
+                    if (requestConfiguration.queryParameters != null) {
+                        requestConfiguration.queryParameters.select = new String []{"id", "name", "size", "lastModifiedDateTime", "folder", "file", "webUrl"};
+                    }
                 }
         );
         return driveItemMapper.toDTO(response);
     }
+
+    public ExtractedExcelResponse getUsedRange(String folderName, String fileName, int userId) {
+        UserToken userToken = getUserToken(userId);
+
+        String encodedFolder = Arrays.stream(folderName.split("/"))
+                .map(segment -> URLEncoder.encode(segment, StandardCharsets.UTF_8))
+                .collect(Collectors.joining("/"));
+
+        String encodedFile = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
+
+        logger.debug("Encoded Folder: {}, Encoded File: {}", encodedFolder, encodedFile);
+
+        return webClient.get()
+                .uri("/me/drive/root:/{folder}/{file}:/workbook/worksheets/Sheet1/usedRange(valuesOnly=true)?$select=address,addressLocal,values",
+                        encodedFolder, encodedFile)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken.getAccessToken())
+                .header(HttpHeaders.ACCEPT, "application/json")
+                .retrieve()
+                .bodyToMono(ExtractedExcelResponse.class)
+                .block();
+    }
+
+
 
     public List<DriveItemResponse> getFolderFiles(int userId, String folderId) {
         UserToken userToken = getUserToken(userId);
@@ -77,6 +113,8 @@ public class MicrosoftExcelIntegration {
         );
         return driveItemMapper.toDTO(response);
     }
+
+
 
     private UserToken getUserToken(int userId) {
         UserToken userToken = userTokenRepository.findByUserId(userId)

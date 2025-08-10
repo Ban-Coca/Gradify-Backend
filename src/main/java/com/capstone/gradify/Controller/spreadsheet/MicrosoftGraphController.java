@@ -2,6 +2,7 @@ package com.capstone.gradify.Controller.spreadsheet;
 
 import com.capstone.gradify.Service.spreadsheet.MicrosoftExcelIntegration;
 import com.capstone.gradify.dto.response.DriveItemResponse;
+import com.capstone.gradify.dto.response.ExtractedExcelResponse;
 import com.microsoft.graph.models.DriveItemCollectionResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -33,5 +34,16 @@ public class MicrosoftGraphController {
         }catch (Exception e){
             return ResponseEntity.status(500).body("Error retrieving drive files");
         }
+    }
+
+    @GetMapping("/extract/{folderName}/{fileName}")
+    public ResponseEntity<?> extractExcelData(@RequestParam int userId, @PathVariable String folderName, @PathVariable String fileName) {
+        try{
+            ExtractedExcelResponse excelData = microsoftExcelIntegration.getUsedRange(folderName, fileName, userId);
+            return ResponseEntity.ok(excelData);
+        }catch (Exception e){
+            return ResponseEntity.status(500).body("Error extracting Excel data: " + e.getMessage());
+        }
+
     }
 }
