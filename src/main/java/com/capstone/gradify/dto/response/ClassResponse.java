@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Date;
 import java.util.List;
 
 @Data
@@ -18,5 +19,6 @@ public class ClassResponse {
     private String section;
     private String schedule;
     private String room;
+    private Date updatedAt;
     private List<StudentResponse> students;
 }
