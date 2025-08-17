@@ -78,7 +78,7 @@ public class MicrosoftGraphTokenService {
         params.add("code", code);
         params.add("redirect_uri", azureConfig.getRedirectUri());
         params.add("grant_type", "authorization_code");
-        params.add("scope", "https://graph.microsoft.com/Files.ReadWrite https://graph.microsoft.com/User.Read offline_access");
+        params.add("scope", "https://graph.microsoft.com/.default offline_access");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);

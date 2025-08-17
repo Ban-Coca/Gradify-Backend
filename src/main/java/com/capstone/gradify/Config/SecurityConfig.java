@@ -4,6 +4,7 @@ import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.userservice.UserService;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +18,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -37,21 +39,13 @@ import java.util.List;
 )
 public class SecurityConfig {
 
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-    @Autowired
-    private UserService userService;
-
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable()) // Disable CSRF protection
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
@@ -77,49 +71,12 @@ public class SecurityConfig {
                     )
                     .successHandler((request, response, authentication) -> {
                         // Custom success handler to process user registration
-                        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-                        String email = oAuth2User.getAttribute("email");
-                        String firstName = oAuth2User.getAttribute("given_name");
-                        String lastName = oAuth2User.getAttribute("family_name");
-
-                        String provider = "Google";
-
-                        UserEntity user = userService.findByEmail(email);
-                        if (user == null) {
-                            // Create new user if not exists
-                            user = new UserEntity();
-                            user.setEmail(email);
-                            user.setFirstName(firstName);
-                            user.setLastName(lastName);
-                            user.setRole(Role.PENDING); // Default role
-                            user.setActive(true);
-                            user.setCreatedAt(new Date());
-                            user.setProvider(provider);
+                        String code = request.getParameter("code");
+                        if (code != null) {
+                            response.sendRedirect("/api/user/oauth2/callback/google?code=" + code);
+                        } else {
+                            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No authorization code received");
                         }
-
-                        // Update last login
-                        user.setLastLogin(new Date());
-                        userService.postUserRecord(user);
-
-                        Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
-                        String token = Jwts.builder()
-                                .setSubject(email)
-                                .claim("firstName", firstName)
-                                .claim("lastName", lastName)
-                                .setIssuedAt(new Date())
-                                .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
-                                .signWith(key, SignatureAlgorithm.HS512) // Replace with your secret
-                                .compact();
-
-                        // Prepare the response body
-                        String responseBody = String.format(
-                                "{\"token\":\"%s\",\"user\":{\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\"}}",
-                                token, email, firstName, lastName);
-
-                        // Set response headers and body
-                        response.setContentType("application/json");
-                        response.setCharacterEncoding("UTF-8");
-                        response.getWriter().write(responseBody);
                     })
                     .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
                 );
@@ -137,5 +94,10 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // Apply CORS settings to all endpoints
         return source;
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 }

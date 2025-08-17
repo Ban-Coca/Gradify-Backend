@@ -9,9 +9,18 @@ import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.dto.request.UserUpdateRequest;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -21,9 +30,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.microsoft.graph.models.User;
+import org.springframework.http.MediaType;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.user.UserRepository;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 @Transactional
@@ -35,6 +46,13 @@ public class UserService {
 	private final UserRepository userRepository;
 	private final TeacherRepository teacherRepository;
 	private final StudentRepository studentRepository;
+	@Value("${GOOGLE_CLIENT_ID}")
+	private String googleClientId;
+	@Value("${GOOGLE_CLIENT_SECRET}")
+	private String googleClientSecret;
+	@Value("${GOOGLE_REDIRECT_URI}")
+	private String googleRedirectUri;
+	private final RestTemplate restTemplate;
     @PersistenceContext
 	private EntityManager entityManager;
 
@@ -242,8 +260,111 @@ public class UserService {
 		// Password is null for Azure users
 		return userRepository.save(newUser);
 	}
+	public String exchangeGoogleCodeForToken(String code) {
+		try {
+			RestTemplate restTemplate = new RestTemplate();
 
-    @Scheduled(cron = "0 0 0 * * ?") // Runs daily at midnight
+			// Prepare request body
+			String requestBody = String.format(
+					"code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=authorization_code",
+					code,
+					googleClientId, // You'll need to inject this from application properties
+					googleClientSecret, // You'll need to inject this from application properties
+					googleRedirectUri // You'll need to inject this from application properties
+			);
+
+			// Set headers
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+			HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
+
+			// Make request to Google's token endpoint
+			ResponseEntity<String> response = restTemplate.postForEntity(
+					"https://oauth2.googleapis.com/token",
+					request,
+					String.class
+			);
+
+			// Parse response to get access token
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode jsonNode = mapper.readTree(response.getBody());
+
+			return jsonNode.get("access_token").asText();
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to exchange Google code for token", e);
+		}
+	}
+	public OAuth2User getGoogleUserInfo(String accessToken) {
+		try {
+			RestTemplate restTemplate = new RestTemplate();
+
+			// Set headers with access token
+			HttpHeaders headers = new HttpHeaders();
+			headers.setBearerAuth(accessToken);
+
+			HttpEntity<?> request = new HttpEntity<>(headers);
+
+			// Make request to Google's user info endpoint
+			ResponseEntity<String> response = restTemplate.exchange(
+					"https://www.googleapis.com/oauth2/v2/userinfo",
+					HttpMethod.GET,
+					request,
+					String.class
+			);
+
+			// Parse response
+			ObjectMapper mapper = new ObjectMapper();
+			JsonNode userInfo = mapper.readTree(response.getBody());
+
+			// Create OAuth2User object
+			Map<String, Object> attributes = Map.of(
+					"email", userInfo.get("email").asText(),
+					"given_name", userInfo.get("given_name").asText(),
+					"family_name", userInfo.get("family_name").asText(),
+					"id", userInfo.get("id").asText(),
+					"picture", userInfo.has("picture") ? userInfo.get("picture").asText() : ""
+			);
+
+			return new DefaultOAuth2User(
+					Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")),
+					attributes,
+					"email"
+			);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to get Google user info", e);
+		}
+	}
+	public UserEntity findOrCreateUserFromGoogle(OAuth2User googleUser) {
+		String email = googleUser.getAttribute("email");
+		String firstName = googleUser.getAttribute("given_name");
+		String lastName = googleUser.getAttribute("family_name");
+		String provider = "Google";
+
+		// Try to find existing user
+		UserEntity existingUser = findByEmail(email);
+
+		if (existingUser != null) {
+			// Update last login for existing user
+			existingUser.setLastLogin(new Date());
+			return postUserRecord(existingUser);
+		} else {
+			// Create new user
+			UserEntity newUser = new UserEntity();
+			newUser.setEmail(email);
+			newUser.setFirstName(firstName);
+			newUser.setLastName(lastName);
+			newUser.setRole(Role.PENDING); // Default role
+			newUser.setActive(true);
+			newUser.setCreatedAt(new Date());
+			newUser.setLastLogin(new Date());
+			newUser.setProvider("google");
+
+			return postUserRecord(newUser);
+		}
+	}
+
+	@Scheduled(cron = "0 0 0 * * ?") // Runs daily at midnight
     public void deactivateInactiveUsers() {
         List<UserEntity> users = userRepository.findAll();
         Date now = new Date();
