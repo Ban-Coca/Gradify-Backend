@@ -1,5 +1,6 @@
 package com.capstone.gradify.Config;
 
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,13 +27,14 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-    
-    @Autowired
-    private UserService userService;
+
+    private final UserService userService;
     
     @Value("${jwt.secret}")
     private String jwtSecret;
-
+    public JwtAuthenticationFilter(@Lazy UserService userService) {
+        this.userService = userService;
+    }
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {

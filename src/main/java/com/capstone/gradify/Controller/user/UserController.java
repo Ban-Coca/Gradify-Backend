@@ -1,5 +1,7 @@
 package com.capstone.gradify.Controller.user;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.io.IOException;
 
@@ -20,6 +22,7 @@ import com.capstone.gradify.dto.response.UserResponse;
 import com.capstone.gradify.mapper.UserMapper;
 import com.capstone.gradify.util.VerificationCodeGenerator;
 import jakarta.persistence.EntityManager;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +33,6 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import com.capstone.gradify.util.JwtUtil;
 
-
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import jakarta.servlet.http.HttpServletResponse;
 
 import com.capstone.gradify.Entity.user.UserEntity;
@@ -63,41 +63,97 @@ public class UserController {
     private String googleClientId;
     @Value("${GOOGLE_CLIENT_SECRET}")
     private String googleClientSecret;
-//    @Value("${MICROSOFT_CLIENT_ID}")
-//    private String microsoftClientId;
-//    @Value("${MICROSOFT_CLIENT_SECRET}")
-//    private String microsoftClientSecret;
-    @Value("${google.redirect-uri}")
+    @Value("${GOOGLE_REDIRECT_URI}")
     private String googleRedirectUri;
-//    @Value("${microsoft.redirect-uri}")
-//    private String microsoftRedirectUri;
-
+    @Value("${frontend.base-url}")
+    private String frontendBaseUrl;
     // Helper method to serialize UserEntity to a JSON string
     private String serializeUser(UserEntity user) {
         return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\"}",
                 user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name());
     }
 
-    @GetMapping("/oauth2/authorize/google")
-    public void redirectToGoogle(HttpServletResponse response) throws IOException {
-        String googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth"
-            + "?client_id=" + googleClientId
-            + "&redirect_uri=" + googleRedirectUri
-            + "&response_type=code"
-            + "&scope=openid%20email%20profile";
-        response.sendRedirect(googleAuthUrl);
-    }
-
-//    @GetMapping("/oauth2/authorize/microsoft")
-//    public void redirectToMicrosoft(HttpServletResponse response) throws IOException {
-//        String microsoftAuthUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-//            + "?client_id=" + microsoftClientId
-//            + "&redirect_uri=" + microsoftRedirectUri
-//            + "&response_type=code"
-//            + "&scope=openid%20email%20profile";
-//        response.sendRedirect(microsoftAuthUrl);
+//    @GetMapping("/oauth2/authorize/google")
+//    public void redirectToGoogle(HttpServletResponse response, HttpSession session) throws IOException {
+//        String state = UUID.randomUUID().toString();
+//        session.setAttribute("oauth_state", state);
+//
+//        String googleAuthUrl = "https://accounts.google.com/o/oauth2/v2/auth"
+//                + "?client_id=" + googleClientId
+//                + "&redirect_uri=" + googleRedirectUri
+//                + "&response_type=code"
+//                + "&scope=" + URLEncoder.encode("openid email profile", StandardCharsets.UTF_8)
+//                + "&state=" + state;
+//
+//        logger.info("Redirecting to Google OAuth with URL: {}", googleAuthUrl);
+//        logger.info("Redirect URI being used: {}", googleRedirectUri);
+//
+//        response.sendRedirect(googleAuthUrl);
 //    }
-    
+
+//    @GetMapping("/oauth2/callback/google")
+//    public void handleGoogleCallback(@RequestParam(value = "code", required = false) String code,
+//                                     @RequestParam(value = "error", required = false) String error,
+//                                     @RequestParam(value = "state", required = false) String returnedState, HttpSession session, HttpServletResponse response) {
+//        try {
+//            String sessionState = (String) session.getAttribute("oauth_state");
+//            if (sessionState == null || !returnedState.equals(sessionState)) {
+//                logger.error("Invalid OAuth state. Expected: {}, Received: {}", sessionState, returnedState);
+//                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid state parameter");
+//                return;
+//            }
+//
+//            // Clear the state from session after successful validation
+//            session.removeAttribute("oauth_state");
+//            if (error != null) {
+//                logger.error("Google OAuth error: {}", error);
+//                response.sendRedirect(frontendBaseUrl + "/login?error=" + error);
+//                return;
+//            }
+//
+//            if (code == null) {
+//                logger.error("No authorization code received");
+//                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No authorization code");
+//                return;
+//            }
+//            logger.info("Received Google OAuth2 callback with code: {}", code);
+//            logger.info("Received Google OAuth2 callback with code: {}", code);
+//            // Exchange the authorization code for an access token
+//            String accessToken = userv.exchangeGoogleCodeForToken(code);
+//            logger.info("Access token received: {}", accessToken);
+//
+//            // Fetch user information from Google
+//            OAuth2User googleUser = userv.getGoogleUserInfo(accessToken);
+//            logger.info("Google user info: {}", googleUser);
+//
+//            // Find or create user in local database
+//            UserEntity user = userv.findOrCreateUserFromGoogle(googleUser);
+//            logger.info("User found or created: {}", user);
+//
+//            // Generate JWT token
+//            String token = jwtUtil.generateToken(user);
+//            logger.info("Generated JWT token for user: {}", user.getEmail());
+//            // Serialize user and token to JSON
+//            String serializedUser = serializeUser(user);
+//            String jsonResponse = String.format("{\"user\":%s,\"token\":\"%s\"}", serializedUser, token);
+//
+//            String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+//            String encodedUser = URLEncoder.encode(serializedUser, StandardCharsets.UTF_8);
+//
+//            String frontendUrl = String.format(
+//                    "%s/oauth/callback?token=%s&user=%s",
+//                    frontendBaseUrl, // You'll need to inject this
+//                    encodedToken,
+//                    encodedUser
+//            );
+//
+//            response.sendRedirect(frontendUrl);
+//
+//        } catch (Exception e) {
+//            logger.error("Error handling Google OAuth2 callback: ", e);
+//        }
+//    }
+
     @GetMapping("/oauth2/failure")
     public ResponseEntity<?> oauth2LoginFailure() {
         logger.warn("OAuth2 login failed");

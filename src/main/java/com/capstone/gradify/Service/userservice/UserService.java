@@ -9,9 +9,18 @@ import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.dto.request.UserUpdateRequest;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -21,9 +30,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.microsoft.graph.models.User;
+import org.springframework.http.MediaType;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.user.UserRepository;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 @Transactional
@@ -35,6 +46,13 @@ public class UserService {
 	private final UserRepository userRepository;
 	private final TeacherRepository teacherRepository;
 	private final StudentRepository studentRepository;
+	@Value("${GOOGLE_CLIENT_ID}")
+	private String googleClientId;
+	@Value("${GOOGLE_CLIENT_SECRET}")
+	private String googleClientSecret;
+	@Value("${GOOGLE_REDIRECT_URI}")
+	private String googleRedirectUri;
+	private final RestTemplate restTemplate;
     @PersistenceContext
 	private EntityManager entityManager;
 
@@ -243,7 +261,36 @@ public class UserService {
 		return userRepository.save(newUser);
 	}
 
-    @Scheduled(cron = "0 0 0 * * ?") // Runs daily at midnight
+	public UserEntity findOrCreateUserFromGoogle(OAuth2User googleUser) {
+		String email = googleUser.getAttribute("email");
+		String firstName = googleUser.getAttribute("given_name");
+		String lastName = googleUser.getAttribute("family_name");
+		String provider = "Google";
+
+		// Try to find existing user
+		UserEntity existingUser = findByEmail(email);
+
+		if (existingUser != null) {
+			// Update last login for existing user
+			existingUser.setLastLogin(new Date());
+			return postUserRecord(existingUser);
+		} else {
+			// Create new user
+			UserEntity newUser = new UserEntity();
+			newUser.setEmail(email);
+			newUser.setFirstName(firstName);
+			newUser.setLastName(lastName);
+			newUser.setRole(Role.PENDING); // Default role
+			newUser.setActive(true);
+			newUser.setCreatedAt(new Date());
+			newUser.setLastLogin(new Date());
+			newUser.setProvider("google");
+
+			return postUserRecord(newUser);
+		}
+	}
+
+	@Scheduled(cron = "0 0 0 * * ?") // Runs daily at midnight
     public void deactivateInactiveUsers() {
         List<UserEntity> users = userRepository.findAll();
         Date now = new Date();

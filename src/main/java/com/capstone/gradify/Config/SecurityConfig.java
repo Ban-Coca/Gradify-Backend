@@ -3,7 +3,12 @@ package com.capstone.gradify.Config;
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.userservice.UserService;
+import com.capstone.gradify.util.JwtUtil;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -13,10 +18,12 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,6 +31,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
@@ -35,23 +44,24 @@ import java.util.List;
         jsr250Enabled = true,
         prePostEnabled = true
 )
+@RequiredArgsConstructor
 public class SecurityConfig {
-
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-    @Autowired
-    private UserService userService;
-
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-
+    private final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+    private final UserService userService;
+    private final JwtUtil jwtUtil;
+    @Value("${frontend.base-url}")
+    private String frontendBaseUrl;
+    private String serializeUser(UserEntity user) {
+        return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\"}",
+                user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name());
+    }
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable()) // Disable CSRF protection
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS
@@ -59,7 +69,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/register",
-                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
+                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/graph/**").permitAll()
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**").hasAnyAuthority("TEACHER")
@@ -72,56 +82,39 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/update-profile", "/api/user/update-role", "/api/user/getuserdetails/", "/api/notification/**", "/api/fcm/**").authenticated()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
-                    .authorizationEndpoint(authorization -> authorization
-                        .baseUri("/oauth2/authorization") // Custom base URI for OAuth2 authorization
-                    )
-                    .successHandler((request, response, authentication) -> {
-                        // Custom success handler to process user registration
-                        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-                        String email = oAuth2User.getAttribute("email");
-                        String firstName = oAuth2User.getAttribute("given_name");
-                        String lastName = oAuth2User.getAttribute("family_name");
+                        .authorizationEndpoint(authorization -> authorization
+                                .baseUri("/oauth2/authorization") // This creates /oauth2/authorization/google
+                        )
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri("/oauth2/callback/*") // This handles /oauth2/callback/google
+                        )
+                        .successHandler((request, response, authentication) -> {
+                            try {
+                                OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
+                                OAuth2User oauth2User = token.getPrincipal();
 
-                        String provider = "Google";
+                                // Find or create user
+                                UserEntity user = userService.findOrCreateUserFromGoogle(oauth2User);
 
-                        UserEntity user = userService.findByEmail(email);
-                        if (user == null) {
-                            // Create new user if not exists
-                            user = new UserEntity();
-                            user.setEmail(email);
-                            user.setFirstName(firstName);
-                            user.setLastName(lastName);
-                            user.setRole(Role.PENDING); // Default role
-                            user.setActive(true);
-                            user.setCreatedAt(new Date());
-                            user.setProvider(provider);
-                        }
+                                // Generate JWT
+                                String jwtToken = jwtUtil.generateToken(user);
 
-                        // Update last login
-                        user.setLastLogin(new Date());
-                        userService.postUserRecord(user);
+                                // Redirect to frontend with token
+                                String serializedUser = serializeUser(user);
+                                String encodedToken = URLEncoder.encode(jwtToken, StandardCharsets.UTF_8);
+                                String encodedUser = URLEncoder.encode(serializedUser, StandardCharsets.UTF_8);
 
-                        Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
-                        String token = Jwts.builder()
-                                .setSubject(email)
-                                .claim("firstName", firstName)
-                                .claim("lastName", lastName)
-                                .setIssuedAt(new Date())
-                                .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
-                                .signWith(key, SignatureAlgorithm.HS512) // Replace with your secret
-                                .compact();
-
-                        // Prepare the response body
-                        String responseBody = String.format(
-                                "{\"token\":\"%s\",\"user\":{\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\"}}",
-                                token, email, firstName, lastName);
-
-                        // Set response headers and body
-                        response.setContentType("application/json");
-                        response.setCharacterEncoding("UTF-8");
-                        response.getWriter().write(responseBody);
-                    })
-                    .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
+                                response.sendRedirect(String.format("%s/oauth2/callback?token=%s&user=%s",
+                                        frontendBaseUrl, encodedToken, encodedUser));
+                            } catch (Exception e) {
+                                logger.error("OAuth2 success handler error", e);
+                                response.sendRedirect(frontendBaseUrl + "/login?error=oauth_processing_failed");
+                            }
+                        })
+                        .failureHandler((request, response, exception) -> {
+                            logger.error("OAuth2 authentication failed", exception);
+                            response.sendRedirect(frontendBaseUrl + "/login?error=oauth_failed");
+                        })
                 );
         return http.build();
     }
@@ -138,4 +131,5 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration); // Apply CORS settings to all endpoints
         return source;
     }
+
 }
