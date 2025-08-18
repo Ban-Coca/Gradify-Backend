@@ -27,9 +27,8 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-    
-    @Autowired
-    private UserService userService;
+
+    private final UserService userService;
     
     @Value("${jwt.secret}")
     private String jwtSecret;

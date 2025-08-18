@@ -3,8 +3,12 @@ package com.capstone.gradify.Config;
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.userservice.UserService;
+import com.capstone.gradify.util.JwtUtil;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -14,6 +18,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
@@ -26,6 +31,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
@@ -37,8 +44,17 @@ import java.util.List;
         jsr250Enabled = true,
         prePostEnabled = true
 )
+@RequiredArgsConstructor
 public class SecurityConfig {
-
+    private final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+    private final UserService userService;
+    private final JwtUtil jwtUtil;
+    @Value("${frontend.base-url}")
+    private String frontendBaseUrl;
+    private String serializeUser(UserEntity user) {
+        return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\"}",
+                user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name());
+    }
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -53,7 +69,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/register",
-                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code").permitAll()
+                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/graph/**").permitAll()
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**").hasAnyAuthority("TEACHER")
@@ -66,19 +82,39 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/update-profile", "/api/user/update-role", "/api/user/getuserdetails/", "/api/notification/**", "/api/fcm/**").authenticated()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
-                    .authorizationEndpoint(authorization -> authorization
-                        .baseUri("/oauth2/authorization") // Custom base URI for OAuth2 authorization
-                    )
-                    .successHandler((request, response, authentication) -> {
-                        // Custom success handler to process user registration
-                        String code = request.getParameter("code");
-                        if (code != null) {
-                            response.sendRedirect("/api/user/oauth2/callback/google?code=" + code);
-                        } else {
-                            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No authorization code received");
-                        }
-                    })
-                    .failureUrl("/api/user/oauth2/failure") // Redirect after failed login
+                        .authorizationEndpoint(authorization -> authorization
+                                .baseUri("/oauth2/authorization") // This creates /oauth2/authorization/google
+                        )
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri("/oauth2/callback/*") // This handles /oauth2/callback/google
+                        )
+                        .successHandler((request, response, authentication) -> {
+                            try {
+                                OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
+                                OAuth2User oauth2User = token.getPrincipal();
+
+                                // Find or create user
+                                UserEntity user = userService.findOrCreateUserFromGoogle(oauth2User);
+
+                                // Generate JWT
+                                String jwtToken = jwtUtil.generateToken(user);
+
+                                // Redirect to frontend with token
+                                String serializedUser = serializeUser(user);
+                                String encodedToken = URLEncoder.encode(jwtToken, StandardCharsets.UTF_8);
+                                String encodedUser = URLEncoder.encode(serializedUser, StandardCharsets.UTF_8);
+
+                                response.sendRedirect(String.format("%s/oauth2/callback?token=%s&user=%s",
+                                        frontendBaseUrl, encodedToken, encodedUser));
+                            } catch (Exception e) {
+                                logger.error("OAuth2 success handler error", e);
+                                response.sendRedirect(frontendBaseUrl + "/login?error=oauth_processing_failed");
+                            }
+                        })
+                        .failureHandler((request, response, exception) -> {
+                            logger.error("OAuth2 authentication failed", exception);
+                            response.sendRedirect(frontendBaseUrl + "/login?error=oauth_failed");
+                        })
                 );
         return http.build();
     }
@@ -96,8 +132,4 @@ public class SecurityConfig {
         return source;
     }
 
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
 }
