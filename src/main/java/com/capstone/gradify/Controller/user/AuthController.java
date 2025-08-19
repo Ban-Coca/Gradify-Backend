@@ -1,12 +1,18 @@
 package com.capstone.gradify.Controller.user;
 
 import com.azure.core.credential.AccessToken;
+import com.capstone.gradify.Entity.TempTokens;
 import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Repository.TempTokensRepository;
 import com.capstone.gradify.Service.spreadsheet.MicrosoftGraphTokenService;
 import com.capstone.gradify.Service.userservice.AuthService;
 import com.capstone.gradify.Service.userservice.UserService;
+import com.capstone.gradify.dto.request.RegisterRequest;
 import com.capstone.gradify.dto.response.AuthResult;
+import com.capstone.gradify.dto.response.LoginResponse;
 import com.capstone.gradify.dto.response.TokenResponse;
+import com.capstone.gradify.dto.response.UserResponse;
+import com.capstone.gradify.mapper.UserMapper;
 import com.capstone.gradify.util.JwtUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,10 +20,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.microsoft.graph.models.User;
 import org.springframework.web.client.RestTemplate;
 
@@ -26,6 +29,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,6 +39,8 @@ public class AuthController {
     private final UserService userService;
     private final JwtUtil jwtUtil;
     private final MicrosoftGraphTokenService microsoftGraphTokenService;
+    private final UserMapper userMapper;
+    private final TempTokensRepository tempTokensRepository;
     @GetMapping("/azure/login")
     public ResponseEntity<?> initialAzureLogin(){
         try {
@@ -65,29 +71,127 @@ public class AuthController {
                 throw new RuntimeException("No refresh token received from Microsoft. User may need to re-consent with offline access permissions.");
             }
             User azureUser = getUserInfoFromToken(tokenResponse.getAccessToken());
+            Optional<UserEntity> existingUserOpt = userService.findByAzureId(azureUser.getId());
 
-            UserEntity user = userService.findOrCreateFromAzure(azureUser);
-            microsoftGraphTokenService.storeUserTokenDirect(user.getUserId(), tokenResponse.getAccessToken(), tokenResponse.getRefreshToken(), tokenResponse.getExpiresIn());
+            if (existingUserOpt.isPresent()) {
+                UserEntity user = existingUserOpt.get();
+                microsoftGraphTokenService.storeUserTokenDirect(
+                        user.getUserId(),
+                        tokenResponse.getAccessToken(),
+                        tokenResponse.getRefreshToken(),
+                        tokenResponse.getExpiresIn()
+                );
 
-            String jwtToken = jwtUtil.generateToken(user);
+                String jwtToken = jwtUtil.generateToken(user);
+
+                String redirectUrl = String.format(
+                        "http://localhost:5173/auth/azure/callback?onboardingRequired=false&token=%s&userId=%d&email=%s&firstName=%s&lastName=%s&role=%s&provider=Microsoft",
+                        jwtToken,
+                        user.getUserId(),
+                        user.getEmail(),
+                        Objects.requireNonNullElse(user.getFirstName(), ""),
+                        Objects.requireNonNullElse(user.getLastName(), ""),
+                        user.getRole() != null ? user.getRole().name() : "UNKNOWN"
+                );
+                response.sendRedirect(redirectUrl);
+                return null;
+            }
+            TempTokens tempTokens = new TempTokens();
+            tempTokens.setAzureId(azureUser.getId());
+            tempTokens.setAccessToken(tokenResponse.getAccessToken());
+            tempTokens.setRefreshToken(tokenResponse.getRefreshToken());
+            tempTokens.setExpiresIn(tokenResponse.getExpiresIn());
+            tempTokensRepository.save(tempTokens);
 
             String redirectUrl = String.format(
-                    "http://localhost:5173/auth/azure/callback?token=%s&userId=%d&email=%s&firstName=%s&lastName=%s&role=%s&provider=Microsoft",
-                    jwtToken,
-                    user.getUserId(),
-                    user.getEmail(),
-                    Objects.requireNonNull(azureUser.getGivenName()),
-                    Objects.requireNonNull(azureUser.getSurname()),
-                    user.getRole() != null ? user.getRole().name() : "UNKNOWN"
+                    "http://localhost:5173/auth/azure/callback?onboardingRequired=true&azureId=%s&email=%s&firstName=%s&lastName=%s",
+                    azureUser.getId(),
+                    azureUser.getMail(),
+                    Objects.requireNonNullElse(azureUser.getGivenName(), ""),
+                    Objects.requireNonNullElse(azureUser.getSurname(), "")
             );
             response.sendRedirect(redirectUrl);
             return null;
+
         } catch (Exception e) {
             response.sendRedirect("http://localhost:5173/auth/azure/callback?error=auth_failed&message=" +
                     URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8));
             return null;
         }
     }
+
+    @PostMapping("/azure/finalize-teacher")
+    public ResponseEntity<?> finalizeTeacherRegistration(
+            @RequestBody RegisterRequest request) {
+
+        try {
+            if (request.getEmail() == null || request.getEmail().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+            }
+            UserEntity user = userService.createTeacherFromAzure(request);
+            if (user == null) {
+                return ResponseEntity.status(500).body(Map.of("error", "Failed to create user"));
+            }
+            // Retrieve the temporary tokens using the Azure ID
+            TempTokens tempTokens = tempTokensRepository.findByAzureId(request.getAzureId()).orElseThrow(() -> new RuntimeException("No temporary tokens found for Azure ID: " + request.getAzureId()));
+
+            // Store the tokens in the MicrosoftGraphTokenService
+            microsoftGraphTokenService.storeUserTokenDirect(
+                    user.getUserId(),
+                    tempTokens.getAccessToken(),
+                    tempTokens.getRefreshToken(),
+                    tempTokens.getExpiresIn()
+            );
+            // Remove the temporary tokens from the repository
+            tempTokensRepository.delete(tempTokens);
+
+            String token = jwtUtil.generateToken(user);
+
+            UserResponse userResponse = userMapper.toResponseDTO(user);
+            LoginResponse response = new LoginResponse(userResponse, token);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to finalize registration", "message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/azure/finalize-student")
+    public ResponseEntity<?> finalizeStudentRegistration(
+            @RequestBody RegisterRequest request) {
+
+        try {
+            if (request.getEmail() == null || request.getEmail().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+            }
+            UserEntity user = userService.createStudentFromAzure(request);
+            if (user == null) {
+                return ResponseEntity.status(500).body(Map.of("error", "Failed to create user"));
+            }
+            // Retrieve the temporary tokens using the Azure ID
+            TempTokens tempTokens = tempTokensRepository.findByAzureId(request.getAzureId()).orElseThrow(() -> new RuntimeException("No temporary tokens found for Azure ID: " + request.getAzureId()));
+
+            // Store the tokens in the MicrosoftGraphTokenService
+            microsoftGraphTokenService.storeUserTokenDirect(
+                    user.getUserId(),
+                    tempTokens.getAccessToken(),
+                    tempTokens.getRefreshToken(),
+                    tempTokens.getExpiresIn()
+            );
+            // Remove the temporary tokens from the repository
+            tempTokensRepository.delete(tempTokens);
+
+            String token = jwtUtil.generateToken(user);
+
+            UserResponse userResponse = userMapper.toResponseDTO(user);
+            LoginResponse response = new LoginResponse(userResponse, token);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to finalize registration", "message", e.getMessage()));
+        }
+    }
+
 
     private User getUserInfoFromToken(String accessToken) {
         String userInfoEndpoint = "https://graph.microsoft.com/v1.0/me";

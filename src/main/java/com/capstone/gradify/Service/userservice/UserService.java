@@ -8,6 +8,7 @@ import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
+import com.capstone.gradify.dto.request.RegisterRequest;
 import com.capstone.gradify.dto.request.UserUpdateRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -261,6 +262,63 @@ public class UserService {
 		return userRepository.save(newUser);
 	}
 
+    public TeacherEntity createTeacherFromAzure(RegisterRequest request){
+        TeacherEntity newUser = new TeacherEntity();
+        newUser.setEmail(request.getEmail());
+        newUser.setAzureId(request.getAzureId());
+        newUser.setFirstName(request.getFirstName());
+        newUser.setLastName(request.getLastName());
+        newUser.setRole(Role.TEACHER);
+        newUser.setActive(true);
+        newUser.setCreatedAt(new Date());
+        newUser.setProvider("Microsoft");
+
+		newUser.setDepartment(request.getDepartment());
+		newUser.setInstitution(request.getInstitution());
+        // Password is null for Azure users
+        return teacherRepository.save(newUser);
+    }
+
+	public StudentEntity createStudentFromAzure(RegisterRequest request){
+		Optional<StudentEntity> existingStudent = studentRepository.findByStudentNumber(request.getStudentNumber());
+		// If student already exists, update their information
+		if (existingStudent.isPresent()) {
+			StudentEntity student = existingStudent.get();
+			student.setEmail(request.getEmail());
+			student.setAzureId(request.getAzureId());
+			student.setFirstName(request.getFirstName());
+			student.setLastName(request.getLastName());
+			student.setRole(Role.STUDENT);
+			student.setActive(true);
+			student.setCreatedAt(new Date());
+			student.setProvider("Microsoft");
+			student.setMajor(request.getMajor());
+			student.setYearLevel(request.getYearLevel());
+			student.setStudentNumber(request.getStudentNumber());
+
+			return studentRepository.save(student);
+		}
+
+		// If student does not exist, create a new one
+		StudentEntity newUser = new StudentEntity();
+		newUser.setEmail(request.getEmail());
+		newUser.setAzureId(request.getAzureId());
+		newUser.setFirstName(request.getFirstName());
+		newUser.setLastName(request.getLastName());
+		newUser.setRole(Role.STUDENT);
+		newUser.setActive(true);
+		newUser.setCreatedAt(new Date());
+		newUser.setProvider("Microsoft");
+
+		newUser.setMajor(request.getMajor());
+		newUser.setYearLevel(request.getYearLevel());
+		newUser.setStudentNumber(request.getStudentNumber());
+
+		return studentRepository.save(newUser);
+	}
+    public Optional<UserEntity> findByAzureId(String azureId) {
+        return userRepository.findByAzureId(azureId);
+    }
 	public UserEntity findOrCreateUserFromGoogle(OAuth2User googleUser) {
 		String email = googleUser.getAttribute("email");
 		String firstName = googleUser.getAttribute("given_name");
