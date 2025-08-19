@@ -279,7 +279,43 @@ public class UserService {
         return teacherRepository.save(newUser);
     }
 
+	public StudentEntity createStudentFromAzure(RegisterRequest request){
+		Optional<StudentEntity> existingStudent = studentRepository.findByStudentNumber(request.getStudentNumber());
+		// If student already exists, update their information
+		if (existingStudent.isPresent()) {
+			StudentEntity student = existingStudent.get();
+			student.setEmail(request.getEmail());
+			student.setAzureId(request.getAzureId());
+			student.setFirstName(request.getFirstName());
+			student.setLastName(request.getLastName());
+			student.setRole(Role.STUDENT);
+			student.setActive(true);
+			student.setCreatedAt(new Date());
+			student.setProvider("Microsoft");
+			student.setMajor(request.getMajor());
+			student.setYearLevel(request.getYearLevel());
+			student.setStudentNumber(request.getStudentNumber());
 
+			return studentRepository.save(student);
+		}
+
+		// If student does not exist, create a new one
+		StudentEntity newUser = new StudentEntity();
+		newUser.setEmail(request.getEmail());
+		newUser.setAzureId(request.getAzureId());
+		newUser.setFirstName(request.getFirstName());
+		newUser.setLastName(request.getLastName());
+		newUser.setRole(Role.STUDENT);
+		newUser.setActive(true);
+		newUser.setCreatedAt(new Date());
+		newUser.setProvider("Microsoft");
+
+		newUser.setMajor(request.getMajor());
+		newUser.setYearLevel(request.getYearLevel());
+		newUser.setStudentNumber(request.getStudentNumber());
+
+		return studentRepository.save(newUser);
+	}
     public Optional<UserEntity> findByAzureId(String azureId) {
         return userRepository.findByAzureId(azureId);
     }

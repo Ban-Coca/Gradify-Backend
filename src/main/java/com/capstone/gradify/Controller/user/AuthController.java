@@ -156,6 +156,43 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/azure/finalize-student")
+    public ResponseEntity<?> finalizeStudentRegistration(
+            @RequestBody RegisterRequest request) {
+
+        try {
+            if (request.getEmail() == null || request.getEmail().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+            }
+            UserEntity user = userService.createStudentFromAzure(request);
+            if (user == null) {
+                return ResponseEntity.status(500).body(Map.of("error", "Failed to create user"));
+            }
+            // Retrieve the temporary tokens using the Azure ID
+            TempTokens tempTokens = tempTokensRepository.findByAzureId(request.getAzureId()).orElseThrow(() -> new RuntimeException("No temporary tokens found for Azure ID: " + request.getAzureId()));
+
+            // Store the tokens in the MicrosoftGraphTokenService
+            microsoftGraphTokenService.storeUserTokenDirect(
+                    user.getUserId(),
+                    tempTokens.getAccessToken(),
+                    tempTokens.getRefreshToken(),
+                    tempTokens.getExpiresIn()
+            );
+            // Remove the temporary tokens from the repository
+            tempTokensRepository.delete(tempTokens);
+
+            String token = jwtUtil.generateToken(user);
+
+            UserResponse userResponse = userMapper.toResponseDTO(user);
+            LoginResponse response = new LoginResponse(userResponse, token);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to finalize registration", "message", e.getMessage()));
+        }
+    }
+
+
     private User getUserInfoFromToken(String accessToken) {
         String userInfoEndpoint = "https://graph.microsoft.com/v1.0/me";
 
