@@ -92,20 +92,34 @@ public class SecurityConfig {
                             try {
                                 OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
                                 OAuth2User oauth2User = token.getPrincipal();
+                                String email = oauth2User.getAttribute("email");
+                                UserEntity existingUser = userService.findByEmail(email);
+                                logger.info(String.format("User found with email: %s", email));
+                                if(existingUser == null) {
+                                    String firstName = oauth2User.getAttribute("given_name");
+                                    String lastName = oauth2User.getAttribute("family_name");
 
-                                // Find or create user
-                                UserEntity user = userService.findOrCreateUserFromGoogle(oauth2User);
+                                    logger.debug("Redirecting to frontend for onboarding: {}/oauth2/callback?onboardingRequired=true&firstName={}&lastName={}&email={}", frontendBaseUrl, firstName, lastName, email);
 
-                                // Generate JWT
-                                String jwtToken = jwtUtil.generateToken(user);
+                                    response.sendRedirect(String.format("%s/oauth2/callback?onboardingRequired=true&firstName=%s&lastName=%s&email=%s",
+                                            frontendBaseUrl, firstName, lastName, email));
 
-                                // Redirect to frontend with token
-                                String serializedUser = serializeUser(user);
-                                String encodedToken = URLEncoder.encode(jwtToken, StandardCharsets.UTF_8);
-                                String encodedUser = URLEncoder.encode(serializedUser, StandardCharsets.UTF_8);
+                                }
+                                // if user is not null, it means the user already exists
+                                else {
 
-                                response.sendRedirect(String.format("%s/oauth2/callback?token=%s&user=%s",
-                                        frontendBaseUrl, encodedToken, encodedUser));
+                                    // Generate JWT
+                                    String jwtToken = jwtUtil.generateToken(existingUser);
+
+                                    // Redirect to frontend with token
+                                    String serializedUser = serializeUser(existingUser);
+                                    String encodedToken = URLEncoder.encode(jwtToken, StandardCharsets.UTF_8);
+                                    String encodedUser = URLEncoder.encode(serializedUser, StandardCharsets.UTF_8);
+
+                                    response.sendRedirect(String.format("%s/oauth2/callback?onboardingRequired=false&token=%s&user=%s",
+                                            frontendBaseUrl, encodedToken, encodedUser));
+                                }
+
                             } catch (Exception e) {
                                 logger.error("OAuth2 success handler error", e);
                                 response.sendRedirect(frontendBaseUrl + "/login?error=oauth_processing_failed");
