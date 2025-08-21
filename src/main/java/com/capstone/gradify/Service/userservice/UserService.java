@@ -262,7 +262,7 @@ public class UserService {
 		return userRepository.save(newUser);
 	}
 
-    public TeacherEntity createTeacherFromAzure(RegisterRequest request){
+    public TeacherEntity createTeacherFromOAuth(RegisterRequest request){
         TeacherEntity newUser = new TeacherEntity();
         newUser.setEmail(request.getEmail());
         newUser.setAzureId(request.getAzureId());
@@ -279,7 +279,7 @@ public class UserService {
         return teacherRepository.save(newUser);
     }
 
-	public StudentEntity createStudentFromAzure(RegisterRequest request){
+	public StudentEntity createStudentFromOAuth(RegisterRequest request){
 		Optional<StudentEntity> existingStudent = studentRepository.findByStudentNumber(request.getStudentNumber());
 		// If student already exists, update their information
 		if (existingStudent.isPresent()) {
@@ -342,7 +342,7 @@ public class UserService {
 			newUser.setActive(true);
 			newUser.setCreatedAt(new Date());
 			newUser.setLastLogin(new Date());
-			newUser.setProvider("google");
+			newUser.setProvider("Google");
 
 			return postUserRecord(newUser);
 		}

@@ -1,6 +1,7 @@
 package com.capstone.gradify.Controller.user;
 
 import com.azure.core.credential.AccessToken;
+import com.capstone.gradify.Config.SecurityConfig;
 import com.capstone.gradify.Entity.TempTokens;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.TempTokensRepository;
@@ -16,6 +17,8 @@ import com.capstone.gradify.mapper.UserMapper;
 import com.capstone.gradify.util.JwtUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -35,6 +38,7 @@ import java.util.Optional;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    private final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final AuthService authService;
     private final UserService userService;
     private final JwtUtil jwtUtil;
@@ -128,7 +132,7 @@ public class AuthController {
             if (request.getEmail() == null || request.getEmail().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
             }
-            UserEntity user = userService.createTeacherFromAzure(request);
+            UserEntity user = userService.createTeacherFromOAuth(request);
             if (user == null) {
                 return ResponseEntity.status(500).body(Map.of("error", "Failed to create user"));
             }
@@ -164,7 +168,7 @@ public class AuthController {
             if (request.getEmail() == null || request.getEmail().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
             }
-            UserEntity user = userService.createStudentFromAzure(request);
+            UserEntity user = userService.createStudentFromOAuth(request);
             if (user == null) {
                 return ResponseEntity.status(500).body(Map.of("error", "Failed to create user"));
             }
@@ -192,6 +196,41 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/google/finalize/{role}")
+    public ResponseEntity<?> finalizeGoogleRegistration(@PathVariable String role, @RequestBody RegisterRequest request) {
+        try{
+            logger.debug("Role: " + role);
+            logger.debug("Role: " + request.getRole());
+            if(role.equalsIgnoreCase("student") && request.getRole().equalsIgnoreCase("student")){
+                if(request.getEmail() == null || request.getEmail().isEmpty()) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+                }
+                UserEntity user = userService.createStudentFromOAuth(request);
+                if(user == null) {
+                    return ResponseEntity.status(500).body(Map.of("error", "Failed to create user"));
+                }
+                String token = jwtUtil.generateToken(user);
+                UserResponse userResponse = userMapper.toResponseDTO(user);
+                LoginResponse response = new LoginResponse(userResponse, token);
+                return ResponseEntity.ok(response);
+            } else if (role.equalsIgnoreCase("teacher") && request.getRole().equalsIgnoreCase("teacher")) {
+                if(request.getEmail() == null || request.getEmail().isEmpty()) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+                }
+                UserEntity user = userService.createTeacherFromOAuth(request);
+                if(user == null) {
+                    return ResponseEntity.status(500).body(Map.of("error", "Failed to create user"));
+                }
+                String token = jwtUtil.generateToken(user);
+                UserResponse userResponse = userMapper.toResponseDTO(user);
+                LoginResponse response = new LoginResponse(userResponse, token);
+                return ResponseEntity.ok(response);
+            }
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid role specified"));
+        }catch (Exception e){
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to finalize registration", "message", e.getMessage()));
+        }
+    }
 
     private User getUserInfoFromToken(String accessToken) {
         String userInfoEndpoint = "https://graph.microsoft.com/v1.0/me";
