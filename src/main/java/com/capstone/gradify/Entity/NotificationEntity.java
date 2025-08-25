@@ -16,7 +16,9 @@ public class NotificationEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int notificationId;
     private String notificationType;
+    @Column(columnDefinition = "TEXT")
     private String subject;
+    @Column(columnDefinition = "TEXT")
     private String message;
 
     @Column(columnDefinition = "TIMESTAMP")

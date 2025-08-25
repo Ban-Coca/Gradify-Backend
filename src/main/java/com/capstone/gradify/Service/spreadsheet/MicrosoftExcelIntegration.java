@@ -17,6 +17,7 @@ import com.capstone.gradify.mapper.DriveItemMapper;
 import com.microsoft.graph.models.Drive;
 import com.microsoft.graph.models.DriveItem;
 import com.microsoft.graph.models.DriveItemCollectionResponse;
+import com.microsoft.graph.models.Subscription;
 import com.microsoft.graph.serviceclient.GraphServiceClient;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ import org.springframework.http.HttpHeaders;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -45,6 +47,7 @@ public class MicrosoftExcelIntegration {
     private final WebClient webClient;
     private final TeacherRepository teacherRepository;
     private final ClassRepository classRepository;
+
     public String getUserDriveIds(int userId) {
         UserToken userToken = getUserToken(userId);
         GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
@@ -205,6 +208,30 @@ public class MicrosoftExcelIntegration {
         } catch (Exception e) {
             logger.error("Failed to save extracted Excel response", e);
         }
+    }
+
+    public Subscription createSubscriptionToFolder(int userId, String folderPath) {
+        UserToken userToken = getUserToken(userId);
+        GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
+        String driveId = getUserDriveIds(userId);
+
+        Subscription subscription = new Subscription();
+        subscription.setChangeType("updated");
+        subscription.setNotificationUrl("https://winning-informally-loon.ngrok-free.app/api/graph/notification"); // Replace with your actual webhook URL
+        subscription.setResource(String.format("me/drive/root"));
+        subscription.setExpirationDateTime(OffsetDateTime.now().plusDays(2)); // Set appropriate expiration
+
+        return client.subscriptions().post(subscription);
+    }
+
+    public Subscription renewSubscription(String subscriptionId, int userId) {
+        UserToken userToken = getUserToken(userId);
+        GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
+
+        Subscription subscriptionUpdate = new Subscription();
+        subscriptionUpdate.setExpirationDateTime(OffsetDateTime.now().plusDays(2));
+
+        return client.subscriptions().bySubscriptionId(subscriptionId).patch(subscriptionUpdate);
     }
 
     private UserToken getUserToken(int userId) {
