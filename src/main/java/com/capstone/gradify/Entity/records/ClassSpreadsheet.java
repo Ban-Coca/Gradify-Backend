@@ -24,6 +24,15 @@ public class ClassSpreadsheet {
     private String className;
     private String fileName;
 
+    // Microsoft Graph item ID for the spreadsheet
+    // This is used to identify the file in OneDrive or SharePoint
+    // This is for the spreadsheet file itself, not the class record
+    // this is for the microsoft subscription implementation
+    // Could be null if the file is not stored in Microsoft Graph
+    private String itemId;
+    private String folderName;
+    private String folderId;
+
     @ManyToOne
     @JoinColumn(name = "userId")
     @JsonBackReference

@@ -34,6 +34,6 @@ public class ReportRequest {
     private String subject;
 
     @NotBlank(message = "Message is required")
-    @Size(max = 2000, message = "Message cannot exceed 2000 characters")
+    @Size(max = 5000, message = "Message cannot exceed 2000 characters")
     private String message;
 }

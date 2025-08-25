@@ -33,7 +33,7 @@ public class ReportController {
      * Create a new report
      * Only teachers should be able to create reports
      */
-    @PostMapping
+    @PostMapping()
     @PreAuthorize("hasAuthority('TEACHER')")
     public ResponseEntity<ReportResponse> createReport(@Valid @RequestBody ReportRequest reportRequest) throws MessagingException {
         String defaultURL = "http://localhost:5173/feedback";
