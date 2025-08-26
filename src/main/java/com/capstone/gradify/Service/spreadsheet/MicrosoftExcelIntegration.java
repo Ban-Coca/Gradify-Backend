@@ -8,8 +8,10 @@ import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.records.ClassRepository;
+import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
+import com.capstone.gradify.dto.ChangeNotification;
 import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.ExtractedExcelResponse;
 import com.capstone.gradify.dto.response.TokenResponse;
@@ -22,6 +24,9 @@ import com.microsoft.graph.serviceclient.GraphServiceClient;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.azure.core.credential.TokenCredential;
 import reactor.core.publisher.Mono;
@@ -34,6 +39,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,6 +53,13 @@ public class MicrosoftExcelIntegration {
     private final WebClient webClient;
     private final TeacherRepository teacherRepository;
     private final ClassRepository classRepository;
+    private final ClassSpreadsheetRepository classSpreadsheetRepository;
+
+    @Value("${app.webhook.url}")
+    private String webhookUrl;
+
+    private final Map<Integer, String> userSubscriptions = new ConcurrentHashMap<>();
+    private final Map<String, OffsetDateTime> fileLastModifiedTimes = new ConcurrentHashMap<>();
 
     public String getUserDriveIds(int userId) {
         UserToken userToken = getUserToken(userId);
@@ -127,7 +140,10 @@ public class MicrosoftExcelIntegration {
     public void saveExtractedExcelResponse(
             ExtractedExcelResponse response,
             String fileName,
-            TeacherEntity teacher
+            TeacherEntity teacher,
+            String folderName,
+            String folderId,
+            String itemId
     ) {
         List<List<Object>> values = response.getValues();
         if (values == null || values.size() < 3) {
@@ -189,6 +205,9 @@ public class MicrosoftExcelIntegration {
 
             ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(
                     fileName,
+                    itemId,
+                    folderName,
+                    folderId,
                     teacher,
                     records,
                     classEntity,
@@ -210,18 +229,27 @@ public class MicrosoftExcelIntegration {
         }
     }
 
-    public Subscription createSubscriptionToFolder(int userId, String folderPath) {
+    public Subscription createSubscriptionToFolder(int userId) {
         UserToken userToken = getUserToken(userId);
         GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
         String driveId = getUserDriveIds(userId);
 
         Subscription subscription = new Subscription();
         subscription.setChangeType("updated");
-        subscription.setNotificationUrl("https://winning-informally-loon.ngrok-free.app/api/graph/notification"); // Replace with your actual webhook URL
-        subscription.setResource(String.format("me/drive/root"));
+        subscription.setNotificationUrl(webhookUrl + "/api/graph/notification"); // Replace with your actual webhook URL
+        subscription.setResource(String.format("/drives/%s/root", driveId));
         subscription.setExpirationDateTime(OffsetDateTime.now().plusDays(2)); // Set appropriate expiration
+        subscription.setClientState("OneDriveSync-" + userId);
 
-        return client.subscriptions().post(subscription);
+        try {
+            Subscription createdSubscription = client.subscriptions().post(subscription);
+            userSubscriptions.put(userId, Objects.requireNonNull(createdSubscription).getId());
+            logger.info("Created subscription {} for user {}", createdSubscription.getId(), userId);
+            return createdSubscription;
+        } catch (Exception e) {
+            logger.error("Error creating subscription for user {}: {}", userId, e.getMessage());
+            throw e;
+        }
     }
 
     public Subscription renewSubscription(String subscriptionId, int userId) {
@@ -232,6 +260,293 @@ public class MicrosoftExcelIntegration {
         subscriptionUpdate.setExpirationDateTime(OffsetDateTime.now().plusDays(2));
 
         return client.subscriptions().bySubscriptionId(subscriptionId).patch(subscriptionUpdate);
+    }
+
+    @Async
+    public void processNotificationAsync(ChangeNotification notification) {
+        try{
+            logger.info("Processing notification: {} for resource: {}", notification.getChangeType(), notification.getResource());
+            String clientState = notification.getClientState();
+
+            if(clientState == null || !clientState.startsWith("OneDriveSync-")) {
+                logger.warn("Invalid client state: {}", clientState);
+                return;
+            }
+
+            int userId = Integer.parseInt(clientState.substring("OneDriveSync-".length()));
+
+            String changedItemId = notification.getResourceData().getId();
+            Optional<ClassSpreadsheet> spreadsheet = classSpreadsheetRepository.findByItemId(changedItemId);
+            if(spreadsheet.isPresent() && spreadsheet.get().getUploadedBy().getUserId() == userId){
+                logger.info("Change detected in tracked spreadsheet: {} ({})", spreadsheet.get().getFileName(), notification.getChangeType());
+                processSpreadsheetChange(userId, spreadsheet.get(), notification);
+            } else {
+                logger.debug("Change not in tracked files for user {}: {}", userId, changedItemId);
+            }
+        } catch (Exception e){
+            logger.error("Error processing notification: {}", e.getMessage(), e);
+        }
+    }
+
+    private void processSpreadsheetChange(int userId, ClassSpreadsheet spreadsheet, ChangeNotification notification) {
+        try{
+            UserToken userToken = getUserToken(userId);
+            GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
+            String driveId = getUserDriveIds(userId);
+
+            DriveItem changedItem = client.drives().byDriveId(driveId).items().byDriveItemId(spreadsheet.getItemId()).get();
+
+            processChangedSpreadsheet(userId, spreadsheet, changedItem, notification.getChangeType());
+        } catch (Exception e) {
+            logger.error("Error processing spreadsheet change for user {}: {}", userId, e.getMessage(), e);
+        }
+    }
+
+    // Scheduled full sync (backup method)
+    @Scheduled(fixedRate = 3600000) // Every hour
+    public void scheduledFullSync() {
+        logger.info("Starting scheduled full sync for all tracked spreadsheets");
+
+        // Get all spreadsheets with itemId (tracked files)
+        List<ClassSpreadsheet> trackedSpreadsheets = classSpreadsheetRepository.findByItemIdIsNotNull();
+
+        // Group by user for efficient processing
+        Map<Integer, List<ClassSpreadsheet>> spreadsheetsByUser = trackedSpreadsheets.stream().collect(Collectors.groupingBy(s -> s.getUploadedBy().getUserId()));
+
+        for (Map.Entry<Integer, List<ClassSpreadsheet>> entry : spreadsheetsByUser.entrySet()) {
+            Integer userId = entry.getKey();
+            List<ClassSpreadsheet> userSpreadsheets = entry.getValue();
+
+            try {
+                syncUserSpreadsheets(userId, userSpreadsheets);
+            } catch (Exception e) {
+                logger.error("Error in scheduled sync for user {}: {}", userId, e.getMessage());
+            }
+        }
+    }
+
+    public void syncUserSpreadsheets(int userId) throws Exception {
+        List<ClassSpreadsheet> userSpreadsheets = classSpreadsheetRepository.findByUploadedBy_UserIdAndItemIdIsNotNull(userId);
+
+        if(userSpreadsheets.isEmpty()){
+            logger.info("No tracked spreadsheets for user {}", userId);
+            return;
+        }
+        syncUserSpreadsheets(userId, userSpreadsheets);
+    }
+
+    public void syncUserSpreadsheets(int userId, List<ClassSpreadsheet> spreadsheets) throws Exception {
+        UserToken userToken = getUserToken(userId);
+        GraphServiceClient client = createGraphClient(
+                userToken.getAccessToken(),
+                userToken.getExpiresAt()
+        );
+        String driveId = getUserDriveIds(userId);
+
+        for(ClassSpreadsheet spreadsheet : spreadsheets){
+            try{
+                DriveItem fileItem = client.drives().byDriveId(driveId).items().byDriveItemId(spreadsheet.getItemId()).get();
+
+                String fileKey = userId + ":" + spreadsheet.getItemId();
+                OffsetDateTime lastModified = Objects.requireNonNull(fileItem).getLastModifiedDateTime();
+                OffsetDateTime storedLastModified = fileLastModifiedTimes.get(fileKey);
+
+                if (storedLastModified == null || lastModified.isAfter(storedLastModified)) {
+                    logger.info("Spreadsheet '{}' has been modified, processing changes for user {}",
+                            spreadsheet.getFileName(), userId);
+
+                    processChangedSpreadsheet(userId, spreadsheet, fileItem, "updated");
+
+                    // Store the new last modified time
+                    fileLastModifiedTimes.put(fileKey, lastModified);
+                } else {
+                    logger.debug("Spreadsheet '{}' unchanged for user {}", spreadsheet.getFileName(), userId);
+                }
+            } catch (Exception e){
+                logger.error("Error syncing spreadsheet '{}' for user {}: {}",
+                        spreadsheet.getFileName(), userId, e.getMessage());
+            }
+        }
+    }
+
+    private void processChangedSpreadsheet(int userId, ClassSpreadsheet spreadsheet, DriveItem item, String changeType) {
+        try {
+            logger.info("Processing {} spreadsheet: '{}' (class: {}) for user {}",
+                    changeType, spreadsheet.getFileName(), spreadsheet.getClassName(), userId);
+
+            // Your business logic here
+            switch (changeType.toLowerCase()) {
+                case "updated":
+                    handleSpreadsheetUpdated(userId, spreadsheet, item);
+                    break;
+                case "deleted":
+                    logger.warn("Spreadsheet '{}' has been deleted, please re-upload and re-link.",
+                            spreadsheet.getFileName());
+                    break;
+                default:
+                    logger.warn("Unknown change type: {}", changeType);
+            }
+
+        } catch (Exception e) {
+            logger.error("Error processing changed spreadsheet: {}", e.getMessage(), e);
+        }
+    }
+
+    private void handleSpreadsheetUpdated(int userId, ClassSpreadsheet spreadsheet, DriveItem item) {
+        logger.info("Spreadsheet updated: '{}' for class '{}' by user {}",
+                spreadsheet.getFileName(), spreadsheet.getClassName(), userId);
+        processUpdatedSpreadsheet(userId, spreadsheet, item);
+    }
+
+    private void processUpdatedSpreadsheet(int userId, ClassSpreadsheet spreadsheet, DriveItem item) {
+        try{
+            logger.info("Processing updated spreadsheet data for: '{}' (class: '{}')", spreadsheet.getFileName(), spreadsheet.getClassName());
+
+            ExtractedExcelResponse response = getUsedRange(
+                    spreadsheet.getFolderName(),
+                    spreadsheet.getFileName(),
+                    userId
+            );
+
+            if (response != null && response.getValues() != null) {
+                // Update the existing spreadsheet record instead of creating new one
+                updateExistingSpreadsheetData(response, spreadsheet, userId);
+            } else {
+                logger.warn("No data received for spreadsheet: '{}'", spreadsheet.getFileName());
+            }
+
+        } catch (Exception e) {
+            logger.error("Error processing updated spreadsheet '{}' for user {}: {}",
+                    spreadsheet.getFileName(), userId, e.getMessage(), e);
+        }
+    }
+
+    private void updateExistingSpreadsheetData(ExtractedExcelResponse response, ClassSpreadsheet spreadsheet, int userId) {
+        List<List<Object>> values = response.getValues();
+        if (values == null || values.size() < 3) {
+            logger.warn("Not enough data in Excel response for: '{}'", spreadsheet.getFileName());
+            return;
+        }
+
+        List<String> headers = values.get(0).stream()
+                .map(Object::toString)
+                .toList();
+
+        // Extract max assessment values from row 2
+        Map<String, Integer> maxAssessmentValues = new HashMap<>();
+        List<Object> maxRow = values.get(1);
+        for (int i = 0; i < headers.size(); i++) {
+            Object val = i < maxRow.size() ? maxRow.get(i) : null;
+            if (val instanceof Number) {
+                maxAssessmentValues.put(headers.get(i), ((Number) val).intValue());
+            } else if (val != null) {
+                try {
+                    maxAssessmentValues.put(headers.get(i), Integer.parseInt(val.toString()));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+
+        // Convert data rows to records
+        List<Map<String, String>> records = new ArrayList<>();
+        for (int i = 2; i < values.size(); i++) {
+            List<Object> row = values.get(i);
+            Map<String, String> record = new HashMap<>();
+            for (int j = 0; j < headers.size(); j++) {
+                Object cell = j < row.size() ? row.get(j) : "";
+                record.put(headers.get(j), cell != null ? cell.toString() : "");
+            }
+            records.add(record);
+        }
+
+        try {
+            // Update the existing spreadsheet record
+            logger.info("Updating existing spreadsheet record for: '{}'", spreadsheet.getFileName());
+
+            // Update assessment max values
+            spreadsheet.setAssessmentMaxValues(maxAssessmentValues);
+
+            // Update the spreadsheet using your existing service method
+            ClassSpreadsheet updatedSpreadsheet = classSpreadsheetService.updateSpreadsheet(
+                    spreadsheet,
+                    records,
+                    maxAssessmentValues
+            );
+
+            // Update class entity's students if needed
+            if (updatedSpreadsheet.getClassEntity() != null) {
+                Set<StudentEntity> students = new HashSet<>();
+                updatedSpreadsheet.getGradeRecords().forEach(record -> {
+                    if (record.getStudent() != null) {
+                        students.add(record.getStudent());
+                    }
+                });
+
+                ClassEntity classEntity = updatedSpreadsheet.getClassEntity();
+                classEntity.setStudents(students);
+                classEntity.setUpdatedAt(new Date());
+                classRepository.save(classEntity);
+            }
+
+            logger.info("Successfully updated spreadsheet data for: '{}'", spreadsheet.getFileName());
+
+        } catch (Exception e) {
+            logger.error("Failed to update spreadsheet data for: '{}': {}", spreadsheet.getFileName(), e.getMessage(), e);
+        }
+    }
+    public void registerSpreadsheetForMonitoring(ClassSpreadsheet spreadsheet, String itemId) {
+        spreadsheet.setItemId(itemId);
+        classSpreadsheetRepository.save(spreadsheet);
+
+        logger.info("Registered spreadsheet '{}' (class: '{}') for monitoring with itemId: {}",
+                spreadsheet.getFileName(), spreadsheet.getClassName(), itemId);
+    }
+
+    public void unregisterSpreadsheetFromMonitoring(Long spreadsheetId) {
+        Optional<ClassSpreadsheet> spreadsheet = classSpreadsheetRepository.findById(spreadsheetId);
+        if (spreadsheet.isPresent()) {
+            ClassSpreadsheet sheet = spreadsheet.get();
+            String fileKey = sheet.getUploadedBy().getUserId() + ":" + sheet.getItemId();
+
+            sheet.setItemId(null);
+            classSpreadsheetRepository.save(sheet);
+            fileLastModifiedTimes.remove(fileKey);
+
+            logger.info("Unregistered spreadsheet '{}' from monitoring", sheet.getFileName());
+        }
+    }
+
+    @Scheduled(fixedRate = 86400000) // Daily check
+    public void renewExpiringSubscriptions() {
+        for (Map.Entry<Integer, String> entry : userSubscriptions.entrySet()) {
+            int userId = entry.getKey();
+            String subscriptionId = entry.getValue();
+
+            try {
+                renewSubscriptionIfNeeded(userId, subscriptionId);
+            } catch (Exception e) {
+                logger.error("Error renewing subscription for user {}: {}", userId, e.getMessage());
+            }
+        }
+    }
+    private void renewSubscriptionIfNeeded(int userId, String subscriptionId) throws Exception {
+        UserToken userToken = getUserToken(userId);
+        GraphServiceClient client = createGraphClient(
+                userToken.getAccessToken(),
+                userToken.getExpiresAt()
+        );
+
+        // Get subscription details
+        Subscription subscription = client.subscriptions().bySubscriptionId(subscriptionId).get();
+
+        // Check if expiring within 24 hours
+        if (Objects.requireNonNull(Objects.requireNonNull(subscription).getExpirationDateTime()).isBefore(OffsetDateTime.now().plusHours(24))) {
+            // Renew subscription
+            subscription.setExpirationDateTime(OffsetDateTime.now().plusDays(2));
+            client.subscriptions().bySubscriptionId(subscriptionId).patch(subscription);
+
+            logger.info("Renewed subscription {} for user {}", subscriptionId, userId);
+        }
     }
 
     private UserToken getUserToken(int userId) {

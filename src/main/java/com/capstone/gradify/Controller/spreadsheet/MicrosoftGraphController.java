@@ -1,21 +1,28 @@
 package com.capstone.gradify.Controller.spreadsheet;
 
-import com.azure.core.annotation.Post;
+import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.spreadsheet.MicrosoftExcelIntegration;
+import com.capstone.gradify.dto.ChangeNotification;
+import com.capstone.gradify.dto.NotificationPayload;
+import com.capstone.gradify.dto.request.RegisterSpreadsheetRequest;
 import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.ExtractedExcelResponse;
-import com.microsoft.graph.models.DriveItemCollectionResponse;
 import com.microsoft.graph.models.Subscription;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/graph")
@@ -24,7 +31,7 @@ public class MicrosoftGraphController {
     private final MicrosoftExcelIntegration microsoftExcelIntegration;
     private final TeacherRepository teacherRepository;
     private static final Logger logger = LoggerFactory.getLogger(MicrosoftGraphController.class);
-
+    private final ClassSpreadsheetRepository classSpreadsheetRepository;
     @GetMapping("/drive/root")
     public ResponseEntity<?> getUserRootFiles(@RequestParam int userId){
         try{
@@ -56,7 +63,7 @@ public class MicrosoftGraphController {
     }
 
     @PostMapping("/save/{folderName}/{fileName}")
-    public ResponseEntity<?> saveExcelData(@RequestParam int userId, @PathVariable String folderName, @PathVariable String fileName) {
+    public ResponseEntity<?> saveExcelData(@RequestParam int userId, @RequestParam String folderId, @RequestParam String itemId,  @PathVariable String folderName, @PathVariable String fileName) {
         try {
             ExtractedExcelResponse excelData = microsoftExcelIntegration.getUsedRange(folderName, fileName, userId);
             if (excelData == null || excelData.getValues() == null || excelData.getValues().isEmpty()) {
@@ -66,54 +73,88 @@ public class MicrosoftGraphController {
             if (teacher == null) {
                 return ResponseEntity.badRequest().body("Teacher not found for user ID: " + userId);
             }
-            microsoftExcelIntegration.saveExtractedExcelResponse(excelData, fileName, teacher);
+            microsoftExcelIntegration.saveExtractedExcelResponse(excelData, fileName, teacher, folderName, folderId, itemId);
             return ResponseEntity.ok("Data saved successfully");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error saving Excel data: " + e.getMessage());
         }
     }
 
-    @PostMapping("/notification/subscription")
-    public ResponseEntity<?> createNotificationSubscription(@RequestParam int userId, @RequestParam String folderId){
+    @PostMapping("/notification/subscribe/{userId}")
+    public ResponseEntity<?> createNotificationSubscription(@PathVariable int userId){
         try {
-            Subscription subscription = microsoftExcelIntegration.createSubscriptionToFolder(userId, folderId);
-            return ResponseEntity.ok("Subscription created successfully with ID: " + subscription.getId());
+            Subscription subscription = microsoftExcelIntegration.createSubscriptionToFolder(userId);
+            return ResponseEntity.ok(Map.of(
+                    "subscriptionId", Objects.requireNonNull(subscription.getId()),
+                    "expiresAt", Objects.requireNonNull(subscription.getExpirationDateTime())
+            ));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error creating notification subscription: " + e.getMessage());
+            logger.error("Error creating subscription for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/sync/{userId}")
+    public ResponseEntity<?> manualSync(@PathVariable int userId) {
+        try {
+            microsoftExcelIntegration.syncUserSpreadsheets(userId);
+            return ResponseEntity.ok(Map.of("status", "Spreadsheet sync completed"));
+        } catch (Exception e) {
+            logger.error("Error in manual sync for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+    @PostMapping("/register-spreadsheet")
+    public ResponseEntity<?> registerSpreadsheet(@RequestBody RegisterSpreadsheetRequest request) {
+        try {
+            Optional<ClassSpreadsheet> spreadsheet = classSpreadsheetRepository.findById(request.getSpreadsheetId());
+            if(spreadsheet.isEmpty()) {
+                return ResponseEntity.badRequest().body("Spreadsheet not found");
+            } else {
+                microsoftExcelIntegration.registerSpreadsheetForMonitoring(spreadsheet.get(), request.getItemId());
+            }
+
+            return ResponseEntity.ok(Map.of("status", "Spreadsheet registered for monitoring"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/unregister-spreadsheet/{spreadsheetId}")
+    public ResponseEntity<?> unregisterSpreadsheet(@PathVariable Long spreadsheetId) {
+        try {
+            microsoftExcelIntegration.unregisterSpreadsheetFromMonitoring(spreadsheetId);
+            return ResponseEntity.ok(Map.of("status", "Spreadsheet unregistered from monitoring"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 
     @PostMapping("/notification")
-    public ResponseEntity<?> handleNotification(@RequestParam(value = "validationToken", required = false) String validationToken, @RequestBody Map<String, Object> body){
+    public ResponseEntity<String> handleNotification(
+            @RequestBody NotificationPayload payload,
+            @RequestParam(required = false) String validationToken) {
+
+        // Handle Microsoft Graph subscription validation
         if (validationToken != null) {
-            // This is a validation request from Microsoft Graph
             logger.info("Received validation token: {}", validationToken);
-            return ResponseEntity.ok(validationToken);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(validationToken);
         }
 
-        if(body!=null){
-            logger.info("Received body: {}", body);
+        // Process actual notifications
+        logger.info("Received {} notifications", payload.getValue().size());
 
-            List<Map<String, Object>> notifications = (List<Map<String, Object>>) body.get("value");
-            for (Map<String, Object> notification : notifications) {
-                String resource = (String) notification.get("resource"); // e.g. "me/drive/items/{itemId}"
-                String changeType = (String) notification.get("changeType");
-
-                logger.info("Resource changed: {} ({})", resource, changeType);
-
-                // Extract itemId from resource string
-                String[] parts = resource.split("/");
-                String itemId = parts[parts.length - 1];
-
-                // Compare against stored fileId(s) in your DB
-                if (itemId.equals("01WEENPZ2HG2P73NO7SFFZHPRBG7KOOSCN")) {
-                    // Call your existing Excel processing logic
-                    // e.g. getUsedRange("MyFolder", "grades.xlsx", userId);
-                    logger.info("Tracked item changed: {}", itemId);
-                }
-            }
-
+        for (ChangeNotification notification : payload.getValue()) {
+            // Process each notification asynchronously
+            microsoftExcelIntegration.processNotificationAsync(notification);
         }
-        return ResponseEntity.ok("Notification received successfully");
+
+        return ResponseEntity.ok("OK");
     }
 }
