@@ -14,6 +14,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,27 +31,6 @@ public class ClassSpreadsheetService {
     private final StudentRepository studentRepository;
     private final GradeRecordRepository gradeRecordRepository;
     private final ClassRepository classRepository;
-
-    public ClassSpreadsheet saveRecord(String fileName, TeacherEntity teacher, List<Map<String, String>> records, Map<String, Integer> maxAssessmentValues) {
-        ClassSpreadsheet classSpreadsheet = new ClassSpreadsheet();
-        classSpreadsheet.setFileName(fileName);
-        classSpreadsheet.setUploadedBy(teacher);
-        classSpreadsheet.setAssessmentMaxValues(maxAssessmentValues);
-        classSpreadsheet.setClassName(extractFileName(fileName));
-
-        // Logic to save the records to the database
-        // For example, you can iterate through the records and save each one
-        for (Map<String, String> record : records) {
-            GradeRecordsEntity gradeRecord = new GradeRecordsEntity();
-            gradeRecord.setStudentNumber(record.get("Student Number"));
-            gradeRecord.setGrades(record);
-            gradeRecord.setClassRecord(classSpreadsheet);
-
-            classSpreadsheet.getGradeRecords().add(gradeRecord);
-
-        }
-        return classSpreadsheetRepository.save(classSpreadsheet);
-    }
 
     public Optional<ClassSpreadsheet> getClassSpreadsheetById(Long id){
         Optional<ClassSpreadsheet> classSpreadsheet = classSpreadsheetRepository.findById(id);
@@ -317,7 +297,7 @@ public class ClassSpreadsheetService {
         return gradeRecordRepository.save(gradeRecord);
     }
 
-    public ClassSpreadsheet saveRecord(String filename, TeacherEntity teacher,
+    public ClassSpreadsheet saveRecord(String filename, String itemId, String folderName, String folderId, TeacherEntity teacher,
                                        List<Map<String, String>> records, ClassEntity classEntity, Map<String, Integer> maxAssessmentValues) {
         ClassSpreadsheet spreadsheet = new ClassSpreadsheet();
         spreadsheet.setFileName(filename);
@@ -326,6 +306,9 @@ public class ClassSpreadsheetService {
         spreadsheet.setClassEntity(classEntity);
         spreadsheet.setAssessmentMaxValues(maxAssessmentValues);
         // Create grade records
+        spreadsheet.setFolderName(folderName);
+        spreadsheet.setFolderId(folderId);
+        spreadsheet.setItemId(itemId);
 
         spreadsheet.setVisibleAssessments(new HashSet<>());
 
@@ -363,10 +346,99 @@ public class ClassSpreadsheetService {
 
         spreadsheet.setGradeRecords(gradeRecords);
 
+        return classSpreadsheetRepository.save(spreadsheet);
+    }
+
+    public ClassSpreadsheet saveRecord(String filename, TeacherEntity teacher,
+                                       List<Map<String, String>> records, ClassEntity classEntity, Map<String, Integer> maxAssessmentValues) {
+        ClassSpreadsheet spreadsheet = new ClassSpreadsheet();
+        spreadsheet.setFileName(filename);
+        spreadsheet.setUploadedBy(teacher);
+        spreadsheet.setClassName(classEntity.getClassName()); // Set the class name from ClassEntity
+        spreadsheet.setClassEntity(classEntity);
+        spreadsheet.setAssessmentMaxValues(maxAssessmentValues);
+        // Create grade records
+
+        spreadsheet.setVisibleAssessments(new HashSet<>());
+
+        List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
+        for (Map<String, String> record : records) {
+            String studentFirstName = record.get("First Name");
+            String studentLastName = record.get("Last Name");
+            String studentNumber = record.get("Student Number");
+
+//            if (studentName == null) {
+//                // Try common field names or patterns in your data
+//                studentName = record.get("Name") != null ? record.get("name") :
+//                        (record.get("fullName") != null ? record.get("fullName") :
+//                                (record.get("First Name") + " " + record.get("Last Name")));
+//            }
+
+            if (studentNumber == null) {
+                studentNumber = record.get("StudentNumber");
+            }
+
+            // Create the grade record with student association
+            GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
+                    studentNumber,
+                    studentFirstName,
+                    studentLastName,
+                    spreadsheet,
+                    record
+            );
+
+
+            gradeRecord.setGrades(record);
+
+            gradeRecords.add(gradeRecord);
+        }
+
+        spreadsheet.setGradeRecords(gradeRecords);
 
         return classSpreadsheetRepository.save(spreadsheet);
     }
 
+    public ClassSpreadsheet updateSpreadsheet(ClassSpreadsheet spreadsheet, List<Map<String, String>> updatedRecords, Map<String, Integer> maxAssessmentValues) {
+        ClassSpreadsheet existingSpreadsheet = classSpreadsheetRepository.findByIdWithGradeRecords(spreadsheet.getId()).orElseThrow(() -> new RuntimeException("Class spreadsheet not found"));
+
+        Map<String, GradeRecordsEntity> existingRecordsByStudentId = new HashMap<>();
+        for (GradeRecordsEntity record : existingSpreadsheet.getGradeRecords()) {
+            existingRecordsByStudentId.put(record.getStudentNumber(), record);
+        }
+        List<GradeRecordsEntity> updatedGradeRecords = new ArrayList<>();
+        for (Map<String, String> record : updatedRecords) {
+            String studentNumber = record.get("Student Number");
+            String studentFirstName = record.get("First Name");
+            String studentLastName = record.get("Last Name");
+
+            if (studentNumber == null) {
+                logger.warn("Skipping record with missing student number");
+                continue;
+            }
+
+            // Check if this student already exists in the spreadsheet
+            if (existingRecordsByStudentId.containsKey(studentNumber)) {
+                // Update existing grade record
+                GradeRecordsEntity existingRecord = existingRecordsByStudentId.get(studentNumber);
+                existingRecord.setGrades(record);
+                updatedGradeRecords.add(existingRecord);
+            } else {
+                // Create new grade record for new student
+                GradeRecordsEntity newRecord = createGradeRecordWithStudentAssociation(
+                        studentNumber,
+                        studentFirstName,
+                        studentLastName,
+                        existingSpreadsheet,
+                        record
+                );
+                updatedGradeRecords.add(newRecord);
+            }
+        }
+
+        // Update the spreadsheet with the new records
+        existingSpreadsheet.setGradeRecords(updatedGradeRecords);
+        return classSpreadsheetRepository.save(existingSpreadsheet);
+    }
     @Transactional
     public ClassSpreadsheet updateSpreadsheet(Long spreadsheetId, MultipartFile file, TeacherEntity teacher) throws IOException {
         // Fetch the existing spreadsheet
