@@ -10,7 +10,9 @@ import com.capstone.gradify.dto.NotificationPayload;
 import com.capstone.gradify.dto.request.RegisterSpreadsheetRequest;
 import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.ExtractedExcelResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.graph.models.Subscription;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.io.BufferedReader;
 
 import java.util.List;
 import java.util.Map;
@@ -134,22 +137,57 @@ public class MicrosoftGraphController {
         }
     }
 
-    @GetMapping("/notification")
-    public ResponseEntity<String> validateEndpoint(@RequestParam String validationToken) {
-        logger.info("Received validation token: {}", validationToken);
-        return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_PLAIN)
-                .body(validationToken);
-    }
-
     @PostMapping("/notification")
-    public ResponseEntity<String> handleNotification(@RequestBody NotificationPayload payload) {
-        logger.info("Received {} notifications", payload.getValue().size());
+    public ResponseEntity<String> handleNotification(
+            HttpServletRequest request,
+            @RequestParam(required = false) String validationToken) {
 
-        for (ChangeNotification notification : payload.getValue()) {
-            microsoftExcelIntegration.processNotificationAsync(notification);
+        // Handle validation request (has validationToken parameter)
+        if (validationToken != null) {
+            logger.info("=== VALIDATION REQUEST (POST) ===");
+            logger.info("Validation Token: {}", validationToken);
+            logger.info("Content-Type: {}", request.getHeader("Content-Type"));
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(validationToken);
         }
 
-        return ResponseEntity.ok("OK");
+        // Handle actual notification (JSON payload)
+        try {
+            String contentType = request.getHeader("Content-Type");
+            logger.info("=== NOTIFICATION REQUEST ===");
+            logger.info("Content-Type: {}", contentType);
+
+            if (contentType != null && contentType.startsWith("application/json")) {
+                // Read the JSON payload manually
+                StringBuilder buffer = new StringBuilder();
+                try (BufferedReader reader = request.getReader()) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        buffer.append(line);
+                    }
+                }
+
+                String jsonPayload = buffer.toString();
+                logger.info("Received notification JSON: {}", jsonPayload);
+
+                // Parse the JSON (you can use ObjectMapper or your preferred JSON library)
+                ObjectMapper mapper = new ObjectMapper();
+                NotificationPayload payload = mapper.readValue(jsonPayload, NotificationPayload.class);
+
+                logger.info("Received {} notifications", payload.getValue().size());
+
+                for (ChangeNotification notification : payload.getValue()) {
+                    microsoftExcelIntegration.processNotificationAsync(notification);
+                }
+            }
+
+            return ResponseEntity.ok("OK");
+
+        } catch (Exception e) {
+            logger.error("Error processing notification", e);
+            return ResponseEntity.status(500).body("Error processing notification");
+        }
     }
 }
