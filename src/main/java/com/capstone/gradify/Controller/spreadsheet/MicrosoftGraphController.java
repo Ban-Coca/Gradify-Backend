@@ -172,7 +172,6 @@ public class MicrosoftGraphController {
                 String jsonPayload = buffer.toString();
                 logger.info("Received notification JSON: {}", jsonPayload);
 
-                // Parse the JSON (you can use ObjectMapper or your preferred JSON library)
                 ObjectMapper mapper = new ObjectMapper();
                 NotificationPayload payload = mapper.readValue(jsonPayload, NotificationPayload.class);
 
