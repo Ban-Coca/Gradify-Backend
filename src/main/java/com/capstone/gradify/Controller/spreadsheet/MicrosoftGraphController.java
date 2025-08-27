@@ -134,24 +134,19 @@ public class MicrosoftGraphController {
         }
     }
 
+    @GetMapping("/notification")
+    public ResponseEntity<String> validateEndpoint(@RequestParam String validationToken) {
+        logger.info("Received validation token: {}", validationToken);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(validationToken);
+    }
+
     @PostMapping("/notification")
-    public ResponseEntity<String> handleNotification(
-            @RequestBody NotificationPayload payload,
-            @RequestParam(required = false) String validationToken) {
-
-        // Handle Microsoft Graph subscription validation
-        if (validationToken != null) {
-            logger.info("Received validation token: {}", validationToken);
-            return ResponseEntity.ok()
-                    .contentType(MediaType.TEXT_PLAIN)
-                    .body(validationToken);
-        }
-
-        // Process actual notifications
+    public ResponseEntity<String> handleNotification(@RequestBody NotificationPayload payload) {
         logger.info("Received {} notifications", payload.getValue().size());
 
         for (ChangeNotification notification : payload.getValue()) {
-            // Process each notification asynchronously
             microsoftExcelIntegration.processNotificationAsync(notification);
         }
 
