@@ -51,6 +51,15 @@ public class SecurityConfig {
     private final JwtUtil jwtUtil;
     @Value("${frontend.base-url}")
     private String frontendBaseUrl;
+    @Value("${spring.web.cors.allowed-origins}")
+    private String allowedOrigins;
+    @Value("${spring.web.cors.allowed-methods}")
+    private String allowedMethods;
+    @Value("${spring.web.cors.allowed-headers}")
+    private String allowedHeaders;
+    @Value("${spring.web.cors.allow-credentials}")
+    private boolean allowCredentials;
+
     private String serializeUser(UserEntity user) {
         return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\"}",
                 user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name());
@@ -137,10 +146,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173")); // Add allowed origins
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Add allowed HTTP methods
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type")); // Add allowed headers
-        configuration.setAllowCredentials(true); // Allow credentials (e.g., cookies)
+        configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+        configuration.setAllowedMethods(List.of(allowedMethods.split(",")));
+        configuration.setAllowedHeaders(List.of(allowedHeaders.split(",")));
+        configuration.setAllowCredentials(allowCredentials);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // Apply CORS settings to all endpoints
