@@ -11,6 +11,8 @@ import com.capstone.gradify.dto.request.RegisterSpreadsheetRequest;
 import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.ExtractedExcelResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microsoft.graph.models.Subscription;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,7 @@ public class MicrosoftGraphController {
     private final TeacherRepository teacherRepository;
     private static final Logger logger = LoggerFactory.getLogger(MicrosoftGraphController.class);
     private final ClassSpreadsheetRepository classSpreadsheetRepository;
+    private final ObjectMapper objectMapper;
     @GetMapping("/drive/root")
     public ResponseEntity<?> getUserRootFiles(@RequestParam int userId){
         try{
@@ -142,51 +145,46 @@ public class MicrosoftGraphController {
             HttpServletRequest request,
             @RequestParam(required = false) String validationToken) {
 
-        // Handle validation request (has validationToken parameter)
         if (validationToken != null) {
-            logger.info("=== VALIDATION REQUEST (POST) ===");
-            logger.info("Validation Token: {}", validationToken);
-            logger.info("Content-Type: {}", request.getHeader("Content-Type"));
-
+            logger.info("POST validation - token: {}", validationToken);
             return ResponseEntity.ok()
                     .contentType(MediaType.TEXT_PLAIN)
                     .body(validationToken);
         }
 
-        // Handle actual notification (JSON payload)
         try {
-            String contentType = request.getHeader("Content-Type");
-            logger.info("=== NOTIFICATION REQUEST ===");
-            logger.info("Content-Type: {}", contentType);
-
-            if (contentType != null && contentType.startsWith("application/json")) {
-                // Read the JSON payload manually
-                StringBuilder buffer = new StringBuilder();
-                try (BufferedReader reader = request.getReader()) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        buffer.append(line);
-                    }
+            StringBuilder buffer = new StringBuilder();
+            try (BufferedReader reader = request.getReader()) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    buffer.append(line);
                 }
+            }
 
-                String jsonPayload = buffer.toString();
-                logger.info("Received notification JSON: {}", jsonPayload);
+            String jsonPayload = buffer.toString();
+            logger.info("=== CHANGE NOTIFICATION RECEIVED ===");
+            logger.info("Raw JSON: {}", jsonPayload);
 
-                ObjectMapper mapper = new ObjectMapper();
-                NotificationPayload payload = mapper.readValue(jsonPayload, NotificationPayload.class);
+            // Use the injected, properly configured ObjectMapper
+            NotificationPayload payload = objectMapper.readValue(jsonPayload, NotificationPayload.class);
 
-                logger.info("Received {} notifications", payload.getValue().size());
+            logger.info("Number of notifications: {}", payload.getValue().size());
 
-                for (ChangeNotification notification : payload.getValue()) {
-                    microsoftExcelIntegration.processNotificationAsync(notification);
-                }
+            for (ChangeNotification notification : payload.getValue()) {
+                logger.info("--- Individual Notification ---");
+                logger.info("Subscription ID: {}", notification.getSubscriptionId());
+                logger.info("Change Type: {}", notification.getChangeType());
+                logger.info("Resource: {}", notification.getResource());
+                logger.info("Expiration: {}", notification.getSubscriptionExpirationDateTime());
+
+                microsoftExcelIntegration.processNotificationAsync(notification);
             }
 
             return ResponseEntity.ok("OK");
 
         } catch (Exception e) {
             logger.error("Error processing notification", e);
-            return ResponseEntity.status(500).body("Error processing notification");
+            return ResponseEntity.ok("Error processed"); // Still return 200 to prevent retries
         }
     }
 }
