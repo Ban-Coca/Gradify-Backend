@@ -81,7 +81,7 @@ public class SecurityConfig {
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/graph/notification/**").permitAll()
-                        .requestMatchers("/api/graph/drive/folder/**").hasAnyAuthority("TEACHER")
+                        .requestMatchers("/api/graph/drive/folder/**", "/api/graph/subscription","/api/graph/subscription/**", "/api/graph/tracked-files").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**", "/api/graph/drive/**", "/api/graph/extract/**", "/api/graph/save/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/reports/**").hasAnyAuthority("TEACHER", "STUDENT")
