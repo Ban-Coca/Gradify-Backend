@@ -1,19 +1,22 @@
 package com.capstone.gradify.Controller.spreadsheet;
 
-import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Entity.enums.SubscriptionStatus;
+import com.capstone.gradify.Entity.subscription.OneDriveSubscription;
+import com.capstone.gradify.Entity.subscription.TrackedFiles;
 import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
+import com.capstone.gradify.Repository.subscription.OneDriveSubscriptionRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.spreadsheet.MicrosoftExcelIntegration;
+import com.capstone.gradify.Service.subscription.TrackedFilesService;
 import com.capstone.gradify.dto.ChangeNotification;
 import com.capstone.gradify.dto.NotificationPayload;
-import com.capstone.gradify.dto.request.RegisterSpreadsheetRequest;
 import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.ExtractedExcelResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.microsoft.graph.models.Subscription;
+import com.microsoft.graph.serviceclient.GraphServiceClient;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -26,8 +29,10 @@ import java.io.BufferedReader;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/graph")
@@ -36,7 +41,8 @@ public class MicrosoftGraphController {
     private final MicrosoftExcelIntegration microsoftExcelIntegration;
     private final TeacherRepository teacherRepository;
     private static final Logger logger = LoggerFactory.getLogger(MicrosoftGraphController.class);
-    private final ClassSpreadsheetRepository classSpreadsheetRepository;
+    private final OneDriveSubscriptionRepository oneDriveSubscriptionRepository;
+    private final TrackedFilesService trackedFilesService;
     private final ObjectMapper objectMapper;
     @GetMapping("/drive/root")
     public ResponseEntity<?> getUserRootFiles(@RequestParam int userId){
@@ -89,54 +95,155 @@ public class MicrosoftGraphController {
     @PostMapping("/notification/subscribe/{userId}")
     public ResponseEntity<?> createNotificationSubscription(@PathVariable int userId){
         try {
-            Subscription subscription = microsoftExcelIntegration.createSubscriptionToFolder(userId);
-            return ResponseEntity.ok(Map.of(
-                    "subscriptionId", Objects.requireNonNull(subscription.getId()),
-                    "expiresAt", Objects.requireNonNull(subscription.getExpirationDateTime())
-            ));
-        } catch (Exception e) {
-            logger.error("Error creating subscription for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
+            // Check if user already has active subscription
+            Optional<OneDriveSubscription> existing = oneDriveSubscriptionRepository
+                    .findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE);
 
-    @PostMapping("/sync/{userId}")
-    public ResponseEntity<?> manualSync(@PathVariable int userId) {
-        try {
-            microsoftExcelIntegration.syncUserSpreadsheets(userId);
-            return ResponseEntity.ok(Map.of("status", "Spreadsheet sync completed"));
-        } catch (Exception e) {
-            logger.error("Error in manual sync for user {}: {}", userId, e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
-        }
-    }
-    @PostMapping("/register-spreadsheet")
-    public ResponseEntity<?> registerSpreadsheet(@RequestBody RegisterSpreadsheetRequest request) {
-        try {
-            Optional<ClassSpreadsheet> spreadsheet = classSpreadsheetRepository.findById(request.getSpreadsheetId());
-            if(spreadsheet.isEmpty()) {
-                return ResponseEntity.badRequest().body("Spreadsheet not found");
-            } else {
-                microsoftExcelIntegration.registerSpreadsheetForMonitoring(spreadsheet.get(), request.getItemId());
+            if (existing.isPresent()) {
+                return ResponseEntity.badRequest()
+                        .body("User already has an active subscription: " + existing.get().getSubscriptionId());
             }
 
-            return ResponseEntity.ok(Map.of("status", "Spreadsheet registered for monitoring"));
+            Subscription graphSubscription = microsoftExcelIntegration.createSubscriptionToFolder(userId);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Subscription created successfully",
+                    "subscriptionId", Objects.requireNonNull(graphSubscription.getId()),
+                    "expirationDateTime", Objects.requireNonNull(graphSubscription.getExpirationDateTime())
+            ));
+
         } catch (Exception e) {
+            logger.error("Failed to create subscription for user {}: {}", userId, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+                    .body("Failed to create subscription: " + e.getMessage());
         }
     }
 
-    @DeleteMapping("/unregister-spreadsheet/{spreadsheetId}")
-    public ResponseEntity<?> unregisterSpreadsheet(@PathVariable Long spreadsheetId) {
+//    @PostMapping("/sync/{userId}")
+//    public ResponseEntity<?> manualSync(@PathVariable int userId) {
+//        try {
+//            microsoftExcelIntegration.syncUserSpreadsheets(userId);
+//            return ResponseEntity.ok(Map.of("status", "Spreadsheet sync completed"));
+//        } catch (Exception e) {
+//            logger.error("Error in manual sync for user {}: {}", userId, e.getMessage());
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("error", e.getMessage()));
+//        }
+//    }
+
+    @GetMapping("/subscription/status")
+    public ResponseEntity<?> getSubscriptionStatus(@RequestParam Integer userId) {
         try {
-            microsoftExcelIntegration.unregisterSpreadsheetFromMonitoring(spreadsheetId);
-            return ResponseEntity.ok(Map.of("status", "Spreadsheet unregistered from monitoring"));
+            Optional<OneDriveSubscription> subscription = oneDriveSubscriptionRepository
+                    .findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE);
+
+            if (subscription.isPresent()) {
+                OneDriveSubscription sub = subscription.get();
+                return ResponseEntity.ok(Map.of(
+                        "hasActiveSubscription", true,
+                        "subscriptionId", sub.getSubscriptionId(),
+                        "expirationDateTime", sub.getExpirationDateTime(),
+                        "trackedFilesCount", sub.getTrackedFiles().size()
+                ));
+            } else {
+                return ResponseEntity.ok(Map.of(
+                        "hasActiveSubscription", false
+                ));
+            }
+
         } catch (Exception e) {
+            logger.error("Failed to get subscription status for user {}: {}", userId, e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage()));
+                    .body("Failed to get subscription status: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/subscription/renew")
+    public ResponseEntity<?> renewSubscription(@RequestParam Integer userId) {
+        try {
+            OneDriveSubscription dbSubscription = oneDriveSubscriptionRepository
+                    .findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
+                    .orElseThrow(() -> new RuntimeException("No active subscription found for user: " + userId));
+
+            Subscription renewed = microsoftExcelIntegration.renewSubscription(
+                    dbSubscription.getSubscriptionId(), userId);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Subscription renewed successfully",
+                    "subscriptionId", Objects.requireNonNull(renewed.getId()),
+                    "newExpirationDateTime", Objects.requireNonNull(renewed.getExpirationDateTime())
+            ));
+
+        } catch (Exception e) {
+            logger.error("Failed to renew subscription for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to renew subscription: " + e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/subscription")
+    public ResponseEntity<?> cancelSubscription(@RequestParam Integer userId) {
+        try {
+            OneDriveSubscription dbSubscription = oneDriveSubscriptionRepository
+                    .findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
+                    .orElseThrow(() -> new RuntimeException("No active subscription found for user: " + userId));
+
+            // Cancel in Microsoft Graph
+            UserToken userToken = microsoftExcelIntegration.getUserToken(userId);
+            GraphServiceClient client = microsoftExcelIntegration.createGraphClient(
+                    userToken.getAccessToken(), userToken.getExpiresAt());
+
+            client.subscriptions().bySubscriptionId(dbSubscription.getSubscriptionId()).delete();
+
+            // Update status in database
+            dbSubscription.setStatus(SubscriptionStatus.CANCELLED);
+            oneDriveSubscriptionRepository.save(dbSubscription);
+
+            logger.info("Cancelled subscription {} for user {}",
+                    dbSubscription.getSubscriptionId(), userId);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Subscription cancelled successfully"
+            ));
+
+        } catch (Exception e) {
+            logger.error("Failed to cancel subscription for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to cancel subscription: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/tracked-files")
+    public ResponseEntity<?> getTrackedFiles(@RequestParam Integer userId) {
+        try {
+            OneDriveSubscription subscription = oneDriveSubscriptionRepository
+                    .findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
+                    .orElseThrow(() -> new RuntimeException("No active subscription found for user: " + userId));
+
+            List<TrackedFiles> trackedFiles = trackedFilesService
+                    .getTrackedFilesForSubscription(subscription.getId());
+
+            List<Map<String, Object>> fileInfo = trackedFiles.stream()
+                    .map(tf -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("fileName", tf.getSpreadsheet().getFileName());
+                        map.put("filePath", tf.getFilePath());
+                        map.put("syncStatus", tf.getSyncStatus());
+                        map.put("lastModified", tf.getLastModifiedDateTime());
+                        map.put("itemId", tf.getItemId());
+                        return map;
+                    })
+                    .toList();
+
+            return ResponseEntity.ok(Map.of(
+                    "trackedFiles", fileInfo,
+                    "totalCount", fileInfo.size()
+            ));
+
+        } catch (Exception e) {
+            logger.error("Failed to get tracked files for user {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to get tracked files: " + e.getMessage());
         }
     }
 

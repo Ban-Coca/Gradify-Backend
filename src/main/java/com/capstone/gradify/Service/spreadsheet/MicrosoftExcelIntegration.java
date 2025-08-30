@@ -2,15 +2,22 @@ package com.capstone.gradify.Service.spreadsheet;
 
 import com.azure.core.credential.AccessToken;
 import com.azure.core.credential.TokenRequestContext;
+import com.capstone.gradify.Entity.enums.SubscriptionStatus;
+import com.capstone.gradify.Entity.enums.SyncStatus;
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Entity.subscription.OneDriveSubscription;
+import com.capstone.gradify.Entity.subscription.TrackedFiles;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
+import com.capstone.gradify.Repository.subscription.OneDriveSubscriptionRepository;
+import com.capstone.gradify.Repository.subscription.TrackedFileRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
+import com.capstone.gradify.Service.subscription.TrackedFilesService;
 import com.capstone.gradify.dto.ChangeNotification;
 import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.ExtractedExcelResponse;
@@ -29,6 +36,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.azure.core.credential.TokenCredential;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.http.HttpHeaders;
@@ -54,12 +62,12 @@ public class MicrosoftExcelIntegration {
     private final TeacherRepository teacherRepository;
     private final ClassRepository classRepository;
     private final ClassSpreadsheetRepository classSpreadsheetRepository;
-
+    private final TrackedFilesService trackedFileService;
+    private final OneDriveSubscriptionRepository subscriptionRepository;
+    private final TrackedFileRepository trackedFileRepository;
     @Value("${app.webhook.url}")
     private String webhookUrl;
 
-    private final Map<Integer, String> userSubscriptions = new ConcurrentHashMap<>();
-    private final Map<String, OffsetDateTime> fileLastModifiedTimes = new ConcurrentHashMap<>();
 
     public String getUserDriveIds(int userId) {
         UserToken userToken = getUserToken(userId);
@@ -234,17 +242,43 @@ public class MicrosoftExcelIntegration {
         GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
         String driveId = getUserDriveIds(userId);
 
+        // Check if user already has an active subscription
+        Optional<OneDriveSubscription> existingSubscription = subscriptionRepository
+                .findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE);
+
+        if (existingSubscription.isPresent()) {
+            logger.info("User {} already has active subscription: {}", userId, existingSubscription.get().getSubscriptionId());
+            return null; // or renew existing
+        }
+
         Subscription subscription = new Subscription();
         subscription.setChangeType("updated");
-        subscription.setNotificationUrl(webhookUrl + "/api/graph/notification"); // Replace with your actual webhook URL
+        subscription.setNotificationUrl(webhookUrl + "/api/graph/notification");
         subscription.setResource(String.format("/drives/%s/root", driveId));
-        subscription.setExpirationDateTime(OffsetDateTime.now().plusDays(2)); // Set appropriate expiration
+        subscription.setExpirationDateTime(OffsetDateTime.now().plusDays(2));
         subscription.setClientState("OneDriveSync-" + userId);
 
         try {
             Subscription createdSubscription = client.subscriptions().post(subscription);
-            userSubscriptions.put(userId, Objects.requireNonNull(createdSubscription).getId());
-            logger.info("Created subscription {} for user {}", createdSubscription.getId(), userId);
+            OneDriveSubscription dbSubscription = new OneDriveSubscription();
+            dbSubscription.setUserId(userId);
+            dbSubscription.setSubscriptionId(Objects.requireNonNull(createdSubscription).getId());
+            dbSubscription.setStatus(SubscriptionStatus.ACTIVE);
+            dbSubscription.setExpirationDateTime(createdSubscription.getExpirationDateTime());
+            dbSubscription.setDriveId(driveId);
+            dbSubscription.setResource(createdSubscription.getResource());
+            dbSubscription.setClientState(createdSubscription.getClientState());
+            dbSubscription.setCreatedAt(OffsetDateTime.now());
+
+            OneDriveSubscription savedSubscription = subscriptionRepository.save(dbSubscription);
+
+            // Link existing spreadsheets to this subscription
+            trackedFileService.linkExistingSpreadsheetsToSubscription(
+                    savedSubscription.getId(), userId);
+
+            logger.info("Created subscription {} for user {} and linked existing files",
+                    createdSubscription.getId(), userId);
+
             return createdSubscription;
         } catch (Exception e) {
             logger.error("Error creating subscription for user {}: {}", userId, e.getMessage());
@@ -256,35 +290,62 @@ public class MicrosoftExcelIntegration {
         UserToken userToken = getUserToken(userId);
         GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
 
+        // Update expiration in Graph API
         Subscription subscriptionUpdate = new Subscription();
         subscriptionUpdate.setExpirationDateTime(OffsetDateTime.now().plusDays(2));
 
-        return client.subscriptions().bySubscriptionId(subscriptionId).patch(subscriptionUpdate);
+        Subscription renewed = client.subscriptions().bySubscriptionId(subscriptionId).patch(subscriptionUpdate);
+
+        // Update expiration in database
+        subscriptionRepository.findBySubscriptionId(subscriptionId)
+                .ifPresent(dbSub -> {
+                    dbSub.setExpirationDateTime(Objects.requireNonNull(renewed).getExpirationDateTime());
+                    subscriptionRepository.save(dbSub);
+                });
+
+        return renewed;
     }
 
     @Async
     public void processNotificationAsync(ChangeNotification notification) {
-        try{
-            logger.info("Processing notification: {} for resource: {}", notification.getChangeType(), notification.getResource());
-            String clientState = notification.getClientState();
+        try {
+            logger.info("Processing notification: {} for resource: {}",
+                    notification.getChangeType(), notification.getResource());
 
-            if(clientState == null || !clientState.startsWith("OneDriveSync-")) {
-                logger.warn("Invalid client state: {}", clientState);
-                return;
+            // Find subscription in database
+            OneDriveSubscription subscription = subscriptionRepository
+                    .findBySubscriptionId(notification.getSubscriptionId())
+                    .orElseThrow(() -> new RuntimeException("Subscription not found: " + notification.getSubscriptionId()));
+
+            // Find the tracked file associated with this notification
+            List<TrackedFiles> trackedFile = trackedFileService.getTrackedFilesForSubscription(subscription.getId());
+            for(TrackedFiles tf : trackedFile){
+                trackedFile.forEach(trackedfiles -> processModifiedFile(tf, subscription.getUserId()));
             }
 
-            int userId = Integer.parseInt(clientState.substring("OneDriveSync-".length()));
-
-            String changedItemId = notification.getResourceData().getId();
-            Optional<ClassSpreadsheet> spreadsheet = classSpreadsheetRepository.findByItemId(changedItemId);
-            if(spreadsheet.isPresent() && spreadsheet.get().getUploadedBy().getUserId() == userId){
-                logger.info("Change detected in tracked spreadsheet: {} ({})", spreadsheet.get().getFileName(), notification.getChangeType());
-                processSpreadsheetChange(userId, spreadsheet.get(), notification);
-            } else {
-                logger.debug("Change not in tracked files for user {}: {}", userId, changedItemId);
-            }
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error("Error processing notification: {}", e.getMessage(), e);
+        }
+    }
+
+    @Transactional
+    public void processModifiedFile(TrackedFiles trackedFile, int userId) {
+        try {
+            ClassSpreadsheet spreadsheet = classSpreadsheetRepository
+                    .findById(trackedFile.getSpreadsheet().getId())
+                    .orElseThrow(() -> new RuntimeException("Spreadsheet not found"));
+
+            UserToken userToken = getUserToken(userId);
+            GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
+            String driveId = getUserDriveIds(userId);
+
+            DriveItem changedItem = client.drives().byDriveId(driveId)
+                    .items().byDriveItemId(trackedFile.getItemId()).get();
+
+            processChangedSpreadsheet(userId, spreadsheet, changedItem, "updated");
+
+        } catch (Exception e) {
+            logger.error("Error processing modified file {}: {}", trackedFile.getFilePath(), e.getMessage());
         }
     }
 
@@ -304,38 +365,90 @@ public class MicrosoftExcelIntegration {
 
     // Scheduled full sync (backup method)
     @Scheduled(fixedRate = 3600000) // Every hour
-    public void scheduledFullSync() {
-        logger.info("Starting scheduled full sync for all tracked spreadsheets");
+    public void scheduledBackupSync() {
+        logger.info("Starting backup sync for files that may have missed webhook notifications");
 
-        // Get all spreadsheets with itemId (tracked files)
-        List<ClassSpreadsheet> trackedSpreadsheets = classSpreadsheetRepository.findByItemIdIsNotNull();
+        // Only sync files that haven't been updated recently via webhooks
+        List<OneDriveSubscription> activeSubscriptions = subscriptionRepository
+                .findByStatus(SubscriptionStatus.ACTIVE);
 
-        // Group by user for efficient processing
-        Map<Integer, List<ClassSpreadsheet>> spreadsheetsByUser = trackedSpreadsheets.stream().collect(Collectors.groupingBy(s -> s.getUploadedBy().getUserId()));
+        for (OneDriveSubscription subscription : activeSubscriptions) {
+            List<TrackedFiles> trackedFile = trackedFileService.getTrackedFilesForSubscription(subscription.getId());
+            for(TrackedFiles tf : trackedFile){
+                trackedFile.forEach(trackedfiles -> processModifiedFile(tf, subscription.getUserId()));
+            }
+        }
 
-        for (Map.Entry<Integer, List<ClassSpreadsheet>> entry : spreadsheetsByUser.entrySet()) {
-            Integer userId = entry.getKey();
-            List<ClassSpreadsheet> userSpreadsheets = entry.getValue();
-
+        for (OneDriveSubscription subscription : activeSubscriptions) {
             try {
-                syncUserSpreadsheets(userId, userSpreadsheets);
+                syncSubscriptionFiles(subscription);
             } catch (Exception e) {
-                logger.error("Error in scheduled sync for user {}: {}", userId, e.getMessage());
+                logger.error("Error in backup sync for subscription {}: {}",
+                        subscription.getSubscriptionId(), e.getMessage());
             }
         }
     }
 
-    public void syncUserSpreadsheets(int userId) throws Exception {
-        List<ClassSpreadsheet> userSpreadsheets = classSpreadsheetRepository.findByUploadedBy_UserIdAndItemIdIsNotNull(userId);
+//    public void syncUserSpreadsheets(int userId) throws Exception {
+//        List<ClassSpreadsheet> userSpreadsheets = classSpreadsheetRepository.findByUploadedBy_UserIdAndItemIdIsNotNull(userId);
+//
+//        if(userSpreadsheets.isEmpty()){
+//            logger.info("No tracked spreadsheets for user {}", userId);
+//            return;
+//        }
+//        syncUserSpreadsheets(userId, userSpreadsheets);
+//    }
+//
+//    public void syncUserSpreadsheets(int userId, List<ClassSpreadsheet> spreadsheets) throws Exception {
+//        UserToken userToken = getUserToken(userId);
+//        GraphServiceClient client = createGraphClient(
+//                userToken.getAccessToken(),
+//                userToken.getExpiresAt()
+//        );
+//        String driveId = getUserDriveIds(userId);
+//
+//        for(ClassSpreadsheet spreadsheet : spreadsheets){
+//            try{
+//                DriveItem fileItem = client.drives().byDriveId(driveId).items().byDriveItemId(spreadsheet.getItemId()).get();
+//
+//                String fileKey = userId + ":" + spreadsheet.getItemId();
+//                OffsetDateTime lastModified = Objects.requireNonNull(fileItem).getLastModifiedDateTime();
+//                OffsetDateTime storedLastModified = fileLastModifiedTimes.get(fileKey);
+//
+//                if (storedLastModified == null || lastModified.isAfter(storedLastModified)) {
+//                    logger.info("Spreadsheet '{}' has been modified, processing changes for user {}",
+//                            spreadsheet.getFileName(), userId);
+//
+//                    processChangedSpreadsheet(userId, spreadsheet, fileItem, "updated");
+//
+//                } else {
+//                    logger.debug("Spreadsheet '{}' unchanged for user {}", spreadsheet.getFileName(), userId);
+//                }
+//            } catch (Exception e){
+//                logger.error("Error syncing spreadsheet '{}' for user {}: {}",
+//                        spreadsheet.getFileName(), userId, e.getMessage());
+//            }
+//        }
+//    }
 
-        if(userSpreadsheets.isEmpty()){
-            logger.info("No tracked spreadsheets for user {}", userId);
-            return;
+    private void syncSubscriptionFiles(OneDriveSubscription subscription) throws Exception {
+        List<TrackedFiles> trackedFiles = trackedFileService
+                .getTrackedFilesForSubscription(subscription.getId());
+
+        // Only sync files that haven't been updated in the last hour (missed webhooks)
+        OffsetDateTime oneHourAgo = OffsetDateTime.now().minusHours(1);
+
+        List<TrackedFiles> filesToSync = trackedFiles.stream()
+                .filter(tf -> tf.getLastModifiedDateTime().isBefore(oneHourAgo))
+                .collect(Collectors.toList());
+
+        if (!filesToSync.isEmpty()) {
+            logger.info("Backup syncing {} files for user {}", filesToSync.size(), subscription.getUserId());
+            syncSpecificFiles(subscription.getUserId(), filesToSync);
         }
-        syncUserSpreadsheets(userId, userSpreadsheets);
     }
 
-    public void syncUserSpreadsheets(int userId, List<ClassSpreadsheet> spreadsheets) throws Exception {
+    private void syncSpecificFiles(int userId, List<TrackedFiles> filesToSync) throws Exception {
         UserToken userToken = getUserToken(userId);
         GraphServiceClient client = createGraphClient(
                 userToken.getAccessToken(),
@@ -343,28 +456,49 @@ public class MicrosoftExcelIntegration {
         );
         String driveId = getUserDriveIds(userId);
 
-        for(ClassSpreadsheet spreadsheet : spreadsheets){
-            try{
-                DriveItem fileItem = client.drives().byDriveId(driveId).items().byDriveItemId(spreadsheet.getItemId()).get();
+        for (TrackedFiles trackedFile : filesToSync) {
+            try {
+                ClassSpreadsheet spreadsheet = trackedFile.getSpreadsheet();
 
-                String fileKey = userId + ":" + spreadsheet.getItemId();
-                OffsetDateTime lastModified = Objects.requireNonNull(fileItem).getLastModifiedDateTime();
-                OffsetDateTime storedLastModified = fileLastModifiedTimes.get(fileKey);
+                // Get current file info from OneDrive
+                DriveItem fileItem = client.drives().byDriveId(driveId)
+                        .items().byDriveItemId(trackedFile.getItemId()).get();
 
-                if (storedLastModified == null || lastModified.isAfter(storedLastModified)) {
-                    logger.info("Spreadsheet '{}' has been modified, processing changes for user {}",
+                if (fileItem == null) {
+                    logger.warn("File not found in OneDrive: {} (itemId: {})",
+                            trackedFile.getFilePath(), trackedFile.getItemId());
+                    continue;
+                }
+
+                // Check if file was actually modified since last sync
+                OffsetDateTime fileLastModified = fileItem.getLastModifiedDateTime();
+                OffsetDateTime trackedLastModified = trackedFile.getLastModifiedDateTime();
+
+                if (fileLastModified != null && (trackedLastModified == null ||
+                        fileLastModified.isAfter(trackedLastModified))) {
+
+                    logger.info("File '{}' was modified, syncing changes for user {}",
                             spreadsheet.getFileName(), userId);
 
+                    // Process the changed file
                     processChangedSpreadsheet(userId, spreadsheet, fileItem, "updated");
 
-                    // Store the new last modified time
-                    fileLastModifiedTimes.put(fileKey, lastModified);
+                    // Update tracked file timestamp
+                    trackedFile.setLastModifiedDateTime(fileLastModified);
+                    trackedFile.setSyncStatus(SyncStatus.SYNCED);
+                    trackedFileRepository.save(trackedFile);
+
                 } else {
-                    logger.debug("Spreadsheet '{}' unchanged for user {}", spreadsheet.getFileName(), userId);
+                    logger.debug("File '{}' unchanged for user {}", spreadsheet.getFileName(), userId);
                 }
-            } catch (Exception e){
-                logger.error("Error syncing spreadsheet '{}' for user {}: {}",
-                        spreadsheet.getFileName(), userId, e.getMessage());
+
+            } catch (Exception e) {
+                logger.error("Error syncing file '{}' for user {}: {}",
+                        trackedFile.getFilePath(), userId, e.getMessage());
+
+                // Mark as failed for monitoring
+                trackedFile.setSyncStatus(SyncStatus.FAILED);
+                trackedFileRepository.save(trackedFile);
             }
         }
     }
@@ -494,40 +628,10 @@ public class MicrosoftExcelIntegration {
             logger.error("Failed to update spreadsheet data for: '{}': {}", spreadsheet.getFileName(), e.getMessage(), e);
         }
     }
-    public void registerSpreadsheetForMonitoring(ClassSpreadsheet spreadsheet, String itemId) {
-        spreadsheet.setItemId(itemId);
-        classSpreadsheetRepository.save(spreadsheet);
-
-        logger.info("Registered spreadsheet '{}' (class: '{}') for monitoring with itemId: {}",
-                spreadsheet.getFileName(), spreadsheet.getClassName(), itemId);
-    }
-
-    public void unregisterSpreadsheetFromMonitoring(Long spreadsheetId) {
-        Optional<ClassSpreadsheet> spreadsheet = classSpreadsheetRepository.findById(spreadsheetId);
-        if (spreadsheet.isPresent()) {
-            ClassSpreadsheet sheet = spreadsheet.get();
-            String fileKey = sheet.getUploadedBy().getUserId() + ":" + sheet.getItemId();
-
-            sheet.setItemId(null);
-            classSpreadsheetRepository.save(sheet);
-            fileLastModifiedTimes.remove(fileKey);
-
-            logger.info("Unregistered spreadsheet '{}' from monitoring", sheet.getFileName());
-        }
-    }
 
     @Scheduled(fixedRate = 86400000) // Daily check
     public void renewExpiringSubscriptions() {
-        for (Map.Entry<Integer, String> entry : userSubscriptions.entrySet()) {
-            int userId = entry.getKey();
-            String subscriptionId = entry.getValue();
 
-            try {
-                renewSubscriptionIfNeeded(userId, subscriptionId);
-            } catch (Exception e) {
-                logger.error("Error renewing subscription for user {}: {}", userId, e.getMessage());
-            }
-        }
     }
     private void renewSubscriptionIfNeeded(int userId, String subscriptionId) throws Exception {
         UserToken userToken = getUserToken(userId);
@@ -549,7 +653,34 @@ public class MicrosoftExcelIntegration {
         }
     }
 
-    private UserToken getUserToken(int userId) {
+    private boolean wasFileRecentlyModified(TrackedFiles trackedFile) {
+        try {
+            // Get the current file's last modified time from OneDrive
+            UserToken userToken = getUserToken(trackedFile.getSubscription().getUserId());
+            GraphServiceClient client = createGraphClient(userToken.getAccessToken(), userToken.getExpiresAt());
+
+            String driveId = trackedFile.getSubscription().getDriveId();
+            DriveItem currentItem = client.drives().byDriveId(driveId)
+                    .items().byDriveItemId(trackedFile.getItemId()).get();
+
+            if (currentItem == null || currentItem.getLastModifiedDateTime() == null) {
+                return false;
+            }
+
+            OffsetDateTime oneDriveModified = currentItem.getLastModifiedDateTime();
+            OffsetDateTime trackedModified = trackedFile.getLastModifiedDateTime();
+
+            // Consider file recently modified if OneDrive timestamp is newer than our tracked timestamp
+            return oneDriveModified.isAfter(trackedModified);
+
+        } catch (Exception e) {
+            logger.warn("Error checking if file {} was recently modified: {}",
+                    trackedFile.getFilePath(), e.getMessage());
+            return false; // If we can't check, assume not modified to avoid unnecessary processing
+        }
+    }
+
+    public UserToken getUserToken(int userId) {
         UserToken userToken = userTokenRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User not authenticated with Microsoft Graph"));
 
@@ -582,7 +713,7 @@ public class MicrosoftExcelIntegration {
         return userToken;
     }
 
-    private GraphServiceClient createGraphClient(String accessToken, LocalDateTime expiresAt) {
+    public GraphServiceClient createGraphClient(String accessToken, LocalDateTime expiresAt) {
         TokenCredential credential = new TokenCredential() {
             @Override
             public Mono<AccessToken> getToken(TokenRequestContext request) {
