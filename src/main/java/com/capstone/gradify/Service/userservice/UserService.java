@@ -47,15 +47,7 @@ public class UserService {
 	private final UserRepository userRepository;
 	private final TeacherRepository teacherRepository;
 	private final StudentRepository studentRepository;
-	@Value("${GOOGLE_CLIENT_ID}")
-	private String googleClientId;
-	@Value("${GOOGLE_CLIENT_SECRET}")
-	private String googleClientSecret;
-	@Value("${GOOGLE_REDIRECT_URI}")
-	private String googleRedirectUri;
-	private final RestTemplate restTemplate;
-    @PersistenceContext
-	private EntityManager entityManager;
+
 
   	// Directory for file uploads, injected from application properties
   	// This is used to store user profile pictures or other uploaded files
@@ -105,6 +97,16 @@ public class UserService {
 
 			if (existingStudent.isPresent()) {
 				StudentEntity student = existingStudent.get();
+
+				if (student.getEmail() != null && !student.getEmail().equals(user.getEmail())) {
+					throw new IllegalArgumentException("Student number already registered with different email");
+				}
+
+				// Additional check: If updating an existing student, verify it's the same user
+				if (user.getUserId() > 0 && user.getUserId() != student.getUserId()) {
+					throw new IllegalArgumentException("Cannot update student record belonging to different user");
+				}
+
 				copyUserProperties(user, student);
 				student.setRole(Role.STUDENT);
 
@@ -132,7 +134,10 @@ public class UserService {
 			return userRepository.save(user);
 		}
 	}
-
+	public boolean isEmailAvailable(String email){
+		UserEntity existingUser = userRepository.findByEmail(email);
+        return existingUser == null;
+    }
 	private void copyUserProperties(UserEntity source, UserEntity target) {
 		// If the user ID is already set (for existing users), maintain it
 		if (source.getUserId() > 0) {

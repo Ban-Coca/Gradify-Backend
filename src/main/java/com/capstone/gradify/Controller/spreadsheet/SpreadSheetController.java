@@ -19,10 +19,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.*;
 
 @RestController
-@RequestMapping("api/spreadsheet")
+@RequestMapping("/api/spreadsheet")
 @RequiredArgsConstructor
 public class SpreadSheetController {
 
@@ -34,44 +35,42 @@ public class SpreadSheetController {
     private final ClassMapper classMapper;
 
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
+    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) throws IOException {
         // Logic to handle spreadsheet upload
-        try{
-            List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
-            Map<String, Integer> maxAssessmentValue = classSpreadsheetService.getMaxAssessmentValue(file);
-            TeacherEntity teacher = teacherRepository.findById(teacherId)
-                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
 
-            ClassEntity classEntity = classSpreadsheetService.createClassEntityFromSpreadsheet(file, records, teacher);
+        List<Map<String, String>> records = classSpreadsheetService.parseClassRecord(file);
+        Map<String, Integer> maxAssessmentValue = classSpreadsheetService.getMaxAssessmentValue(file);
+        TeacherEntity teacher = teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found"));
 
-            // Save the ClassEntity
-            classEntity = classRepository.save(classEntity);
-            ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(
-                    file.getOriginalFilename(),
-                    teacher,
-                    records,
-                    classEntity,
-                    maxAssessmentValue);
+        ClassEntity classEntity = classSpreadsheetService.createClassEntityFromSpreadsheet(file, records, teacher);
 
-            Set<StudentEntity> students = new HashSet<>();
-            savedSpreadsheet.getGradeRecords().forEach(record -> {
-                if (record.getStudent() != null) {
-                    students.add(record.getStudent());
-                }
-            });
+        // Save the ClassEntity
+        classEntity = classRepository.save(classEntity);
+        ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(
+                file.getOriginalFilename(),
+                teacher,
+                records,
+                classEntity,
+                maxAssessmentValue);
+
+        Set<StudentEntity> students = new HashSet<>();
+        savedSpreadsheet.getGradeRecords().forEach(record -> {
+            if (record.getStudent() != null) {
+                students.add(record.getStudent());
+            }
+        });
 
 
-            classEntity.setStudents(students);
-            classEntity = classRepository.save(classEntity);
+        classEntity.setStudents(students);
+        classEntity = classRepository.save(classEntity);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("spreadsheet", savedSpreadsheet);
-            response.put("class", classEntity);
+        Map<String, Object> response = new HashMap<>();
+        response.put("spreadsheet", savedSpreadsheet);
+        response.put("class", classEntity);
 
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
-        }
+        return ResponseEntity.ok(response);
+
     }
 
     @PutMapping("/update/{classId}")
@@ -208,8 +207,7 @@ public class SpreadSheetController {
             // Log error and return false, or a more specific HTTP error
             System.err.println("Error checking spreadsheet existence: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(false); // e.g., if teacher not found
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.err.println("Unexpected error checking spreadsheet existence: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(false);
         }

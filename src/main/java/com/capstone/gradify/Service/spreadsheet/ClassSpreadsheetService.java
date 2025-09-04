@@ -9,6 +9,9 @@ import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
+import com.capstone.gradify.dto.response.GradeErrorDetail;
+import com.capstone.gradify.exceptions.GradeException.GradeExceedsMaximumException;
+import com.capstone.gradify.exceptions.GradeException.GradeValidationException;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
@@ -296,9 +299,14 @@ public class ClassSpreadsheetService {
 
         return gradeRecordRepository.save(gradeRecord);
     }
-
+    // Microsoft Excel compatibility
+    // METHOD FOR SAVING RECORDS WITH FOLDER DETAILS FROM MICROSOFT EXCEL
     public ClassSpreadsheet saveRecord(String filename, String itemId, String folderName, String folderId, TeacherEntity teacher,
                                        List<Map<String, String>> records, ClassEntity classEntity, Map<String, Integer> maxAssessmentValues) {
+
+        // PRE VALIDATE ALL GRADES AGAINST MAX VALUES
+        preValidateAllRecords(records, maxAssessmentValues);
+
         ClassSpreadsheet spreadsheet = new ClassSpreadsheet();
         spreadsheet.setFileName(filename);
         spreadsheet.setUploadedBy(teacher);
@@ -313,6 +321,7 @@ public class ClassSpreadsheetService {
         spreadsheet.setVisibleAssessments(new HashSet<>());
 
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
+        int rowNumber = 3;
         for (Map<String, String> record : records) {
             String studentFirstName = record.get("First Name");
             String studentLastName = record.get("Last Name");
@@ -328,7 +337,7 @@ public class ClassSpreadsheetService {
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
             }
-    
+            validateGradesAgainstMaxValues(record, maxAssessmentValues, rowNumber, studentNumber);
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,
@@ -349,8 +358,13 @@ public class ClassSpreadsheetService {
         return classSpreadsheetRepository.save(spreadsheet);
     }
 
+    // ORIGINAL METHOD FOR SAVING RECORDS FROM UPLOADS
     public ClassSpreadsheet saveRecord(String filename, TeacherEntity teacher,
                                        List<Map<String, String>> records, ClassEntity classEntity, Map<String, Integer> maxAssessmentValues) {
+
+        // PRE VALIDATE ALL GRADES AGAINST MAX VALUES
+        preValidateAllRecords(records, maxAssessmentValues);
+
         ClassSpreadsheet spreadsheet = new ClassSpreadsheet();
         spreadsheet.setFileName(filename);
         spreadsheet.setUploadedBy(teacher);
@@ -362,6 +376,7 @@ public class ClassSpreadsheetService {
         spreadsheet.setVisibleAssessments(new HashSet<>());
 
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
+        int rowNumber = 3;
         for (Map<String, String> record : records) {
             String studentFirstName = record.get("First Name");
             String studentLastName = record.get("Last Name");
@@ -377,7 +392,7 @@ public class ClassSpreadsheetService {
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
             }
-
+            validateGradesAgainstMaxValues(record, maxAssessmentValues, rowNumber, studentNumber);
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,
@@ -658,5 +673,108 @@ public class ClassSpreadsheetService {
             throw new RuntimeException("No class spreadsheet found for class ID: " + classId);
         }
         return spreadsheets.get(0).getAssessmentMaxValues();
+    }
+
+    private void validateGradesAgainstMaxValues(Map<String, String> record, Map<String, Integer> maxAssessmentValues, int rowNumber, String studentNumber) {
+        if (maxAssessmentValues == null || maxAssessmentValues.isEmpty()) {
+            return; // No validation if max values are not available
+        }
+
+        for (Map.Entry<String, String> entry : record.entrySet()) {
+            String assessmentName = entry.getKey();
+            String gradeValue = entry.getValue();
+
+            // Skip non-assessment fields
+            if (assessmentName.equals("First Name") || assessmentName.equals("Last Name") ||
+                    assessmentName.equals("Student Number") || assessmentName.equals("StudentNumber")) {
+                continue;
+            }
+
+            // Check if this assessment has a maximum value defined
+            if (maxAssessmentValues.containsKey(assessmentName)) {
+                Integer maxValue = maxAssessmentValues.get(assessmentName);
+
+                if (gradeValue != null && !gradeValue.trim().isEmpty()) {
+                    try {
+                        double grade = Double.parseDouble(gradeValue.trim());
+                        if (grade > maxValue) {
+                            throw new GradeExceedsMaximumException(grade, maxValue, rowNumber, studentNumber);
+                        }
+                    } catch (NumberFormatException e) {
+                        // Skip validation for non-numeric grades (e.g., "A", "B", "Incomplete")
+                        logger.debug("Skipping grade validation for non-numeric value: {} in assessment: {}", gradeValue, assessmentName);
+                    }
+                }
+            }
+        }
+    }
+    /**
+     * Pre-validates all records for grade constraints before saving.
+     * Throws GradeValidationException if any validation errors are found.
+     *
+     * @param records List of grade records to validate
+     * @param maxAssessmentValues Map of assessment names to their maximum allowed values
+     * @throws GradeValidationException if any grades exceed maximum values
+     */
+    private void preValidateAllRecords(List<Map<String, String>> records, Map<String, Integer> maxAssessmentValues) {
+        List<GradeErrorDetail> validationErrors = new ArrayList<>();
+        int rowNumber = 3; // Starting row number (assuming headers are in rows 1-2)
+
+        for (Map<String, String> record : records) {
+            String studentNumber = getStudentNumber(record);
+
+            // Validate each assessment in the record
+            for (Map.Entry<String, String> entry : record.entrySet()) {
+                String assessmentName = entry.getKey();
+                String gradeValue = entry.getValue();
+
+                // Skip non-assessment fields
+                if (assessmentName.equals("First Name") || assessmentName.equals("Last Name") ||
+                        assessmentName.equals("Student Number") || assessmentName.equals("StudentNumber")) {
+                    continue;
+                }
+
+                // Check if this assessment has a maximum value defined
+                if (maxAssessmentValues.containsKey(assessmentName)) {
+                    Integer maxValue = maxAssessmentValues.get(assessmentName);
+
+                    if (gradeValue != null && !gradeValue.trim().isEmpty()) {
+                        try {
+                            double grade = Double.parseDouble(gradeValue.trim());
+                            if (grade > maxValue) {
+                                validationErrors.add(new GradeErrorDetail(
+                                        String.format("Grade %.1f exceeds maximum of %.1f", grade, maxValue),
+                                        rowNumber,
+                                        studentNumber,
+                                        assessmentName,  // Now we have access to the assessment name
+                                        grade,           // Actual grade value
+                                        maxValue.doubleValue()  // Max value
+                                ));
+                            }
+                        } catch (NumberFormatException e) {
+                            // Skip validation for non-numeric grades
+                            logger.debug("Skipping grade validation for non-numeric value: {} in assessment: {}", gradeValue, assessmentName);
+                        }
+                    }
+                }
+            }
+            rowNumber++;
+        }
+
+        // If there are any validation errors, throw an exception with all errors
+        if (!validationErrors.isEmpty()) {
+            throw new GradeValidationException("Grade validation failed for multiple records", validationErrors);
+        }
+    }
+
+    /**
+     * Helper method to extract student number from record with fallback options
+     */
+    private String getStudentNumber(Map<String, String> record) {
+        String studentNumber = record.get("Student Number");
+        if (studentNumber == null) {
+            studentNumber = record.get("StudentNumber");
+        }
+        return studentNumber;
     }
 }

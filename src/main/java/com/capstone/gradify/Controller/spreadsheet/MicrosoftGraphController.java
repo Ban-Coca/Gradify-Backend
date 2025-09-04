@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.io.BufferedReader;
 
 import java.util.List;
@@ -44,56 +45,53 @@ public class MicrosoftGraphController {
     private final OneDriveSubscriptionRepository oneDriveSubscriptionRepository;
     private final TrackedFilesService trackedFilesService;
     private final ObjectMapper objectMapper;
+
     @GetMapping("/drive/root")
-    public ResponseEntity<?> getUserRootFiles(@RequestParam int userId){
-        try{
+    public ResponseEntity<?> getUserRootFiles(@RequestParam int userId) {
+        try {
             List<DriveItemResponse> rootFiles = microsoftExcelIntegration.getRootFiles(userId);
             return ResponseEntity.ok(rootFiles);
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error retrieving drive files: "+ e.getMessage());
+            return ResponseEntity.status(500).body("Error retrieving drive files: " + e.getMessage());
         }
     }
 
     @GetMapping("/drive/folder/{folderId}/files")
-    public ResponseEntity<?> getFolderFiles(@RequestParam int userId, @PathVariable String folderId){
-        try{
+    public ResponseEntity<?> getFolderFiles(@RequestParam int userId, @PathVariable String folderId) {
+        try {
             List<DriveItemResponse> folderFiles = microsoftExcelIntegration.getFolderFiles(userId, folderId);
             return ResponseEntity.ok(folderFiles);
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(500).body("Error retrieving drive files");
         }
     }
 
     @GetMapping("/extract/{folderName}/{fileName}")
     public ResponseEntity<?> extractExcelData(@RequestParam int userId, @PathVariable String folderName, @PathVariable String fileName) {
-        try{
+        try {
             ExtractedExcelResponse excelData = microsoftExcelIntegration.getUsedRange(folderName, fileName, userId);
             return ResponseEntity.ok(excelData);
-        }catch (Exception e){
+        } catch (Exception e) {
             return ResponseEntity.status(500).body("Error extracting Excel data: " + e.getMessage());
         }
     }
 
     @PostMapping("/save/{folderName}/{fileName}")
-    public ResponseEntity<?> saveExcelData(@RequestParam int userId, @RequestParam String folderId, @RequestParam String itemId,  @PathVariable String folderName, @PathVariable String fileName) {
-        try {
-            ExtractedExcelResponse excelData = microsoftExcelIntegration.getUsedRange(folderName, fileName, userId);
-            if (excelData == null || excelData.getValues() == null || excelData.getValues().isEmpty()) {
-                return ResponseEntity.badRequest().body("No data to save");
-            }
-            TeacherEntity teacher = teacherRepository.findByUserId(userId);
-            if (teacher == null) {
-                return ResponseEntity.badRequest().body("Teacher not found for user ID: " + userId);
-            }
-            microsoftExcelIntegration.saveExtractedExcelResponse(excelData, fileName, teacher, folderName, folderId, itemId);
-            return ResponseEntity.ok("Data saved successfully");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error saving Excel data: " + e.getMessage());
+    public ResponseEntity<?> saveExcelData(@RequestParam int userId, @RequestParam String folderId, @RequestParam String itemId, @PathVariable String folderName, @PathVariable String fileName) {
+        ExtractedExcelResponse excelData = microsoftExcelIntegration.getUsedRange(folderName, fileName, userId);
+        if (excelData == null || excelData.getValues() == null || excelData.getValues().isEmpty()) {
+            return ResponseEntity.badRequest().body("No data to save");
         }
+        TeacherEntity teacher = teacherRepository.findByUserId(userId);
+        if (teacher == null) {
+            return ResponseEntity.badRequest().body("Teacher not found for user ID: " + userId);
+        }
+        microsoftExcelIntegration.saveExtractedExcelResponse(excelData, fileName, teacher, folderName, folderId, itemId);
+        return ResponseEntity.ok("Data saved successfully");
     }
 
     @PostMapping("/notification/subscribe/{userId}")
-    public ResponseEntity<?> createNotificationSubscription(@PathVariable int userId){
+    public ResponseEntity<?> createNotificationSubscription(@PathVariable int userId) {
         try {
             // Check if user already has active subscription
             Optional<OneDriveSubscription> existing = oneDriveSubscriptionRepository
@@ -118,18 +116,6 @@ public class MicrosoftGraphController {
                     .body("Failed to create subscription: " + e.getMessage());
         }
     }
-
-//    @PostMapping("/sync/{userId}")
-//    public ResponseEntity<?> manualSync(@PathVariable int userId) {
-//        try {
-//            microsoftExcelIntegration.syncUserSpreadsheets(userId);
-//            return ResponseEntity.ok(Map.of("status", "Spreadsheet sync completed"));
-//        } catch (Exception e) {
-//            logger.error("Error in manual sync for user {}: {}", userId, e.getMessage());
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(Map.of("error", e.getMessage()));
-//        }
-//    }
 
     @GetMapping("/subscription/status")
     public ResponseEntity<?> getSubscriptionStatus(@RequestParam Integer userId) {
