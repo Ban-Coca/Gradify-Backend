@@ -100,10 +100,17 @@ public class UserService {
 
 				// Additional check: If updating an existing student, verify it's the same user
 				if (!user.getEmail().equals(student.getEmail())) {
-					throw new IllegalArgumentException(
-							"This student number is already registered to a different email address. " +
-									"Please contact support if this is your student number."
-					);
+					boolean isPlaceholderEmail = student.getEmail() != null &&
+							student.getEmail().endsWith("@temp.edu") &&
+							student.getPassword() != null &&
+							student.getPassword().equals("PLACEHOLDER");
+
+					if (!isPlaceholderEmail) {
+						throw new IllegalArgumentException(
+								"This student number is already registered to a different email address. " +
+										"Please contact support if this is your student number."
+						);
+					}
 				}
 
 				if (user.getUserId() > 0 && user.getUserId() != student.getUserId()) {
