@@ -422,5 +422,14 @@ public class UserController {
         }
     }
 
-
+    @GetMapping("/email-exists")
+    public ResponseEntity<?> checkEmailExists(@RequestParam String email){
+        try {
+            boolean exists = userv.isEmailAvailable(email);
+            return ResponseEntity.ok(Map.of("exists", exists));
+        } catch (Exception e) {
+            logger.error("Error checking email existence: ", e);
+            return ResponseEntity.status(500).body(Map.of("error", "Error checking email existence: " + e.getMessage()));
+        }
+    }
 }
