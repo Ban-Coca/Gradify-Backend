@@ -99,6 +99,13 @@ public class UserService {
 				StudentEntity student = existingStudent.get();
 
 				// Additional check: If updating an existing student, verify it's the same user
+				if (!user.getEmail().equals(student.getEmail())) {
+					throw new IllegalArgumentException(
+							"This student number is already registered to a different email address. " +
+									"Please contact support if this is your student number."
+					);
+				}
+
 				if (user.getUserId() > 0 && user.getUserId() != student.getUserId()) {
 					throw new IllegalArgumentException("Cannot update student record belonging to different user");
 				}
