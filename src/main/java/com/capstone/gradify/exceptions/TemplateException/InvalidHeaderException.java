@@ -1,4 +1,4 @@
-package com.capstone.gradify.exceptions.GradeValidation;
+package com.capstone.gradify.exceptions.TemplateException;
 
 public class InvalidHeaderException extends ExcelTemplateException{
     public InvalidHeaderException(String expected, String actual, int column) {

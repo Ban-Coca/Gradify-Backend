@@ -1,4 +1,4 @@
-package com.capstone.gradify.exceptions.GradeValidation;
+package com.capstone.gradify.exceptions.TemplateException;
 
 import com.capstone.gradify.exceptions.BaseException;
 

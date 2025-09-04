@@ -1,6 +1,4 @@
-package com.capstone.gradify.exceptions.TemplateValidation;
-
-import com.capstone.gradify.exceptions.BaseException;
+package com.capstone.gradify.exceptions.GradeException;
 
 public class GradeExceedsMaximumException extends GradeValidationException {
     public GradeExceedsMaximumException(double grade, double maxGrade, int row, String studentId) {
