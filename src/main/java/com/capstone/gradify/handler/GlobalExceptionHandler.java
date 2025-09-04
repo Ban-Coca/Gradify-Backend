@@ -66,4 +66,13 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.internalServerError().body(errorResponse);
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                "VALIDATION_ERROR",
+                ex.getMessage()
+        );
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
 }
