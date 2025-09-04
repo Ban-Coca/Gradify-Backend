@@ -78,7 +78,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/register",
-                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google").permitAll()
+                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google", "/api/user/email-exists").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/graph/notification/**").permitAll()
                         .requestMatchers("/api/graph/drive/folder/**", "/api/graph/subscription","/api/graph/subscription/**", "/api/graph/tracked-files").hasAnyAuthority("TEACHER")
