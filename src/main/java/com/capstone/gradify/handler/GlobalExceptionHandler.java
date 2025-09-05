@@ -6,33 +6,64 @@ import com.capstone.gradify.dto.response.GradeValidationErrorResponse;
 import com.capstone.gradify.exceptions.GradeException.GradeExceedsMaximumException;
 import com.capstone.gradify.exceptions.GradeException.GradeValidationException;
 import com.capstone.gradify.exceptions.TemplateException.ExcelTemplateException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.Collections;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
+
     @ExceptionHandler(GradeValidationException.class)
-    public ResponseEntity<GradeValidationErrorResponse> handleGradeValidationException(GradeValidationException ex) {
-        GradeValidationErrorResponse errorResponse = new GradeValidationErrorResponse();
-        errorResponse.setSuccess(false);
-        errorResponse.setMessage("Grade validation failed");
-        errorResponse.setErrors(ex.getValidationErrors().stream()
-                .map(error -> new GradeErrorDetail(
-                        error.getMessage(),
-                        error.getRowNumber(),
-                        error.getStudentNumber(),
-                        error.getAssessmentName(),
-                        error.getActualValue(),
-                        error.getMaxValue()
-                ))
-                .collect(Collectors.toList()));
+    public ResponseEntity<ErrorResponse> handleGradeValidationException(GradeValidationException ex) {
+        log.error("Grade validation failed: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = new ErrorResponse();
+        errorResponse.setErrorCode(ex.getErrorCode());
+
+        if (ex.getValidationErrors() != null && !ex.getValidationErrors().isEmpty()) {
+            // Multiple validation errors
+            errorResponse.setMessage(String.format("Grade validation failed with %d error(s)",
+                    ex.getValidationErrors().size()));
+
+            // Structure the error details better
+            Map<String, Object> details = new HashMap<>();
+            details.put("errorCount", ex.getValidationErrors().size());
+            details.put("errors", ex.getValidationErrors().stream()
+                    .map(error -> {
+                        Map<String, Object> errorDetail = new HashMap<>();
+                        errorDetail.put("row", error.getRowNumber());
+                        errorDetail.put("studentNumber", error.getStudentNumber());
+                        errorDetail.put("assessmentName", error.getAssessmentName());
+                        errorDetail.put("message", error.getMessage());
+                        errorDetail.put("actualValue", error.getActualValue());
+                        errorDetail.put("maxValue", error.getMaxValue());
+                        return errorDetail;
+                    })
+                    .collect(Collectors.toList()));
+
+            errorResponse.setDetails(details);
+
+        } else {
+            // Single validation error
+            errorResponse.setMessage(String.format("Row %d, Student %s: %s",
+                    ex.getRow(), ex.getStudentId(), ex.getMessage()));
+
+            Map<String, Object> details = new HashMap<>();
+            details.put("errorCount", 1);
+            details.put("row", ex.getRow());
+            details.put("studentId", ex.getStudentId());
+            errorResponse.setDetails(details);
+        }
+
         return ResponseEntity.badRequest().body(errorResponse);
     }
+
 
     @ExceptionHandler(GradeExceedsMaximumException.class)
     public ResponseEntity<GradeValidationErrorResponse> handleGradeExceedsMaximumException(GradeExceedsMaximumException ex) {

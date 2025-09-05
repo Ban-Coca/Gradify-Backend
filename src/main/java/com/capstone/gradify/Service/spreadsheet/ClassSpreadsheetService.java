@@ -337,7 +337,8 @@ public class ClassSpreadsheetService {
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
             }
-            validateGradesAgainstMaxValues(record, maxAssessmentValues, rowNumber, studentNumber);
+
+            //validateGradesAgainstMaxValues(record, maxAssessmentValues, rowNumber, studentNumber);
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,
@@ -716,7 +717,7 @@ public class ClassSpreadsheetService {
      * @param maxAssessmentValues Map of assessment names to their maximum allowed values
      * @throws GradeValidationException if any grades exceed maximum values
      */
-    private void preValidateAllRecords(List<Map<String, String>> records, Map<String, Integer> maxAssessmentValues) {
+    public void preValidateAllRecords(List<Map<String, String>> records, Map<String, Integer> maxAssessmentValues) {
         List<GradeErrorDetail> validationErrors = new ArrayList<>();
         int rowNumber = 3; // Starting row number (assuming headers are in rows 1-2)
 
@@ -743,7 +744,7 @@ public class ClassSpreadsheetService {
                             double grade = Double.parseDouble(gradeValue.trim());
                             if (grade > maxValue) {
                                 validationErrors.add(new GradeErrorDetail(
-                                        String.format("Grade %.1f exceeds maximum of %.1f", grade, maxValue),
+                                        String.format("Grade %.1f exceeds maximum of %d", grade, maxValue),
                                         rowNumber,
                                         studentNumber,
                                         assessmentName,  // Now we have access to the assessment name
