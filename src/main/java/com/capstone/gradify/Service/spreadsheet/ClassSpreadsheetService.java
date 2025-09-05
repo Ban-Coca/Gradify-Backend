@@ -338,7 +338,6 @@ public class ClassSpreadsheetService {
                 studentNumber = record.get("StudentNumber");
             }
 
-            //validateGradesAgainstMaxValues(record, maxAssessmentValues, rowNumber, studentNumber);
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,
@@ -393,7 +392,7 @@ public class ClassSpreadsheetService {
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
             }
-            validateGradesAgainstMaxValues(record, maxAssessmentValues, rowNumber, studentNumber);
+
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,
@@ -676,6 +675,7 @@ public class ClassSpreadsheetService {
         return spreadsheets.get(0).getAssessmentMaxValues();
     }
 
+    //LEGACY METHOD FOR VALIDATING GRADES AGAINST MAX VALUES
     private void validateGradesAgainstMaxValues(Map<String, String> record, Map<String, Integer> maxAssessmentValues, int rowNumber, String studentNumber) {
         if (maxAssessmentValues == null || maxAssessmentValues.isEmpty()) {
             return; // No validation if max values are not available
@@ -709,6 +709,7 @@ public class ClassSpreadsheetService {
             }
         }
     }
+
     /**
      * Pre-validates all records for grade constraints before saving.
      * Throws GradeValidationException if any validation errors are found.
