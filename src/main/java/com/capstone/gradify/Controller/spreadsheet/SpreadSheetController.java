@@ -40,6 +40,9 @@ public class SpreadSheetController {
 
         List<Map<String, String>> records = classSpreadsheetService.parseClassRecord(file);
         Map<String, Integer> maxAssessmentValue = classSpreadsheetService.getMaxAssessmentValue(file);
+
+        classSpreadsheetService.preValidateAllRecords(records, maxAssessmentValue);
+
         TeacherEntity teacher = teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new RuntimeException("Teacher not found"));
 

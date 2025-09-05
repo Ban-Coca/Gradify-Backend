@@ -188,9 +188,10 @@ public class MicrosoftExcelIntegration {
             }
             records.add(record);
         }
+        // THROWS ERROR IF INVALID DATA
+        classSpreadsheetService.preValidateAllRecords(records, maxAssessmentValues);
 
         try {
-
             ClassEntity classEntity = new ClassEntity();
             classEntity.setTeacher(teacher);
             String className = cleanSpreadsheetName(fileName);

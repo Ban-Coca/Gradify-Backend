@@ -84,9 +84,29 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
             throw new IOException("No data found in spreadsheet");
         }
 
+        List<String> headers = new ArrayList<>();
+        for (Object header : values.get(0)) {
+            headers.add(header.toString().trim());
+        }
+
+        Map<String, Integer> maxAssessmentValues = new HashMap<>();
+        if (values.size() > 1) {
+            List<Object> maxRow = values.get(1);
+            for (int i = 0; i < headers.size(); i++) {
+                Object val = i < maxRow.size() ? maxRow.get(i) : null;
+                if (val instanceof Number) {
+                    maxAssessmentValues.put(headers.get(i), ((Number) val).intValue());
+                } else if (val != null) {
+                    try {
+                        maxAssessmentValues.put(headers.get(i), Integer.parseInt(val.toString()));
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+
         // Convert Google Sheets data to the format expected by ClassSpreadsheetService
         List<Map<String, String>> records = convertToRecords(values);
-
+        classSpreadsheetService.preValidateAllRecords(records, maxAssessmentValues);
         // Create ClassEntity from spreadsheet data
         ClassEntity classEntity = new ClassEntity();
         classEntity.setTeacher(teacher);
@@ -121,7 +141,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 teacher,
                 records,
                 classEntity,
-                Collections.emptyMap());
+                maxAssessmentValues);
     }
 
     private String cleanSpreadsheetName(String name) {
