@@ -386,7 +386,7 @@ public class UserController {
             String token = jwtUtil.generateToken(updatedUser);
 
             return ResponseEntity.ok(new LoginResponse(userResponse, token));
-//TODO: update this method to update the user role and different role details
+
         } catch (Exception e) {
             logger.error("Error updating role: ", e);
             return ResponseEntity.status(500).body(Map.of("error", "Role update failed: " + e.getMessage()));
@@ -407,6 +407,7 @@ public class UserController {
             return ResponseEntity.status(500).body(Map.of("error", "User update failed"));
         }
     }
+
     @GetMapping("/{userId}")
     public ResponseEntity<?> getUserDetails(@PathVariable int userId) {
         try {

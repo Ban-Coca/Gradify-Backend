@@ -180,13 +180,60 @@ public class UserService {
 	//     return urepo.findByRole(role);
 	// }
 
-	@Transactional
 	public UserEntity putUserDetails(int userId, UserUpdateRequest request) {
 		UserEntity user = findById(userId);
-		if (request.getRole() != null) {
+
+		// Handle role conversion if role is being changed
+		if (request.getRole() != null && request.getRole() != user.getRole()) {
 			return handleRoleConversion(userId, request);
 		}
-		return user;
+
+		// Update basic user fields
+		if (request.getFirstName() != null) {
+			user.setFirstName(request.getFirstName());
+		}
+		if (request.getLastName() != null) {
+			user.setLastName(request.getLastName());
+		}
+		if (request.getEmail() != null) {
+			user.setEmail(request.getEmail());
+		}
+		if (request.getPhoneNumber() != null) {
+			user.setPhoneNumber(request.getPhoneNumber());
+		}
+		if (request.getBio() != null) {
+			user.setBio(request.getBio());
+		}
+
+		// Update isActive field
+		user.setActive(request.isActive());
+
+		// Handle role-specific updates
+		if (user instanceof TeacherEntity && user.getRole() == Role.TEACHER) {
+			TeacherEntity teacher = (TeacherEntity) user;
+			if (request.getInstitution() != null) {
+				teacher.setInstitution(request.getInstitution());
+			}
+			if (request.getDepartment() != null) {
+				teacher.setDepartment(request.getDepartment());
+			}
+			return teacherRepository.save(teacher);
+		} else if (user instanceof StudentEntity && user.getRole() == Role.STUDENT) {
+			StudentEntity student = (StudentEntity) user;
+			if (request.getStudentNumber() != null) {
+				student.setStudentNumber(request.getStudentNumber());
+			}
+			if (request.getMajor() != null) {
+				student.setMajor(request.getMajor());
+			}
+			if (request.getYearLevel() != null) {
+				student.setYearLevel(request.getYearLevel());
+			}
+			return studentRepository.save(student);
+		}
+
+		// Save and return updated user
+		return userRepository.save(user);
 	}
 
 	@Transactional

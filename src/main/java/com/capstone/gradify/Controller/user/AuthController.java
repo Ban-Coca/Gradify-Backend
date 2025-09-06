@@ -100,6 +100,7 @@ public class AuthController {
                 response.sendRedirect(redirectUrl);
                 return null;
             }
+
             TempTokens tempTokens = new TempTokens();
             tempTokens.setAzureId(azureUser.getId());
             tempTokens.setAccessToken(tokenResponse.getAccessToken());

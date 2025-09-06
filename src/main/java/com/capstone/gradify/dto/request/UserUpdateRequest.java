@@ -18,6 +18,8 @@ public class UserUpdateRequest {
     private String password; // Optional, can be null if not updating password
     private Role role;
     private boolean isActive;
+    private String phoneNumber;
+    private String bio;
 
     /* Teacher-specific fields */
     private String institution;
