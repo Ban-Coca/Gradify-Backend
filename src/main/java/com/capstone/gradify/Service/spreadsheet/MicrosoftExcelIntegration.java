@@ -126,15 +126,26 @@ public class MicrosoftExcelIntegration {
      */
     public ExtractedExcelResponse getUsedRange(String folderName, String fileName, int userId) {
         UserToken userToken = getUserToken(userId);
+        String uriPath;
 
+        if(folderName == null || folderName.equals("root")){
+            uriPath = "/me/drive/root:/{file}:/workbook/worksheets/Sheet1/usedRange(valuesOnly=true)?$select=address,addressLocal,values";
+            logger.debug("Using root folder for file: {}", fileName);
+            return webClient.get()
+                    .uri(uriPath, URLEncoder.encode(fileName, StandardCharsets.UTF_8))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken.getAccessToken())
+                    .header(HttpHeaders.ACCEPT, "application/json")
+                    .retrieve()
+                    .bodyToMono(ExtractedExcelResponse.class)
+                    .block();
+        }
+
+        // NO NEED FOR ELSE SINCE RETURN IN IF
         String encodedFolder = Arrays.stream(folderName.split("/"))
                 .map(segment -> URLEncoder.encode(segment, StandardCharsets.UTF_8))
                 .collect(Collectors.joining("/"));
-
         String encodedFile = URLEncoder.encode(fileName, StandardCharsets.UTF_8);
-
         logger.debug("Encoded Folder: {}, Encoded File: {}", encodedFolder, encodedFile);
-
         return webClient.get()
                 .uri("/me/drive/root:/{folder}/{file}:/workbook/worksheets/Sheet1/usedRange(valuesOnly=true)?$select=address,addressLocal,values",
                         encodedFolder, encodedFile)
@@ -153,11 +164,14 @@ public class MicrosoftExcelIntegration {
             String folderId,
             String itemId
     ) {
+        ClassSpreadsheet existing = classSpreadsheetRepository.findByItemId(itemId).orElse(null);
         List<List<Object>> values = response.getValues();
-        if (values == null || values.size() < 3) {
-            throw new IllegalArgumentException("Not enough data in Excel response");
-        }
 
+        if(existing != null){
+            logger.info("Spreadsheet '{}' already exists, updating folder from '{}' to '{}'",
+                    fileName, existing.getFolderName(), folderName);
+            throw new IllegalArgumentException("Spreadsheet already exist: " + existing.getFileName());
+        }
 
         List<String> headers = values.get(0).stream()
                 .map(Object::toString)
