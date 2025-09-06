@@ -19,7 +19,6 @@ public class UserEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY) 
     private int userId;
-    
     private String firstName;
     private String lastName;
     @Column(unique = true)
@@ -33,7 +32,8 @@ public class UserEntity {
     private Date lastLogin;
     private int failedLoginAttempts;
     private String FCMToken;
-
+    private String phoneNumber;
+    private String bio;
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<NotificationEntity> notifications = new ArrayList<>();
 

@@ -8,12 +8,16 @@ import com.capstone.gradify.Service.ClassService;
 import com.capstone.gradify.Service.GradeService;
 import com.capstone.gradify.Service.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
+import com.capstone.gradify.dto.request.UpdateClassDetails;
+import com.capstone.gradify.dto.response.ClassResponse;
 import com.capstone.gradify.dto.response.TeacherAssessmentPerformance;
+import com.capstone.gradify.mapper.ClassMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.naming.NameNotFoundException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +34,7 @@ public class TeacherController {
     private final RecordsService recordsService;
     private final AiAnalysisService aiAnalysisService;
     private final GradeService gradeService;
-
+    private final ClassMapper classMapper;
 //    @PostMapping("/upload")
 //    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
 //        // Logic to handle spreadsheet upload
@@ -84,14 +88,17 @@ public class TeacherController {
             return ResponseEntity.status(404).body("Class not found");
         }
     }
-    
+    // LEGACY - to be deprecated
     @PutMapping("/{classId}")
-    public ResponseEntity<Object> updateClasses(@PathVariable int classId, @RequestBody ClassEntity classEntity) {
-        try{
+    public ResponseEntity<Object> updateClasses(@PathVariable int classId, @RequestBody UpdateClassDetails classEntity) {
+        try {
             ClassEntity updatedClass = classService.updateClass(classId, classEntity);
-            return ResponseEntity.status(200).body(updatedClass);
-        }catch (Exception e) {
-            return ResponseEntity.status(500).body("An error occurred while updating the task: " + e.getMessage()); // Return 500 for unexpected errors
+            ClassResponse response = classMapper.toClassResponse(updatedClass);
+            return ResponseEntity.ok(response);
+        } catch (NameNotFoundException e) {
+            return ResponseEntity.status(404).body("Class not found: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error updating class: " + e.getMessage());
         }
     }
 

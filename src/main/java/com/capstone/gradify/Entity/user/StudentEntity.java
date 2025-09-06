@@ -18,6 +18,7 @@ import java.util.Set;
 @Getter
 @Setter
 @PrimaryKeyJoinColumn(name = "user_id")
+@Table(name = "students")
 public class StudentEntity extends UserEntity {
     private String studentNumber;
     private String major;

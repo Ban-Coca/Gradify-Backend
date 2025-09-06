@@ -321,10 +321,39 @@ public class ClassSpreadsheetService {
         spreadsheet.setVisibleAssessments(new HashSet<>());
 
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
-        int rowNumber = 3;
         for (Map<String, String> record : records) {
-            String studentFirstName = record.get("First Name");
-            String studentLastName = record.get("Last Name");
+            String studentFirstName = (record.get("First Name") != null && !record.get("First Name").trim().isEmpty())
+                    ? record.get("First Name")
+                    : (record.get("FIRST NAME") != null && !record.get("FIRST NAME").trim().isEmpty())
+                    ? record.get("FIRST NAME")
+                    : (record.get("FirstName") != null && !record.get("FirstName").trim().isEmpty())
+                    ? record.get("FirstName")
+                    : (record.get("FIRSTNAME") != null && !record.get("FIRSTNAME").trim().isEmpty())
+                    ? record.get("FIRSTNAME")
+                    : (record.get("Name") != null && !record.get("Name").trim().isEmpty())
+                    ? record.get("Name").split("\\s+")[0]
+                    : (record.get("NAME") != null && !record.get("NAME").trim().isEmpty())
+                    ? record.get("NAME").split("\\s+")[0]
+                    : "Unknown";
+
+            String studentLastName = (record.get("Last Name") != null && !record.get("Last Name").trim().isEmpty())
+                    ? record.get("Last Name")
+                    : (record.get("LAST NAME") != null && !record.get("LAST NAME").trim().isEmpty())
+                    ? record.get("LAST NAME")
+                    : (record.get("LastName") != null && !record.get("LastName").trim().isEmpty())
+                    ? record.get("LastName")
+                    : (record.get("LASTNAME") != null && !record.get("LASTNAME").trim().isEmpty())
+                    ? record.get("LASTNAME")
+                    : (record.get("Surname") != null && !record.get("Surname").trim().isEmpty())
+                    ? record.get("Surname")
+                    : (record.get("SURNAME") != null && !record.get("SURNAME").trim().isEmpty())
+                    ? record.get("SURNAME")
+                    : (record.get("Name") != null && !record.get("Name").trim().isEmpty() && record.get("Name").split("\\s+").length > 1)
+                    ? record.get("Name").split("\\s+", 2)[1]
+                    : (record.get("NAME") != null && !record.get("NAME").trim().isEmpty() && record.get("NAME").split("\\s+").length > 1)
+                    ? record.get("NAME").split("\\s+", 2)[1]
+                    : "Unknown";
+
             String studentNumber = record.get("Student Number");
 
 //            if (studentName == null) {
@@ -376,10 +405,41 @@ public class ClassSpreadsheetService {
         spreadsheet.setVisibleAssessments(new HashSet<>());
 
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
-        int rowNumber = 3;
+
         for (Map<String, String> record : records) {
-            String studentFirstName = record.get("First Name");
-            String studentLastName = record.get("Last Name");
+            // TODO: FIX NAME PARSING FOR UPLOAD IT IS BROKEN THE NAME WOULD BE NULL
+            String studentFirstName = (record.get("First Name") != null && !record.get("First Name").trim().isEmpty())
+                    ? record.get("First Name")
+                    : (record.get("FIRST NAME") != null && !record.get("FIRST NAME").trim().isEmpty())
+                    ? record.get("FIRST NAME")
+                    : (record.get("FirstName") != null && !record.get("FirstName").trim().isEmpty())
+                    ? record.get("FirstName")
+                    : (record.get("FIRSTNAME") != null && !record.get("FIRSTNAME").trim().isEmpty())
+                    ? record.get("FIRSTNAME")
+                    : (record.get("Name") != null && !record.get("Name").trim().isEmpty())
+                    ? record.get("Name").split("\\s+")[0]
+                    : (record.get("NAME") != null && !record.get("NAME").trim().isEmpty())
+                    ? record.get("NAME").split("\\s+")[0]
+                    : "Unknown";
+
+            String studentLastName = (record.get("Last Name") != null && !record.get("Last Name").trim().isEmpty())
+                    ? record.get("Last Name")
+                    : (record.get("LAST NAME") != null && !record.get("LAST NAME").trim().isEmpty())
+                    ? record.get("LAST NAME")
+                    : (record.get("LastName") != null && !record.get("LastName").trim().isEmpty())
+                    ? record.get("LastName")
+                    : (record.get("LASTNAME") != null && !record.get("LASTNAME").trim().isEmpty())
+                    ? record.get("LASTNAME")
+                    : (record.get("Surname") != null && !record.get("Surname").trim().isEmpty())
+                    ? record.get("Surname")
+                    : (record.get("SURNAME") != null && !record.get("SURNAME").trim().isEmpty())
+                    ? record.get("SURNAME")
+                    : (record.get("Name") != null && !record.get("Name").trim().isEmpty() && record.get("Name").split("\\s+").length > 1)
+                    ? record.get("Name").split("\\s+", 2)[1]
+                    : (record.get("NAME") != null && !record.get("NAME").trim().isEmpty() && record.get("NAME").split("\\s+").length > 1)
+                    ? record.get("NAME").split("\\s+", 2)[1]
+                    : "Unknown";
+
             String studentNumber = record.get("Student Number");
 
 //            if (studentName == null) {

@@ -13,6 +13,7 @@ import java.util.Map;
 @Entity
 @Setter
 @Getter
+@Table(name = "grade_records")
 public class GradeRecordsEntity {
     @Id
     @GeneratedValue

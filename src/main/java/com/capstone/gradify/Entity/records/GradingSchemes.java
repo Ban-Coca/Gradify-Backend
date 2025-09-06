@@ -11,6 +11,7 @@ import org.hibernate.type.SqlTypes;
 @Getter
 @Setter
 @NoArgsConstructor
+@Table(name = "grading_schemes")
 public class GradingSchemes {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

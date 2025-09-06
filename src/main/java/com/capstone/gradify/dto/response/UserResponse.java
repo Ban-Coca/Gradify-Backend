@@ -21,6 +21,8 @@ public class UserResponse {
     private boolean isActive;
     private int userId;
     private String email;
+    private String phoneNumber;
+    private String bio;
 
     private String institution; // For Teacher
     private String department; // For Teacher

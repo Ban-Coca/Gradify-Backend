@@ -1,40 +1,28 @@
 package com.capstone.gradify.Config;
 
-import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.util.JwtUtil;
-import io.jsonwebtoken.security.Keys;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
-import java.util.Date;
 import java.util.List;
 
 @Configuration
@@ -89,7 +77,7 @@ public class SecurityConfig {
                                 "/api/reports/teacher/**",
                                 "/api/reports/class/**"
                         ).hasAuthority("TEACHER")
-                        .requestMatchers("/api/user/update-profile", "/api/user/update-role", "/api/user/getuserdetails/", "/api/notification/**", "/api/fcm/**").authenticated()
+                        .requestMatchers("/api/user/update-profile", "/api/user/update-role", "/api/user/{userId}", "/api/notification/**", "/api/fcm/**").authenticated()
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorization -> authorization

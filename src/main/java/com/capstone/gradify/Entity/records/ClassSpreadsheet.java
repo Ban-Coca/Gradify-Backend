@@ -17,6 +17,7 @@ import java.util.Set;
 @Entity
 @Getter
 @Setter
+@Table(name = "class_spreadsheets")
 public class ClassSpreadsheet {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
