@@ -9,5 +9,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UpdateClassDetails {
     private String className;
-    private String description;
+    private String semester;
+    private String classCode;
+    private String schoolYear;
+    private String section;
+    private String schedule;
+    private String room;
 }

@@ -13,6 +13,7 @@ import com.capstone.gradify.Repository.ReportRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradingSchemeRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
+import com.capstone.gradify.dto.request.UpdateClassDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -41,23 +42,35 @@ public class ClassService {
     public List<ClassEntity> getAllClasses() {
         return classRepository.findAll();
     }
-    public ClassEntity updateClass(int classId, ClassEntity newclassEntity) throws Exception {
-        ClassEntity existingClass = classRepository.findById(classId).orElse(null);
-        try{
-            Objects.requireNonNull(existingClass).setClassName(newclassEntity.getClassName());
-            existingClass.setClassCode(newclassEntity.getClassCode());
-            existingClass.setSemester(newclassEntity.getSemester());
-            existingClass.setSchoolYear(newclassEntity.getSchoolYear());
-            existingClass.setUpdatedAt(new Date());
-            existingClass.setSection(newclassEntity.getSection());
-            existingClass.setSchedule(newclassEntity.getSchedule());
-            existingClass.setRoom(newclassEntity.getRoom());
-        }catch(NoSuchElementException nex){
-			throw new NameNotFoundException("Class "+ classId +"not found");
-		}
+    public ClassEntity updateClass(int classId, UpdateClassDetails updateRequest) throws Exception {
+        ClassEntity existingClass = classRepository.findById(classId)
+                .orElseThrow(() -> new NameNotFoundException("Class " + classId + " not found"));
 
+        // Only update non-null/non-empty fields
+        if (updateRequest.getClassName() != null && !updateRequest.getClassName().trim().isEmpty()) {
+            existingClass.setClassName(updateRequest.getClassName().trim());
+        }
+        if (updateRequest.getClassCode() != null && !updateRequest.getClassCode().trim().isEmpty()) {
+            existingClass.setClassCode(updateRequest.getClassCode().trim());
+        }
+        if (updateRequest.getSemester() != null && !updateRequest.getSemester().trim().isEmpty()) {
+            existingClass.setSemester(updateRequest.getSemester().trim());
+        }
+        if (updateRequest.getSchoolYear() != null && !updateRequest.getSchoolYear().trim().isEmpty()) {
+            existingClass.setSchoolYear(updateRequest.getSchoolYear().trim());
+        }
+        if (updateRequest.getSection() != null && !updateRequest.getSection().trim().isEmpty()) {
+            existingClass.setSection(updateRequest.getSection().trim());
+        }
+        if (updateRequest.getSchedule() != null && !updateRequest.getSchedule().trim().isEmpty()) {
+            existingClass.setSchedule(updateRequest.getSchedule().trim());
+        }
+        if (updateRequest.getRoom() != null && !updateRequest.getRoom().trim().isEmpty()) {
+            existingClass.setRoom(updateRequest.getRoom().trim());
+        }
+
+        existingClass.setUpdatedAt(new Date());
         return classRepository.save(existingClass);
-
     }
     public String deleteClass(int classId) {
         if (classRepository.findById(classId).isEmpty()) {
