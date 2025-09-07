@@ -333,7 +333,7 @@ public class UserService {
         newUser.setRole(Role.TEACHER);
         newUser.setActive(true);
         newUser.setCreatedAt(new Date());
-        newUser.setProvider("Microsoft");
+        newUser.setProvider("Google");
 
 		newUser.setDepartment(request.getDepartment());
 		newUser.setInstitution(request.getInstitution());
@@ -353,7 +353,7 @@ public class UserService {
 			student.setRole(Role.STUDENT);
 			student.setActive(true);
 			student.setCreatedAt(new Date());
-			student.setProvider("Microsoft");
+			student.setProvider("Google");
 			student.setMajor(request.getMajor());
 			student.setYearLevel(request.getYearLevel());
 			student.setStudentNumber(request.getStudentNumber());

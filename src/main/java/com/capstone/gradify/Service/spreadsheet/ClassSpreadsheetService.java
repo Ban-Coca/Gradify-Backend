@@ -452,7 +452,8 @@ public class ClassSpreadsheetService {
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
             }
-
+            logger.info("Processing record for student number: {}", studentNumber);
+            logger.info("First Name: {}, Last Name: {}", studentFirstName, studentLastName);
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,

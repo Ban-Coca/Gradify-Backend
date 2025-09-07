@@ -1,8 +1,13 @@
 package com.capstone.gradify.Config;
 
 import com.capstone.gradify.Entity.user.UserEntity;
+import com.capstone.gradify.Entity.user.UserToken;
+import com.capstone.gradify.Repository.user.UserTokenRepository;
+import com.capstone.gradify.Service.TempTokenService;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +18,13 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
+import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -21,8 +32,12 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 @Configuration
@@ -37,6 +52,9 @@ public class SecurityConfig {
     private final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
     private final UserService userService;
     private final JwtUtil jwtUtil;
+    private final OAuth2AuthorizedClientService authorizedClientService;
+    private final UserTokenRepository userTokenRepository;
+    private final TempTokenService tempTokenService;
     @Value("${frontend.base-url}")
     private String frontendBaseUrl;
     @Value("${spring.web.cors.allowed-origins}")
@@ -67,7 +85,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/register",
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google", "/api/user/email-exists").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/google/**").permitAll()
                         .requestMatchers("/api/graph/notification/**").permitAll()
                         .requestMatchers("/api/graph/drive/folder/**", "/api/graph/subscription","/api/graph/subscription/**", "/api/graph/tracked-files").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**", "/api/graph/drive/**", "/api/graph/extract/**", "/api/graph/save/**").hasAnyAuthority("TEACHER")
@@ -86,47 +104,8 @@ public class SecurityConfig {
                         .redirectionEndpoint(redirection -> redirection
                                 .baseUri("/oauth2/callback/*") // This handles /oauth2/callback/google
                         )
-                        .successHandler((request, response, authentication) -> {
-                            try {
-                                OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
-                                OAuth2User oauth2User = token.getPrincipal();
-                                String email = oauth2User.getAttribute("email");
-                                UserEntity existingUser = userService.findByEmail(email);
-                                logger.info(String.format("User found with email: %s", email));
-                                if(existingUser == null) {
-                                    String firstName = oauth2User.getAttribute("given_name");
-                                    String lastName = oauth2User.getAttribute("family_name");
-
-                                    logger.debug("Redirecting to frontend for onboarding: {}/oauth2/callback?onboardingRequired=true&firstName={}&lastName={}&email={}", frontendBaseUrl, firstName, lastName, email);
-
-                                    response.sendRedirect(String.format("%s/oauth2/callback?onboardingRequired=true&firstName=%s&lastName=%s&email=%s",
-                                            frontendBaseUrl, firstName, lastName, email));
-
-                                }
-                                // if user is not null, it means the user already exists
-                                else {
-
-                                    // Generate JWT
-                                    String jwtToken = jwtUtil.generateToken(existingUser);
-
-                                    // Redirect to frontend with token
-                                    String serializedUser = serializeUser(existingUser);
-                                    String encodedToken = URLEncoder.encode(jwtToken, StandardCharsets.UTF_8);
-                                    String encodedUser = URLEncoder.encode(serializedUser, StandardCharsets.UTF_8);
-
-                                    response.sendRedirect(String.format("%s/oauth2/callback?onboardingRequired=false&token=%s&user=%s",
-                                            frontendBaseUrl, encodedToken, encodedUser));
-                                }
-
-                            } catch (Exception e) {
-                                logger.error("OAuth2 success handler error", e);
-                                response.sendRedirect(frontendBaseUrl + "/login?error=oauth_processing_failed");
-                            }
-                        })
-                        .failureHandler((request, response, exception) -> {
-                            logger.error("OAuth2 authentication failed", exception);
-                            response.sendRedirect(frontendBaseUrl + "/login?error=oauth_failed");
-                        })
+                        .successHandler(this::handleOAuth2Success)
+                        .failureHandler(this::handleOAuth2Failure)
                 );
         return http.build();
     }
@@ -142,6 +121,96 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration); // Apply CORS settings to all endpoints
         return source;
+    }
+
+    private void handleOAuth2Success(HttpServletRequest request,
+                                     HttpServletResponse response,
+                                     Authentication authentication) throws IOException {
+        try {
+            OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
+            OAuth2User oauth2User = token.getPrincipal();
+            String email = oauth2User.getAttribute("email");
+
+            // Get the OAuth2AuthorizedClient to access tokens
+            OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(
+                    token.getAuthorizedClientRegistrationId(), token.getName());
+
+            UserEntity existingUser = userService.findByEmail(email);
+            logger.info("User found with email: {}", email);
+
+            if (existingUser == null) {
+                // Store temporary tokens for new users during onboarding
+                tempTokenService.storeTokens(email, authorizedClient);
+
+                String firstName = oauth2User.getAttribute("given_name");
+                String lastName = oauth2User.getAttribute("family_name");
+
+                logger.debug("Redirecting to frontend for onboarding");
+                response.sendRedirect(String.format("%s/oauth2/callback?onboardingRequired=true&firstName=%s&lastName=%s&email=%s",
+                        frontendBaseUrl, firstName, lastName, email));
+            } else {
+                // Save Google OAuth tokens for existing users
+                saveGoogleTokens(existingUser, authorizedClient);
+
+                // Generate JWT
+                String jwtToken = jwtUtil.generateToken(existingUser);
+
+                // Redirect to frontend with token
+                String serializedUser = serializeUser(existingUser);
+                String encodedToken = URLEncoder.encode(jwtToken, StandardCharsets.UTF_8);
+                String encodedUser = URLEncoder.encode(serializedUser, StandardCharsets.UTF_8);
+
+                response.sendRedirect(String.format("%s/oauth2/callback?onboardingRequired=false&token=%s&user=%s",
+                        frontendBaseUrl, encodedToken, encodedUser));
+            }
+
+        } catch (Exception e) {
+            logger.error("OAuth2 success handler error", e);
+            response.sendRedirect(frontendBaseUrl + "/login?error=oauth_processing_failed");
+        }
+    }
+
+    private void handleOAuth2Failure(HttpServletRequest request,
+                                     HttpServletResponse response,
+                                     AuthenticationException exception) throws IOException {
+        logger.error("OAuth2 authentication failed", exception);
+        response.sendRedirect(frontendBaseUrl + "/login?error=oauth_failed");
+    }
+
+    private void saveGoogleTokens(UserEntity user, OAuth2AuthorizedClient authorizedClient) {
+        if (authorizedClient != null && authorizedClient.getAccessToken() != null) {
+            OAuth2AccessToken accessToken = authorizedClient.getAccessToken();
+            OAuth2RefreshToken refreshToken = authorizedClient.getRefreshToken();
+
+            // Check if tokens already exist for this user
+            UserToken existingToken = userTokenRepository.findByUserId(user.getUserId()).orElse(null);
+
+            if (existingToken != null) {
+                // Update existing tokens
+                existingToken.setAccessToken(accessToken.getTokenValue());
+                if (refreshToken != null) {
+                    existingToken.setRefreshToken(refreshToken.getTokenValue());
+                }
+                existingToken.setExpiresAt(accessToken.getExpiresAt() != null ?
+                        accessToken.getExpiresAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null);
+                userTokenRepository.save(existingToken);
+            } else {
+                // Create new token record
+                UserToken userToken = new UserToken();
+                userToken.setUserId(user.getUserId());
+                userToken.setAccessToken(accessToken.getTokenValue());
+                if (refreshToken != null) {
+                    userToken.setRefreshToken(refreshToken.getTokenValue());
+                }
+                userToken.setExpiresAt(accessToken.getExpiresAt() != null ?
+                        accessToken.getExpiresAt().atZone(ZoneId.systemDefault()).toLocalDateTime() : null);
+                userToken.setCreatedAt(LocalDateTime.now());
+                logger.debug("Saving user token: {}", userToken);
+                userTokenRepository.save(userToken);
+            }
+
+            logger.info("Google OAuth tokens saved for user: {}", user.getEmail());
+        }
     }
 
 }
