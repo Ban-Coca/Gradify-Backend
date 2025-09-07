@@ -21,6 +21,7 @@ public interface ClassSpreadsheetRepository extends JpaRepository<ClassSpreadshe
     List<ClassSpreadsheet> findByClassEntity_ClassId(Integer classId);
     List<ClassSpreadsheet> findByUploadedBy_UserId(int userId);
     List<ClassSpreadsheet> findByItemIdIsNotNull();
+    List<ClassSpreadsheet> findByIsGoogleSheetsAndSharedLinkIsNotNull(Boolean isGoogleSheets);
     Optional<ClassSpreadsheet> findByItemId(String itemId);
     List<ClassSpreadsheet> findByUploadedBy_UserIdAndItemIdIsNotNull(Integer userId);
     @Query("SELECT cs FROM ClassSpreadsheet cs LEFT JOIN FETCH cs.gradeRecords WHERE cs.id = :id")

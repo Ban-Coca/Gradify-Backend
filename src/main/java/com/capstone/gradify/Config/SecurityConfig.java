@@ -67,8 +67,8 @@ public class SecurityConfig {
     private boolean allowCredentials;
 
     private String serializeUser(UserEntity user) {
-        return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\"}",
-                user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name());
+        return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\",\"provider\":\"%s\"}",
+                user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name(), user.getProvider());
     }
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {

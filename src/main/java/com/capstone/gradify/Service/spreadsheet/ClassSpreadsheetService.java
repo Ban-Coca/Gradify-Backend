@@ -736,41 +736,6 @@ public class ClassSpreadsheetService {
         return spreadsheets.get(0).getAssessmentMaxValues();
     }
 
-    //LEGACY METHOD FOR VALIDATING GRADES AGAINST MAX VALUES
-    private void validateGradesAgainstMaxValues(Map<String, String> record, Map<String, Integer> maxAssessmentValues, int rowNumber, String studentNumber) {
-        if (maxAssessmentValues == null || maxAssessmentValues.isEmpty()) {
-            return; // No validation if max values are not available
-        }
-
-        for (Map.Entry<String, String> entry : record.entrySet()) {
-            String assessmentName = entry.getKey();
-            String gradeValue = entry.getValue();
-
-            // Skip non-assessment fields
-            if (assessmentName.equals("First Name") || assessmentName.equals("Last Name") ||
-                    assessmentName.equals("Student Number") || assessmentName.equals("StudentNumber")) {
-                continue;
-            }
-
-            // Check if this assessment has a maximum value defined
-            if (maxAssessmentValues.containsKey(assessmentName)) {
-                Integer maxValue = maxAssessmentValues.get(assessmentName);
-
-                if (gradeValue != null && !gradeValue.trim().isEmpty()) {
-                    try {
-                        double grade = Double.parseDouble(gradeValue.trim());
-                        if (grade > maxValue) {
-                            throw new GradeExceedsMaximumException(grade, maxValue, rowNumber, studentNumber);
-                        }
-                    } catch (NumberFormatException e) {
-                        // Skip validation for non-numeric grades (e.g., "A", "B", "Incomplete")
-                        logger.debug("Skipping grade validation for non-numeric value: {} in assessment: {}", gradeValue, assessmentName);
-                    }
-                }
-            }
-        }
-    }
-
     /**
      * Pre-validates all records for grade constraints before saving.
      * Throws GradeValidationException if any validation errors are found.
@@ -839,5 +804,17 @@ public class ClassSpreadsheetService {
             studentNumber = record.get("StudentNumber");
         }
         return studentNumber;
+    }
+
+    public List<ClassSpreadsheet> getActiveGoogleSpreadsheets() {
+        // Return all spreadsheets that are Google Sheets and have a shared link
+        return classSpreadsheetRepository.findByIsGoogleSheetsAndSharedLinkIsNotNull(true);
+    }
+
+    public int getStudentRecordCount(ClassSpreadsheet spreadsheet) {
+        if (spreadsheet.getGradeRecords() == null) {
+            return 0;
+        }
+        return spreadsheet.getGradeRecords().size();
     }
 }
