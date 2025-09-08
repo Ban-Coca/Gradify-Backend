@@ -10,14 +10,11 @@ import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.dto.response.GradeErrorDetail;
-import com.capstone.gradify.exceptions.GradeException.GradeExceedsMaximumException;
 import com.capstone.gradify.exceptions.GradeException.GradeValidationException;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
@@ -322,37 +319,8 @@ public class ClassSpreadsheetService {
 
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
         for (Map<String, String> record : records) {
-            String studentFirstName = (record.get("First Name") != null && !record.get("First Name").trim().isEmpty())
-                    ? record.get("First Name")
-                    : (record.get("FIRST NAME") != null && !record.get("FIRST NAME").trim().isEmpty())
-                    ? record.get("FIRST NAME")
-                    : (record.get("FirstName") != null && !record.get("FirstName").trim().isEmpty())
-                    ? record.get("FirstName")
-                    : (record.get("FIRSTNAME") != null && !record.get("FIRSTNAME").trim().isEmpty())
-                    ? record.get("FIRSTNAME")
-                    : (record.get("Name") != null && !record.get("Name").trim().isEmpty())
-                    ? record.get("Name").split("\\s+")[0]
-                    : (record.get("NAME") != null && !record.get("NAME").trim().isEmpty())
-                    ? record.get("NAME").split("\\s+")[0]
-                    : "Unknown";
-
-            String studentLastName = (record.get("Last Name") != null && !record.get("Last Name").trim().isEmpty())
-                    ? record.get("Last Name")
-                    : (record.get("LAST NAME") != null && !record.get("LAST NAME").trim().isEmpty())
-                    ? record.get("LAST NAME")
-                    : (record.get("LastName") != null && !record.get("LastName").trim().isEmpty())
-                    ? record.get("LastName")
-                    : (record.get("LASTNAME") != null && !record.get("LASTNAME").trim().isEmpty())
-                    ? record.get("LASTNAME")
-                    : (record.get("Surname") != null && !record.get("Surname").trim().isEmpty())
-                    ? record.get("Surname")
-                    : (record.get("SURNAME") != null && !record.get("SURNAME").trim().isEmpty())
-                    ? record.get("SURNAME")
-                    : (record.get("Name") != null && !record.get("Name").trim().isEmpty() && record.get("Name").split("\\s+").length > 1)
-                    ? record.get("Name").split("\\s+", 2)[1]
-                    : (record.get("NAME") != null && !record.get("NAME").trim().isEmpty() && record.get("NAME").split("\\s+").length > 1)
-                    ? record.get("NAME").split("\\s+", 2)[1]
-                    : "Unknown";
+            String studentFirstName = extractFirstName(record);
+            String studentLastName = extractLastName(record);
 
             String studentNumber = record.get("Student Number");
 
@@ -367,6 +335,65 @@ public class ClassSpreadsheetService {
                 studentNumber = record.get("StudentNumber");
             }
 
+            // Create the grade record with student association
+            GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
+                    studentNumber,
+                    studentFirstName,
+                    studentLastName,
+                    spreadsheet,
+                    record
+            );
+
+
+            gradeRecord.setGrades(record);
+
+            gradeRecords.add(gradeRecord);
+        }
+
+        spreadsheet.setGradeRecords(gradeRecords);
+
+        return classSpreadsheetRepository.save(spreadsheet);
+    }
+    //for google sheets compatibility
+    public ClassSpreadsheet saveRecord(String filename, TeacherEntity teacher,
+                                       List<Map<String, String>> records, ClassEntity classEntity, Map<String, Integer> maxAssessmentValues, String sharedLink, Boolean isGoogleSheets) {
+
+        // PRE VALIDATE ALL GRADES AGAINST MAX VALUES
+        preValidateAllRecords(records, maxAssessmentValues);
+
+        ClassSpreadsheet spreadsheet = new ClassSpreadsheet();
+        spreadsheet.setFileName(filename);
+        spreadsheet.setUploadedBy(teacher);
+        spreadsheet.setClassName(classEntity.getClassName()); // Set the class name from ClassEntity
+        spreadsheet.setClassEntity(classEntity);
+        spreadsheet.setAssessmentMaxValues(maxAssessmentValues);
+        spreadsheet.setIsGoogleSheets(isGoogleSheets);
+        spreadsheet.setSharedLink(sharedLink);
+        spreadsheet.setDataHash(calculateDataHash(records));
+        // Create grade records
+
+        spreadsheet.setVisibleAssessments(new HashSet<>());
+
+        List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
+
+        for (Map<String, String> record : records) {
+            String studentFirstName = extractFirstName(record);
+            String studentLastName = extractLastName(record);
+
+            String studentNumber = record.get("Student Number");
+
+//            if (studentName == null) {
+//                // Try common field names or patterns in your data
+//                studentName = record.get("Name") != null ? record.get("name") :
+//                        (record.get("fullName") != null ? record.get("fullName") :
+//                                (record.get("First Name") + " " + record.get("Last Name")));
+//            }
+
+            if (studentNumber == null) {
+                studentNumber = record.get("StudentNumber");
+            }
+            logger.info("Processing record for student number: {}", studentNumber);
+            logger.info("First Name: {}, Last Name: {}", studentFirstName, studentLastName);
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,
@@ -407,38 +434,8 @@ public class ClassSpreadsheetService {
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
 
         for (Map<String, String> record : records) {
-            // TODO: FIX NAME PARSING FOR UPLOAD IT IS BROKEN THE NAME WOULD BE NULL
-            String studentFirstName = (record.get("First Name") != null && !record.get("First Name").trim().isEmpty())
-                    ? record.get("First Name")
-                    : (record.get("FIRST NAME") != null && !record.get("FIRST NAME").trim().isEmpty())
-                    ? record.get("FIRST NAME")
-                    : (record.get("FirstName") != null && !record.get("FirstName").trim().isEmpty())
-                    ? record.get("FirstName")
-                    : (record.get("FIRSTNAME") != null && !record.get("FIRSTNAME").trim().isEmpty())
-                    ? record.get("FIRSTNAME")
-                    : (record.get("Name") != null && !record.get("Name").trim().isEmpty())
-                    ? record.get("Name").split("\\s+")[0]
-                    : (record.get("NAME") != null && !record.get("NAME").trim().isEmpty())
-                    ? record.get("NAME").split("\\s+")[0]
-                    : "Unknown";
-
-            String studentLastName = (record.get("Last Name") != null && !record.get("Last Name").trim().isEmpty())
-                    ? record.get("Last Name")
-                    : (record.get("LAST NAME") != null && !record.get("LAST NAME").trim().isEmpty())
-                    ? record.get("LAST NAME")
-                    : (record.get("LastName") != null && !record.get("LastName").trim().isEmpty())
-                    ? record.get("LastName")
-                    : (record.get("LASTNAME") != null && !record.get("LASTNAME").trim().isEmpty())
-                    ? record.get("LASTNAME")
-                    : (record.get("Surname") != null && !record.get("Surname").trim().isEmpty())
-                    ? record.get("Surname")
-                    : (record.get("SURNAME") != null && !record.get("SURNAME").trim().isEmpty())
-                    ? record.get("SURNAME")
-                    : (record.get("Name") != null && !record.get("Name").trim().isEmpty() && record.get("Name").split("\\s+").length > 1)
-                    ? record.get("Name").split("\\s+", 2)[1]
-                    : (record.get("NAME") != null && !record.get("NAME").trim().isEmpty() && record.get("NAME").split("\\s+").length > 1)
-                    ? record.get("NAME").split("\\s+", 2)[1]
-                    : "Unknown";
+            String studentFirstName = extractFirstName(record);
+            String studentLastName = extractLastName(record);
 
             String studentNumber = record.get("Student Number");
 
@@ -807,7 +804,7 @@ public class ClassSpreadsheetService {
     }
 
     public List<ClassSpreadsheet> getActiveGoogleSpreadsheets() {
-        // Return all spreadsheets that are Google Sheets and have a shared link
+
         return classSpreadsheetRepository.findByIsGoogleSheetsAndSharedLinkIsNotNull(true);
     }
 
@@ -816,5 +813,70 @@ public class ClassSpreadsheetService {
             return 0;
         }
         return spreadsheet.getGradeRecords().size();
+    }
+
+    /**
+     * Extracts the first name from a record map by checking various possible field names.
+     * @param record The record map containing student data
+     * @return The first name or "Unknown" if not found
+     */
+    private String extractFirstName(Map<String, String> record) {
+        String[] firstNameFields = {"First Name", "FIRST NAME", "FirstName", "FIRSTNAME"};
+
+        for (String field : firstNameFields) {
+            String value = record.get(field);
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+
+        // Try to extract from full name fields
+        String[] fullNameFields = {"Name", "NAME"};
+        for (String field : fullNameFields) {
+            String value = record.get(field);
+            if (value != null && !value.trim().isEmpty()) {
+                return value.split("\\s+")[0];
+            }
+        }
+
+        return "Unknown";
+    }
+
+    /**
+     * Extracts the last name from a record map by checking various possible field names.
+     * @param record The record map containing student data
+     * @return The last name or "Unknown" if not found
+     */
+    private String extractLastName(Map<String, String> record) {
+        String[] lastNameFields = {"Last Name", "LAST NAME", "LastName", "LASTNAME", "Surname", "SURNAME"};
+
+        for (String field : lastNameFields) {
+            String value = record.get(field);
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+
+        // Try to extract from full name fields
+        String[] fullNameFields = {"Name", "NAME"};
+        for (String field : fullNameFields) {
+            String value = record.get(field);
+            if (value != null && !value.trim().isEmpty()) {
+                String[] nameParts = value.split("\\s+", 2);
+                if (nameParts.length > 1) {
+                    return nameParts[1];
+                }
+            }
+        }
+
+        return "Unknown";
+    }
+
+    private String calculateDataHash(List<Map<String, String>> records) {
+        StringBuilder dataBuilder = new StringBuilder();
+        for (Map<String, String> record : records) {
+            dataBuilder.append(record.toString());
+        }
+        return String.valueOf(dataBuilder.toString().hashCode());
     }
 }

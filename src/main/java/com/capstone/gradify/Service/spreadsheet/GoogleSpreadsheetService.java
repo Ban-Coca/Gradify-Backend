@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -150,10 +151,13 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 teacher,
                 records,
                 classEntity,
-                maxAssessmentValues);
+                maxAssessmentValues,
+                sharedLink,
+                true);
     }
 
     @Scheduled(fixedRate = 300000) // 5 minutes = 300,000 milliseconds
+    @Transactional
     public void pollForSpreadsheetUpdates() {
         log.info("Starting scheduled polling for Google Sheets updates");
 
@@ -172,8 +176,8 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
             log.error("Error during scheduled polling: {}", e.getMessage());
         }
     }
-
-    private void checkForUpdates(ClassSpreadsheet existingSpreadsheet)
+    @Transactional
+    protected void checkForUpdates(ClassSpreadsheet existingSpreadsheet)
             throws IOException, GeneralSecurityException {
 
         String spreadsheetId = extractSpreadsheetId(existingSpreadsheet.getSharedLink());
@@ -230,6 +234,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
         }
         return String.valueOf(dataBuilder.toString().hashCode());
     }
+
     private void updateSpreadsheetData(ClassSpreadsheet existingSpreadsheet,
                                        List<Map<String, String>> newRecords,
                                        List<List<Object>> values) throws IOException {
@@ -258,6 +263,13 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
         // Validate new records
         classSpreadsheetService.preValidateAllRecords(newRecords, maxAssessmentValues);
 
+        // Update max assessment values in the existing spreadsheet
+        // This ensures any new assessments are added
+        existingSpreadsheet.setAssessmentMaxValues(maxAssessmentValues);
+
+        String newDataHash = calculateDataHash(newRecords);
+        existingSpreadsheet.setDataHash(newDataHash);
+
         // Update the spreadsheet data
         classSpreadsheetService.updateSpreadsheet(
                 existingSpreadsheet,
@@ -267,6 +279,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
 
         log.info("Successfully updated spreadsheet data for: {}", existingSpreadsheet.getFileName());
     }
+
     private String cleanSpreadsheetName(String name) {
         if (name.contains(".")) {
             name = name.substring(0, name.lastIndexOf('.'));
@@ -431,7 +444,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
         }
 
         // Remaining rows are data
-        for (int i = 1; i < values.size(); i++) {
+        for (int i = 2; i < values.size(); i++) {
             List<Object> dataRow = values.get(i);
             Map<String, String> record = new HashMap<>();
 
