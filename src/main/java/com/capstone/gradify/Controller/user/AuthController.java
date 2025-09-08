@@ -267,7 +267,7 @@ public class AuthController {
 
             // Create User object from the response
             User user = new User();
-            user.setId((String) Objects.requireNonNull(userInfo).get("id"));
+            user.setId(Objects.requireNonNull((String) Objects.requireNonNull(userInfo).get("id"), "User ID is required"));
             user.setMail((String) userInfo.get("mail"));
             user.setUserPrincipalName((String) userInfo.get("userPrincipalName"));
             user.setGivenName((String) userInfo.get("givenName"));

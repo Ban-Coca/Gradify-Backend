@@ -46,7 +46,7 @@ public class GoogleDriveController {
     @PostMapping("/drive/save")
     public ResponseEntity<?> savedSheetFromDrive(@RequestParam int userId, @RequestParam String urlLink) throws GeneralSecurityException, IOException {
         if(!cloudSpreadsheetManager.canProcessLink(urlLink)){
-            throw new RuntimeException("Cloud Spreadsheet service is not available");
+            throw new RuntimeException("The provided link format is unsupported.");
         }
         TeacherEntity teacher = teacherService.findByUserId(userId);
         ClassSpreadsheet spreadsheet = googleSpreadsheetService.processSharedSpreadsheet(urlLink, teacher);

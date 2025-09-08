@@ -156,7 +156,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 true);
     }
 
-    @Scheduled(fixedRate = 300000) // 5 minutes = 300,000 milliseconds
+    @Scheduled(fixedDelay = 300000) // 5 minutes = 300,000 milliseconds
     @Transactional
     public void pollForSpreadsheetUpdates() {
         log.info("Starting scheduled polling for Google Sheets updates");
@@ -255,7 +255,9 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 } else if (val != null) {
                     try {
                         maxAssessmentValues.put(headers.get(i), Integer.parseInt(val.toString()));
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                        log.warn("Failed to parse integer for header '{}' with value '{}'", headers.get(i), val);
+                    }
                 }
             }
         }

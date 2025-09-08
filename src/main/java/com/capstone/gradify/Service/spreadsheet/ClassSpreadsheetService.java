@@ -265,14 +265,7 @@ public class ClassSpreadsheetService {
                     StudentEntity newStudent = new StudentEntity();
                     newStudent.setStudentNumber(studentNumber);
 
-//                    // Split name into first and last name if available
-//                    if (studentName != null && !studentName.trim().isEmpty()) {
-//                        String[] nameParts = studentName.trim().split("\\s+", 2);
-//                        newStudent.setFirstName(nameParts[0]);
-//                        if (nameParts.length > 1) {
-//                            newStudent.setLastName(nameParts[1]);
-//                        }
-//                    }
+
                     newStudent.setFirstName(studentFirstName);
                     newStudent.setLastName(studentLastName);
                     newStudent.setRole(Role.STUDENT);
@@ -323,13 +316,6 @@ public class ClassSpreadsheetService {
             String studentLastName = extractLastName(record);
 
             String studentNumber = record.get("Student Number");
-
-//            if (studentName == null) {
-//                // Try common field names or patterns in your data
-//                studentName = record.get("Name") != null ? record.get("name") :
-//                        (record.get("fullName") != null ? record.get("fullName") :
-//                                (record.get("First Name") + " " + record.get("Last Name")));
-//            }
 
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
@@ -382,12 +368,6 @@ public class ClassSpreadsheetService {
 
             String studentNumber = record.get("Student Number");
 
-//            if (studentName == null) {
-//                // Try common field names or patterns in your data
-//                studentName = record.get("Name") != null ? record.get("name") :
-//                        (record.get("fullName") != null ? record.get("fullName") :
-//                                (record.get("First Name") + " " + record.get("Last Name")));
-//            }
 
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
@@ -438,13 +418,6 @@ public class ClassSpreadsheetService {
             String studentLastName = extractLastName(record);
 
             String studentNumber = record.get("Student Number");
-
-//            if (studentName == null) {
-//                // Try common field names or patterns in your data
-//                studentName = record.get("Name") != null ? record.get("name") :
-//                        (record.get("fullName") != null ? record.get("fullName") :
-//                                (record.get("First Name") + " " + record.get("Last Name")));
-//            }
 
             if (studentNumber == null) {
                 studentNumber = record.get("StudentNumber");
