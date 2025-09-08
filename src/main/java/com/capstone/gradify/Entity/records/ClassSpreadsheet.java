@@ -34,6 +34,10 @@ public class ClassSpreadsheet {
     private String folderName;
     private String folderId;
 
+    // for google drive implementation
+    private String sharedLink;
+    private String dataHash;
+    private Boolean isGoogleSheets = false;
     @ManyToOne
     @JoinColumn(name = "userId")
     @JsonBackReference
