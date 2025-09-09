@@ -180,7 +180,6 @@ public class UserService {
 		}
 		if(request.getProfilePicture() != null) {
 			user.setProfilePictureUrl(uploadProfilePicture(request.getProfilePicture(), userId));
-
 		}
 		// Update basic user fields
 		if (request.getFirstName() != null) {
@@ -423,7 +422,7 @@ public class UserService {
 			throw new IllegalArgumentException("File is empty");
 		}
 
-		if (file.getSize() > 5 * 1024 * 1024) { // 5MB limit
+		if (file.getSize() > 10 * 1024 * 1024) { // 5MB limit
 			throw new IllegalArgumentException("File size exceeds 5MB limit");
 		}
 

@@ -1,14 +1,10 @@
 package com.capstone.gradify.dto.request;
 
 import com.capstone.gradify.Entity.user.Role;
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.checkerframework.checker.units.qual.N;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.File;
 
 @Data
 @AllArgsConstructor
