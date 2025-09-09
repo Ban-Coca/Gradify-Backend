@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -392,8 +393,8 @@ public class UserController {
             return ResponseEntity.status(500).body(Map.of("error", "Role update failed: " + e.getMessage()));
         }
     }
-    @PutMapping("/update-user/{userId}")
-    public ResponseEntity<?> updateUser(@PathVariable int userId, @RequestBody UserUpdateRequest request){
+    @PutMapping(value = "/update-user/{userId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateUser(@PathVariable int userId, @ModelAttribute UserUpdateRequest request){
         try {
             UserEntity updateUser = userv.putUserDetails(userId, request);
             if (updateUser == null) {

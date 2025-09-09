@@ -34,6 +34,7 @@ public class UserEntity {
     private String FCMToken;
     private String phoneNumber;
     private String bio;
+    private String profilePictureUrl;
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<NotificationEntity> notifications = new ArrayList<>();
 
