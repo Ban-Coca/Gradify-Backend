@@ -6,6 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.checkerframework.checker.units.qual.N;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
 
 @Data
 @AllArgsConstructor
@@ -20,7 +23,7 @@ public class UserUpdateRequest {
     private boolean isActive;
     private String phoneNumber;
     private String bio;
-
+    private MultipartFile profilePicture; // Optional, can be null if not updating profile picture
     /* Teacher-specific fields */
     private String institution;
     private String department;
@@ -29,5 +32,4 @@ public class UserUpdateRequest {
     private String studentNumber;
     private String major;
     private String yearLevel;
-//    private String profilePictureUrl; Optional, can be null if not updating profile picture
 }

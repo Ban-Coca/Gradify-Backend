@@ -23,7 +23,7 @@ public class UserResponse {
     private String email;
     private String phoneNumber;
     private String bio;
-
+    private String profilePictureUrl;
     private String institution; // For Teacher
     private String department; // For Teacher
     private String studentNumber; // For Student
