@@ -5,12 +5,14 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.subscription.OneDriveSubscription;
 import com.capstone.gradify.Entity.subscription.TrackedFiles;
 import com.capstone.gradify.Entity.user.TeacherEntity;
+import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.subscription.OneDriveSubscriptionRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.spreadsheet.MicrosoftExcelIntegration;
 import com.capstone.gradify.Service.subscription.TrackedFilesService;
+import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.dto.ChangeNotification;
 import com.capstone.gradify.dto.NotificationPayload;
 import com.capstone.gradify.dto.response.DriveItemResponse;
@@ -47,6 +49,7 @@ public class MicrosoftGraphController {
     private final TrackedFilesService trackedFilesService;
     private final ObjectMapper objectMapper;
     private final ClassSpreadsheetRepository classSpreadsheetRepository;
+    private final UserService userService;
 
     @GetMapping("/drive/root")
     public ResponseEntity<?> getUserRootFiles(@RequestParam int userId) {
@@ -94,6 +97,12 @@ public class MicrosoftGraphController {
 
     @PutMapping("/sync-excel-sheet")
     public ResponseEntity<?> syncSheet(@RequestParam int userId, @RequestParam Long sheetId) {
+        UserEntity user  = userService.findById(userId);
+
+        if (user == null) {
+            throw new RuntimeException("User not found with ID: " + userId);
+        }
+
         ClassSpreadsheet existingSheet = classSpreadsheetRepository.findById(sheetId).orElse(null);
         microsoftExcelIntegration.triggerManualUpdate(userId, existingSheet);
 

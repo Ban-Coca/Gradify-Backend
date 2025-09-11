@@ -61,6 +61,12 @@ public class GoogleDriveController {
 
     @PutMapping("/sync-sheet")
     public ResponseEntity<?> syncSheet(@RequestParam int userId, @RequestParam Long sheetId) throws GeneralSecurityException, IOException {
+        UserEntity user  = userService.findById(userId);
+
+        if (user == null) {
+            throw new RuntimeException("User not found with ID: " + userId);
+        }
+
         ClassSpreadsheet existingSheet = classSpreadsheetRepository.findById(sheetId).orElseThrow(() -> new RuntimeException("Sheet not found with ID: " + sheetId));
 
         googleSpreadsheetService.triggerManualUpdate(existingSheet);
