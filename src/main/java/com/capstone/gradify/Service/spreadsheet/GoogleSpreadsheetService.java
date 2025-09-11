@@ -2,6 +2,7 @@ package com.capstone.gradify.Service.spreadsheet;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
+import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,12 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -146,7 +142,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
         classEntity = classRepository.save(classEntity);
 
         // Create and save the ClassSpreadsheet
-        return classSpreadsheetService.saveRecord(
+        ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(
                 spreadsheetName + ".sheet",
                 teacher,
                 records,
@@ -154,6 +150,17 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
                 maxAssessmentValues,
                 sharedLink,
                 true);
+
+        Set<StudentEntity> students = new HashSet<>();
+        savedSpreadsheet.getGradeRecords().forEach(record -> {
+            if (record.getStudent() != null) {
+                students.add(record.getStudent());
+            }
+        });
+        classEntity.setStudents(students);
+        classRepository.save(classEntity);
+
+        return savedSpreadsheet;
     }
 
     @Scheduled(fixedDelay = 300000) // 5 minutes = 300,000 milliseconds
