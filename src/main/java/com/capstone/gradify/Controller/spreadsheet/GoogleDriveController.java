@@ -4,8 +4,10 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Entity.user.UserToken;
+import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.user.UserRepository;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
+import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetManager;
 import com.capstone.gradify.Service.spreadsheet.GoogleSpreadsheetService;
 import com.capstone.gradify.Service.userservice.TeacherService;
@@ -28,6 +30,7 @@ public class GoogleDriveController {
     private final UserTokenRepository userTokenRepository;
     private final CloudSpreadsheetManager cloudSpreadsheetManager;
     private final GoogleSpreadsheetService googleSpreadsheetService;
+    private final ClassSpreadsheetRepository classSpreadsheetRepository;
     private final TeacherService teacherService;
 
     @GetMapping("/access-token")
@@ -54,5 +57,14 @@ public class GoogleDriveController {
             throw new RuntimeException("Failed to process the shared spreadsheet from the provided link.");
         }
         return ResponseEntity.ok(spreadsheet);
+    }
+
+    @PutMapping("/sync-sheet")
+    public ResponseEntity<?> syncSheet(@RequestParam int userId, @RequestParam Long sheetId) throws GeneralSecurityException, IOException {
+        ClassSpreadsheet existingSheet = classSpreadsheetRepository.findById(sheetId).orElseThrow(() -> new RuntimeException("Sheet not found with ID: " + sheetId));
+
+        googleSpreadsheetService.triggerManualUpdate(existingSheet);
+
+        return ResponseEntity.ok("Sheet updated successfully.");
     }
 }
