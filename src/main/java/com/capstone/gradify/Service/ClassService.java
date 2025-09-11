@@ -116,6 +116,7 @@ public class ClassService {
 
         return classEntity.getStudents();
     }
+
     public List<ClassEntity> getClassesByTeacherId(int teacherId) {
         TeacherEntity teacherEntity = teacherRepository.findById(teacherId).orElse(null);
         return classRepository.findByTeacher(teacherEntity);

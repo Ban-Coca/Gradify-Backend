@@ -17,7 +17,10 @@ public class SpreadsheetResponse {
     private int id;
     private String className;
     private String fileName;
-    private String filePath;
+    private String folderName;
+    private String folderId;
+    private String itemId;
+    private Boolean isGoogleSheets;
     private Map<String, Integer> assessmentMaxValues;
     private Set<String> visibleAssessments;
     private List<GradeRecordResponse> gradeRecords;

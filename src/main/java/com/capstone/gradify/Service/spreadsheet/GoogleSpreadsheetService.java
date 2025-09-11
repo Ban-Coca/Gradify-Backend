@@ -176,6 +176,23 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
             log.error("Error during scheduled polling: {}", e.getMessage());
         }
     }
+
+    public void triggerManualUpdate(ClassSpreadsheet spreadsheet) {
+        if (spreadsheet == null) {
+            throw new IllegalArgumentException("Spreadsheet cannot be null");
+        }
+
+        try {
+            log.info("Manual update triggered for spreadsheet: {}", spreadsheet.getFileName());
+            checkForUpdates(spreadsheet);
+            log.info("Manual update completed for spreadsheet: {}", spreadsheet.getFileName());
+        } catch (Exception e) {
+            log.error("Manual update failed for spreadsheet {}: {}", spreadsheet.getFileName(), e.getMessage(), e);
+            throw new RuntimeException("Manual update failed for spreadsheet: " + spreadsheet.getFileName(), e);
+        }
+    }
+
+
     @Transactional
     protected void checkForUpdates(ClassSpreadsheet existingSpreadsheet)
             throws IOException, GeneralSecurityException {

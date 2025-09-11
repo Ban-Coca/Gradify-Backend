@@ -403,49 +403,15 @@ public class MicrosoftExcelIntegration {
             }
         }
     }
+    @Transactional
+    public void triggerManualUpdate(int userId, ClassSpreadsheet spreadsheet){
+        if(spreadsheet == null){
+            throw new RuntimeException("Spreadsheet does not exists.");
+        }
 
-//    public void syncUserSpreadsheets(int userId) throws Exception {
-//        List<ClassSpreadsheet> userSpreadsheets = classSpreadsheetRepository.findByUploadedBy_UserIdAndItemIdIsNotNull(userId);
-//
-//        if(userSpreadsheets.isEmpty()){
-//            logger.info("No tracked spreadsheets for user {}", userId);
-//            return;
-//        }
-//        syncUserSpreadsheets(userId, userSpreadsheets);
-//    }
-//
-//    public void syncUserSpreadsheets(int userId, List<ClassSpreadsheet> spreadsheets) throws Exception {
-//        UserToken userToken = getUserToken(userId);
-//        GraphServiceClient client = createGraphClient(
-//                userToken.getAccessToken(),
-//                userToken.getExpiresAt()
-//        );
-//        String driveId = getUserDriveIds(userId);
-//
-//        for(ClassSpreadsheet spreadsheet : spreadsheets){
-//            try{
-//                DriveItem fileItem = client.drives().byDriveId(driveId).items().byDriveItemId(spreadsheet.getItemId()).get();
-//
-//                String fileKey = userId + ":" + spreadsheet.getItemId();
-//                OffsetDateTime lastModified = Objects.requireNonNull(fileItem).getLastModifiedDateTime();
-//                OffsetDateTime storedLastModified = fileLastModifiedTimes.get(fileKey);
-//
-//                if (storedLastModified == null || lastModified.isAfter(storedLastModified)) {
-//                    logger.info("Spreadsheet '{}' has been modified, processing changes for user {}",
-//                            spreadsheet.getFileName(), userId);
-//
-//                    processChangedSpreadsheet(userId, spreadsheet, fileItem, "updated");
-//
-//                } else {
-//                    logger.debug("Spreadsheet '{}' unchanged for user {}", spreadsheet.getFileName(), userId);
-//                }
-//            } catch (Exception e){
-//                logger.error("Error syncing spreadsheet '{}' for user {}: {}",
-//                        spreadsheet.getFileName(), userId, e.getMessage());
-//            }
-//        }
-//    }
+        processUpdatedSpreadsheet(userId, spreadsheet, null);
 
+    }
     private void syncSubscriptionFiles(OneDriveSubscription subscription) throws Exception {
         List<TrackedFiles> trackedFiles = trackedFileService
                 .getTrackedFilesForSubscription(subscription.getId());
