@@ -31,7 +31,7 @@ public class ReportController {
     private final EmailService emailService;
     private final NotificationService notificationService;
     @Value("${frontend.base-url}")
-    private String frontEndURL;
+    private String frontendBaseUrl;
     /**
      * Create a new report
      * Only teachers should be able to create reports
@@ -39,7 +39,7 @@ public class ReportController {
     @PostMapping()
     @PreAuthorize("hasAuthority('TEACHER')")
     public ResponseEntity<ReportResponse> createReport(@Valid @RequestBody ReportRequest reportRequest) throws MessagingException {
-        String defaultURL = frontEndURL+"/feedback";
+        String defaultURL = frontendBaseUrl+"/feedback";
         int studentUserId = reportRequest.getStudentId();
         String email = studentService.getEmailById(studentUserId);
 
