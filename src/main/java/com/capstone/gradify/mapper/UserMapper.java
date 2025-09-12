@@ -12,9 +12,6 @@ import org.mapstruct.Mapping;
 public interface UserMapper {
 
     @Mapping(source="userId", target="userId")
-    @Mapping(source = "phoneNumber", target = "phoneNumber")
-    @Mapping(source = "bio", target = "bio")
-    @Mapping(source = "profilePictureUrl", target = "profilePictureUrl")
     UserResponse toUserResponse(UserEntity user);
 
     default LoginResponse toLoginResponse(UserEntity user, String token) {

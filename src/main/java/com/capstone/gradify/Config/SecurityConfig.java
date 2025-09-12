@@ -39,7 +39,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -69,7 +71,7 @@ public class SecurityConfig {
 
     private String serializeUser(UserEntity user) {
         try {
-            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            Map<String, Object> map = new HashMap<>();
             map.put("userId", user.getUserId());
             map.put("email", user.getEmail());
             map.put("firstName", user.getFirstName());
@@ -78,7 +80,6 @@ public class SecurityConfig {
             map.put("lastLogin", user.getLastLogin() != null ? user.getLastLogin().toString() : null);
             map.put("role", user.getRole() != null ? user.getRole().name() : null);
             map.put("provider", user.getProvider());
-            // boolean getter may be isActive() or getIsActive(); adjust if needed
             map.put("isActive", user.isActive());
 
             map.put("phoneNumber", user.getPhoneNumber());
