@@ -262,7 +262,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
     private void updateSpreadsheetData(ClassSpreadsheet existingSpreadsheet,
                                        List<Map<String, String>> newRecords,
                                        List<List<Object>> values) throws IOException {
-
+        ClassEntity classEntity = existingSpreadsheet.getClassEntity();
         // Extract max assessment values from the data
         Map<String, Integer> maxAssessmentValues = new HashMap<>();
         if (values.size() > 1) {
@@ -297,11 +297,20 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
         existingSpreadsheet.setDataHash(newDataHash);
 
         // Update the spreadsheet data
-        classSpreadsheetService.updateSpreadsheet(
+        ClassSpreadsheet updatedSpreadsheet = classSpreadsheetService.updateSpreadsheet(
                 existingSpreadsheet,
                 newRecords,
                 maxAssessmentValues
         );
+
+        Set<StudentEntity> students = new HashSet<>();
+        updatedSpreadsheet.getGradeRecords().forEach(record -> {
+            if (record.getStudent() != null) {
+                students.add(record.getStudent());
+            }
+        });
+        classEntity.setStudents(students);
+        classRepository.save(classEntity);
 
         log.info("Successfully updated spreadsheet data for: {}", existingSpreadsheet.getFileName());
     }
