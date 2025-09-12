@@ -1,40 +1,26 @@
 package com.capstone.gradify.Controller.user;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.io.IOException;
 
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Entity.user.VerificationCode;
-import com.capstone.gradify.Repository.user.StudentRepository;
-import com.capstone.gradify.Repository.user.TeacherRepository;
-import com.capstone.gradify.Repository.user.UserRepository;
 import com.capstone.gradify.Service.notification.EmailService;
 import com.capstone.gradify.Service.userservice.VerificationCodeService;
-import com.capstone.gradify.Service.userservice.StudentService;
-import com.capstone.gradify.Service.userservice.TeacherService;
 import com.capstone.gradify.dto.request.UserUpdateRequest;
 import com.capstone.gradify.dto.response.LoginResponse;
 import com.capstone.gradify.dto.response.UserResponse;
 import com.capstone.gradify.mapper.UserMapper;
 import com.capstone.gradify.util.VerificationCodeGenerator;
-import jakarta.persistence.EntityManager;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import com.capstone.gradify.util.JwtUtil;
-
-import jakarta.servlet.http.HttpServletResponse;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.userservice.UserService;
@@ -42,7 +28,6 @@ import com.capstone.gradify.dto.request.LoginRequest;
 
 @RestController
 @RequestMapping("/api/user")
-@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -51,28 +36,9 @@ public class UserController {
     private final UserService userv;
     private final VerificationCodeService codeService;
     private final EmailService emailService;
-    private final StudentService studentService;
-    private final TeacherService teacherService;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
-    private final TeacherRepository teacherRepository;
-    private final EntityManager entityManager;
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
-    @Value("${GOOGLE_CLIENT_ID}")
-    private String googleClientId;
-    @Value("${GOOGLE_CLIENT_SECRET}")
-    private String googleClientSecret;
-    @Value("${GOOGLE_REDIRECT_URI}")
-    private String googleRedirectUri;
-    @Value("${frontend.base-url}")
-    private String frontendBaseUrl;
-    // Helper method to serialize UserEntity to a JSON string
-    private String serializeUser(UserEntity user) {
-        return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\"}",
-                user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name());
-    }
 
     @GetMapping("/oauth2/failure")
     public ResponseEntity<?> oauth2LoginFailure() {

@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +30,8 @@ public class ReportController {
     private final StudentService studentService;
     private final EmailService emailService;
     private final NotificationService notificationService;
+    @Value("${frontend.base-url}")
+    private String frontEndURL;
     /**
      * Create a new report
      * Only teachers should be able to create reports
@@ -36,7 +39,7 @@ public class ReportController {
     @PostMapping()
     @PreAuthorize("hasAuthority('TEACHER')")
     public ResponseEntity<ReportResponse> createReport(@Valid @RequestBody ReportRequest reportRequest) throws MessagingException {
-        String defaultURL = "http://localhost:5173/feedback";
+        String defaultURL = frontEndURL+"/feedback";
         int studentUserId = reportRequest.getStudentId();
         String email = studentService.getEmailById(studentUserId);
 
