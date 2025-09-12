@@ -6,6 +6,7 @@ import com.capstone.gradify.Repository.user.UserTokenRepository;
 import com.capstone.gradify.Service.TempTokenService;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.util.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +39,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -67,8 +70,29 @@ public class SecurityConfig {
     private boolean allowCredentials;
 
     private String serializeUser(UserEntity user) {
-        return String.format("{\"userId\":%d,\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"role\":\"%s\",\"provider\":\"%s\"}",
-                user.getUserId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole().name(), user.getProvider());
+        try {
+            Map<String, Object> map = new HashMap<>();
+            map.put("userId", user.getUserId());
+            map.put("email", user.getEmail());
+            map.put("firstName", user.getFirstName());
+            map.put("lastName", user.getLastName());
+            map.put("createdAt", user.getCreatedAt() != null ? user.getCreatedAt().toString() : null);
+            map.put("lastLogin", user.getLastLogin() != null ? user.getLastLogin().toString() : null);
+            map.put("role", user.getRole() != null ? user.getRole().name() : null);
+            map.put("provider", user.getProvider());
+            map.put("isActive", user.isActive());
+
+            map.put("phoneNumber", user.getPhoneNumber());
+            map.put("bio", user.getBio());
+            map.put("profilePictureUrl", user.getProfilePictureUrl());
+
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.setSerializationInclusion(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL);
+            return mapper.writeValueAsString(map);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            logger.error("Failed to serialize user", e);
+            return "{}";
+        }
     }
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {

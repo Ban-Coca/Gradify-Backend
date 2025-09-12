@@ -30,10 +30,4 @@ public interface UserMapper {
         }
         return response;
     }
-
-//    @Mapping(target = "userId", ignore = true)
-//    @Mapping(target = "createdAt", ignore = true)
-//    @Mapping(target = "lastLogin", ignore = true)
-//    @Mapping(target = "password", ignore = true)  // Handle separately
-//    UserEntity toEntity(UserRequest dto);
 }
