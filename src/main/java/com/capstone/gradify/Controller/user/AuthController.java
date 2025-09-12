@@ -18,6 +18,7 @@ import com.capstone.gradify.dto.response.TokenResponse;
 import com.capstone.gradify.dto.response.UserResponse;
 import com.capstone.gradify.mapper.UserMapper;
 import com.capstone.gradify.util.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -98,15 +99,13 @@ public class AuthController {
                 );
 
                 String jwtToken = jwtUtil.generateToken(user);
-
-                String redirectUrl = String.format( frontendBaseUrl +
-                        "/auth/azure/callback?onboardingRequired=false&token=%s&userId=%d&email=%s&firstName=%s&lastName=%s&role=%s&provider=Microsoft",
-                        jwtToken,
-                        user.getUserId(),
-                        user.getEmail(),
-                        Objects.requireNonNullElse(user.getFirstName(), ""),
-                        Objects.requireNonNullElse(user.getLastName(), ""),
-                        user.getRole() != null ? user.getRole().name() : "UNKNOWN"
+                ObjectMapper mapper = new ObjectMapper();
+                String userJson = mapper.writeValueAsString(userMapper.toResponseDTO(user));
+                String encodedUserJson = URLEncoder.encode(userJson, StandardCharsets.UTF_8);
+                String redirectUrl = String.format(
+                        frontendBaseUrl + "/auth/azure/callback?onboardingRequired=false&token=%s&user=%s&provider=Microsoft",
+                        URLEncoder.encode(jwtToken, StandardCharsets.UTF_8),
+                        encodedUserJson
                 );
                 response.sendRedirect(redirectUrl);
                 return null;

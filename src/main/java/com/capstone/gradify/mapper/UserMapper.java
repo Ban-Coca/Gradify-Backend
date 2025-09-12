@@ -12,6 +12,9 @@ import org.mapstruct.Mapping;
 public interface UserMapper {
 
     @Mapping(source="userId", target="userId")
+    @Mapping(source = "phoneNumber", target = "phoneNumber")
+    @Mapping(source = "bio", target = "bio")
+    @Mapping(source = "profilePictureUrl", target = "profilePictureUrl")
     UserResponse toUserResponse(UserEntity user);
 
     default LoginResponse toLoginResponse(UserEntity user, String token) {
@@ -30,10 +33,4 @@ public interface UserMapper {
         }
         return response;
     }
-
-//    @Mapping(target = "userId", ignore = true)
-//    @Mapping(target = "createdAt", ignore = true)
-//    @Mapping(target = "lastLogin", ignore = true)
-//    @Mapping(target = "password", ignore = true)  // Handle separately
-//    UserEntity toEntity(UserRequest dto);
 }
