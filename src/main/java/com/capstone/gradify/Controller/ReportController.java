@@ -30,8 +30,8 @@ public class ReportController {
     private final StudentService studentService;
     private final EmailService emailService;
     private final NotificationService notificationService;
-    @Value("frontend.base-url")
-    private final String frontEndURL;
+    @Value("${frontend.base-url}")
+    private String frontEndURL;
     /**
      * Create a new report
      * Only teachers should be able to create reports
