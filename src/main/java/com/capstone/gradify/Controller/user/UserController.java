@@ -239,6 +239,11 @@ public class UserController {
         }
         UserEntity user = userv.findByEmail(email);
 
+        if (user == null) {
+            // For security reasons, don't reveal if email exists or not
+            return ResponseEntity.ok(Map.of("message", "If your email exists in our system, you will receive a reset code"));
+        }
+
         String verificationCode = VerificationCodeGenerator.generateVerificationCode();
         codeService.createVerificationCode(user, verificationCode);
         emailService.sendVerificationEmail(email, verificationCode);
