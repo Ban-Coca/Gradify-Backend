@@ -13,6 +13,7 @@ import com.capstone.gradify.dto.response.LoginResponse;
 import com.capstone.gradify.dto.response.UserResponse;
 import com.capstone.gradify.mapper.UserMapper;
 import com.capstone.gradify.util.VerificationCodeGenerator;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -228,6 +229,20 @@ public class UserController {
             logger.error("Error in password reset request: ", e);
             return ResponseEntity.status(500).body(Map.of("error", "Error processing request: " + e.getMessage()));
         }
+    }
+
+    @PostMapping("/resend-code")
+    public ResponseEntity<?> resendCode(@RequestBody Map<String, String> request) throws MessagingException {
+        String email = request.get("email");
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+        }
+        UserEntity user = userv.findByEmail(email);
+
+        String verificationCode = VerificationCodeGenerator.generateVerificationCode();
+        codeService.createVerificationCode(user, verificationCode);
+        emailService.sendVerificationEmail(email, verificationCode);
+        return ResponseEntity.ok(Map.of("message","Successfully resent code"));
     }
 
     @PostMapping("/verify-reset-code")
