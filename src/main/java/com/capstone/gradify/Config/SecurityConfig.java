@@ -108,9 +108,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/user/login", "api/user/reset-password", "/api/user/register",
-                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google", "/api/user/email-exists").permitAll()
+                                "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google", "/api/user/email-exists", "/api/user/resend-code").permitAll()
                         .requestMatchers("/api/auth/**", "/api/google/**").permitAll()
-                        .requestMatchers("/api/graph/notification/**").permitAll()
+                        .requestMatchers("/api/graph/notification/**").authenticated()
                         .requestMatchers("/api/graph/drive/folder/**", "/api/graph/subscription","/api/graph/subscription/**", "/api/graph/tracked-files").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**", "/api/graph/drive/**", "/api/graph/extract/**", "/api/graph/save/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
