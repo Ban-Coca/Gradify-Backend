@@ -1,6 +1,6 @@
 package com.capstone.gradify.Controller.notification;
 
-import com.capstone.gradify.Entity.NotificationEntity;
+import com.capstone.gradify.Entity.notification.NotificationEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Service.notification.NotificationService;
 import com.capstone.gradify.Service.userservice.UserService;

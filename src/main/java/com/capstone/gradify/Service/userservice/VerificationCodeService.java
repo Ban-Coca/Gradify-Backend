@@ -2,7 +2,7 @@ package com.capstone.gradify.Service.userservice;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Entity.user.VerificationCode;
-import com.capstone.gradify.Repository.UserVerificationRepository;
+import com.capstone.gradify.Repository.user.UserVerificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

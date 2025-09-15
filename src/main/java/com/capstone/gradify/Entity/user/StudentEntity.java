@@ -1,6 +1,6 @@
 package com.capstone.gradify.Entity.user;
 
-import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.fasterxml.jackson.annotation.JsonBackReference;

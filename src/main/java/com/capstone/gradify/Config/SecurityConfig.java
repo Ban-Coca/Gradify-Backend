@@ -3,7 +3,7 @@ package com.capstone.gradify.Config;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Entity.user.UserToken;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
-import com.capstone.gradify.Service.TempTokenService;
+import com.capstone.gradify.Service.userservice.TempTokenService;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.capstone.gradify.util.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;

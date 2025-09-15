@@ -1,4 +1,4 @@
-package com.capstone.gradify.Entity;
+package com.capstone.gradify.Entity.report;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;

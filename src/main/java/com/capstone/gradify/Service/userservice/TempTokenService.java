@@ -1,7 +1,7 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.userservice;
 
-import com.capstone.gradify.Entity.TempTokens;
-import com.capstone.gradify.Repository.TempTokensRepository;
+import com.capstone.gradify.Entity.user.TempTokens;
+import com.capstone.gradify.Repository.user.TempTokensRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

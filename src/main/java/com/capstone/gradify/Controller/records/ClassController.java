@@ -8,7 +8,7 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
-import com.capstone.gradify.Service.RecordsService;
+import com.capstone.gradify.Service.academic.RecordsService;
 import com.capstone.gradify.dto.request.UpdateClassDetails;
 import com.capstone.gradify.dto.response.ClassResponse;
 import com.capstone.gradify.dto.response.StudentResponse;
@@ -21,7 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
-import com.capstone.gradify.Service.ClassService;
+import com.capstone.gradify.Service.academic.ClassService;
 import com.capstone.gradify.dto.response.StudentTableData;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;

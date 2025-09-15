@@ -1,6 +1,6 @@
 package com.capstone.gradify.dto.response;
 
-import com.capstone.gradify.Entity.NotificationEntity;
+import com.capstone.gradify.Entity.notification.NotificationEntity;
 import org.springframework.data.domain.Page;
 import java.util.List;
 

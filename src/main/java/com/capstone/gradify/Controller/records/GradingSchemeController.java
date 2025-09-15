@@ -1,16 +1,13 @@
 package com.capstone.gradify.Controller.records;
 
 import com.capstone.gradify.Entity.records.GradingSchemes;
-import com.capstone.gradify.Service.GradingSchemeService;
+import com.capstone.gradify.Service.academic.GradingSchemeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus; // Import HttpStatus
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections; // Import Collections
 import java.util.Map;
 
 @RestController
