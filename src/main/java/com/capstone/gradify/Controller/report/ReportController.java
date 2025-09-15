@@ -1,4 +1,4 @@
-package com.capstone.gradify.Controller;
+package com.capstone.gradify.Controller.report;
 
 import com.capstone.gradify.Service.AiServices.GenerateFeedbackAIService;
 import com.capstone.gradify.Service.notification.EmailService;
@@ -9,13 +9,12 @@ import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import com.capstone.gradify.Service.ReportService;
+import com.capstone.gradify.Service.report.ReportService;
 import com.capstone.gradify.dto.response.ReportResponse;
 
 import java.util.List;

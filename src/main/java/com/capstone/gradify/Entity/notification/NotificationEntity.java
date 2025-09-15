@@ -1,4 +1,4 @@
-package com.capstone.gradify.Entity;
+package com.capstone.gradify.Entity.notification;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;

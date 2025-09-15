@@ -1,12 +1,11 @@
 package com.capstone.gradify.Controller.user;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
-import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.AiServices.AiAnalysisService;
-import com.capstone.gradify.Service.ClassService;
-import com.capstone.gradify.Service.GradeService;
-import com.capstone.gradify.Service.RecordsService;
+import com.capstone.gradify.Service.academic.ClassService;
+import com.capstone.gradify.Service.academic.GradeService;
+import com.capstone.gradify.Service.academic.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.dto.request.UpdateClassDetails;
 import com.capstone.gradify.dto.response.ClassResponse;

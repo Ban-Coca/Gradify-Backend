@@ -1,4 +1,4 @@
-package com.capstone.gradify.dto;
+package com.capstone.gradify.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.academic;
 
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;

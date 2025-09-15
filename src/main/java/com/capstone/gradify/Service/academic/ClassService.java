@@ -1,15 +1,14 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.academic;
 
 import java.util.Date;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.*;
 import javax.naming.NameNotFoundException;
 
-import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.records.*;
 import com.capstone.gradify.Entity.user.StudentEntity;
-import com.capstone.gradify.Repository.ReportRepository;
+import com.capstone.gradify.Repository.report.ReportRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradingSchemeRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;

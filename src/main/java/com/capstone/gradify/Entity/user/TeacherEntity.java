@@ -1,13 +1,12 @@
 package com.capstone.gradify.Entity.user;
 
-import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import net.minidev.json.annotate.JsonIgnore;
 
 import java.util.ArrayList;
 import java.util.List;

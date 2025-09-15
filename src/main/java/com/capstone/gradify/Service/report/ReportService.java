@@ -1,15 +1,15 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.report;
 
 import com.capstone.gradify.Service.userservice.StudentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
-import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
-import com.capstone.gradify.Repository.ReportRepository;
+import com.capstone.gradify.Repository.report.ReportRepository;
 import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
@@ -18,7 +18,6 @@ import com.capstone.gradify.dto.request.ReportRequest;
 import com.capstone.gradify.dto.response.ReportResponse;
 import org.springframework.stereotype.Service;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;

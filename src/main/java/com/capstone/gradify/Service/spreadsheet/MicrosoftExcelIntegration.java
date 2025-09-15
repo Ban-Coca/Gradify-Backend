@@ -18,7 +18,7 @@ import com.capstone.gradify.Repository.subscription.TrackedFileRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Repository.user.UserTokenRepository;
 import com.capstone.gradify.Service.subscription.TrackedFilesService;
-import com.capstone.gradify.dto.ChangeNotification;
+import com.capstone.gradify.dto.response.ChangeNotification;
 import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.ExtractedExcelResponse;
 import com.capstone.gradify.dto.response.TokenResponse;
@@ -47,7 +47,6 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service

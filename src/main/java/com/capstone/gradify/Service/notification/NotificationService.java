@@ -1,9 +1,9 @@
 package com.capstone.gradify.Service.notification;
 
-import com.capstone.gradify.Entity.NotificationEntity;
-import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.notification.NotificationEntity;
+import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
-import com.capstone.gradify.Repository.NotificationRepository;
+import com.capstone.gradify.Repository.notification.NotificationRepository;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -12,7 +12,6 @@ import com.google.firebase.messaging.Notification;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;

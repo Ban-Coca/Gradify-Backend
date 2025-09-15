@@ -1,6 +1,6 @@
-package com.capstone.gradify.Repository;
+package com.capstone.gradify.Repository.user;
 
-import com.capstone.gradify.Entity.TempTokens;
+import com.capstone.gradify.Entity.user.TempTokens;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

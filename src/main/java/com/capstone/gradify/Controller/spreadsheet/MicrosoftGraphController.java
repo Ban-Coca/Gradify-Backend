@@ -13,8 +13,8 @@ import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.spreadsheet.MicrosoftExcelIntegration;
 import com.capstone.gradify.Service.subscription.TrackedFilesService;
 import com.capstone.gradify.Service.userservice.UserService;
-import com.capstone.gradify.dto.ChangeNotification;
-import com.capstone.gradify.dto.NotificationPayload;
+import com.capstone.gradify.dto.response.ChangeNotification;
+import com.capstone.gradify.dto.response.NotificationPayload;
 import com.capstone.gradify.dto.response.DriveItemResponse;
 import com.capstone.gradify.dto.response.ExtractedExcelResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/graph")

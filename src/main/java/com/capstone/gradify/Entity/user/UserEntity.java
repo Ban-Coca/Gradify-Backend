@@ -2,7 +2,7 @@ package com.capstone.gradify.Entity.user;
 
 import java.util.*;
 
-import com.capstone.gradify.Entity.NotificationEntity;
+import com.capstone.gradify.Entity.notification.NotificationEntity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
