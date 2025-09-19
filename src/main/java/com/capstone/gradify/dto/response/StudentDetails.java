@@ -11,7 +11,7 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class StudentResponse {
+public class StudentDetails {
     private Integer userId;
     private String firstName;
     private String lastName;
@@ -19,4 +19,7 @@ public class StudentResponse {
     private String studentNumber;
     private String major;
     private String yearLevel;
+
+    private List<GradeRecordsEntity> grades;
+    private List<ReportEntity> reports;
 }

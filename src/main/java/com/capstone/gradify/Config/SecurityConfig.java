@@ -113,7 +113,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/graph/notification/**").authenticated()
                         .requestMatchers("/api/graph/drive/folder/**", "/api/graph/subscription","/api/graph/subscription/**", "/api/graph/tracked-files", "/api/graph/sync-excel-sheet").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**", "/api/graph/drive/**", "/api/graph/extract/**", "/api/graph/save/**").hasAnyAuthority("TEACHER")
-                        .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
+                        .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT", "TEACHER")
                         .requestMatchers("/api/reports/**").hasAnyAuthority("TEACHER", "STUDENT")
                         .requestMatchers(
                                 "/api/reports/teacher/**",

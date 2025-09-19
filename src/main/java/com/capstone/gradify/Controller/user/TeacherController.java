@@ -1,16 +1,20 @@
 package com.capstone.gradify.Controller.user;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
+import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.AiServices.AiAnalysisService;
 import com.capstone.gradify.Service.academic.ClassService;
 import com.capstone.gradify.Service.academic.GradeService;
 import com.capstone.gradify.Service.academic.RecordsService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
+import com.capstone.gradify.Service.userservice.TeacherService;
 import com.capstone.gradify.dto.request.UpdateClassDetails;
 import com.capstone.gradify.dto.response.ClassResponse;
+import com.capstone.gradify.dto.response.StudentDetails;
 import com.capstone.gradify.dto.response.TeacherAssessmentPerformance;
 import com.capstone.gradify.mapper.ClassMapper;
+import com.capstone.gradify.mapper.StudentMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,32 +38,8 @@ public class TeacherController {
     private final AiAnalysisService aiAnalysisService;
     private final GradeService gradeService;
     private final ClassMapper classMapper;
-//    @PostMapping("/upload")
-//    public ResponseEntity<?> uploadSpreadsheet(@RequestParam("file") MultipartFile file, @RequestParam("teacherId") Integer teacherId) {
-//        // Logic to handle spreadsheet upload
-//        try{
-//            List<Map<String, String >> records = classSpreadsheetService.parseClassRecord(file);
-//            TeacherEntity teacher = teacherRepository.findById(teacherId)
-//                    .orElseThrow(() -> new RuntimeException("Teacher not found"));
-//
-//            ClassSpreadsheet savedSpreadsheet = classSpreadsheetService.saveRecord(file.getOriginalFilename(), teacher, records);
-//
-//            return ResponseEntity.ok(savedSpreadsheet);
-//        } catch (Exception e) {
-//            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
-//        }
-//    }
-
-//    @GetMapping("/get")
-//    public ResponseEntity<?> getSpreadsheetById(@RequestParam("id") Long id) {
-//        // Logic to handle spreadsheet upload
-//        try{
-//            Optional<ClassSpreadsheet> classSpreadsheet = classSpreadsheetService.getClassSpreadsheetById(id);
-//            return ResponseEntity.ok(classSpreadsheet);
-//        } catch (Exception e) {
-//            return ResponseEntity.status(500).body("Error processing file: " + e.getMessage());
-//        }
-//    }
+    private final StudentMapper studentMapper;
+    private final TeacherService teacherService;
 
     @PostMapping
     public ResponseEntity<Object> createClass(@RequestBody ClassEntity classEntity) {
@@ -232,4 +212,16 @@ public class TeacherController {
                 ));
         return ResponseEntity.ok(status);
     }
+
+    @GetMapping("/class/{classId}/student/{studentId}")
+    public ResponseEntity<StudentDetails> getStudentDetails(@PathVariable int classId, @PathVariable int studentId) {
+        StudentEntity student = teacherService.getStudentDetail(classId, studentId);
+        if (student == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+        StudentDetails studentDetails = studentMapper.toDetailsDto(student);
+        return ResponseEntity.ok().body(studentDetails);
+    }
+
+
 }
