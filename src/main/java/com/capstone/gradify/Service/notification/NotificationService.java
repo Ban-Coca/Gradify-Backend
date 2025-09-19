@@ -1,11 +1,13 @@
 package com.capstone.gradify.Service.notification;
 
 import com.capstone.gradify.Entity.notification.NotificationEntity;
+import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.notification.NotificationRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
+import com.capstone.gradify.Service.academic.ClassService;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -42,6 +44,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserService userService;
     private final EmailService emailService;
+    private final ClassService classService;
 
     private final Map<String, ScheduledFuture<?>> pendingTasks = new ConcurrentHashMap<>();
     private final Duration debounceDelay = Duration.ofSeconds(5);
@@ -154,7 +157,7 @@ public class NotificationService {
 
         // Fetch grade records for this class to find enrolled students (assumes repo method exists)
         List<GradeRecordsEntity> records = gradeRecordRepository.findByClassRecord_ClassEntity_ClassId(classSpreadsheetId);
-
+        ClassEntity classEntity = classService.getClassById(classSpreadsheetId);
         if (records == null || records.isEmpty()) {
             log.info("No student records found for classSpreadsheetId={}", classSpreadsheetId);
             return;
@@ -189,17 +192,13 @@ public class NotificationService {
             // Send email notification if user has email
             try {
                 String toEmail = null;
-                // attempt to get email via getEmail() if available
-                try {
-                    toEmail = (String) UserEntity.class.getMethod("getEmail").invoke(user);
-                } catch (Exception e) {
-                    // reflection failed or method absent; fallback to null
-                }
+
+                toEmail = user.getEmail();
 
                 if (toEmail != null && !toEmail.isBlank()) {
                     String reportDate = LocalDate.now().toString();
                     // grade param is assessmentName (may be null)
-                    emailService.sendGradeUpdate(toEmail, assessmentName, null, null, null, reportDate);
+                    emailService.sendGradeUpdate(toEmail, assessmentName, classEntity.getClassName(), user.getFirstName(), null, reportDate);
                 }
             } catch (MessagingException me) {
                 log.error("Failed to send email to user: {}", me.getMessage(), me);
