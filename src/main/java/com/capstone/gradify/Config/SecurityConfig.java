@@ -111,7 +111,7 @@ public class SecurityConfig {
                                 "/api/user/verify-email", "/api/user/request-password-reset", "/api/user/verify-reset-code", "/api/user/oauth2/callback/google", "/api/user/email-exists", "/api/user/resend-code").permitAll()
                         .requestMatchers("/api/auth/**", "/api/google/**").permitAll()
                         .requestMatchers("/api/graph/notification/**").authenticated()
-                        .requestMatchers("/api/graph/drive/folder/**", "/api/graph/subscription","/api/graph/subscription/**", "/api/graph/tracked-files").hasAnyAuthority("TEACHER")
+                        .requestMatchers("/api/graph/drive/folder/**", "/api/graph/subscription","/api/graph/subscription/**", "/api/graph/tracked-files", "/api/graph/sync-excel-sheet").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/teacher/**", "/api/spreadsheet/**", "/api/classes/**", "/api/grading/**", "/api/graph/drive/**", "/api/graph/extract/**", "/api/graph/save/**").hasAnyAuthority("TEACHER")
                         .requestMatchers("/api/student/**").hasAnyAuthority("STUDENT")
                         .requestMatchers("/api/reports/**").hasAnyAuthority("TEACHER", "STUDENT")

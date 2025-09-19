@@ -118,7 +118,7 @@ public class MicrosoftGraphTokenService {
         params.add("client_secret", azureConfig.getClientSecret());
         params.add("refresh_token", refreshToken);
         params.add("grant_type", "refresh_token");
-        params.add("scope", "https://graph.microsoft.com/Files.Read https://graph.microsoft.com/Files.ReadWrite https://graph.microsoft.com/User.Read offline_access");
+        params.add("scope", "https://graph.microsoft.com/.default offline_access");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -150,6 +150,10 @@ public class MicrosoftGraphTokenService {
                     ((Number) body.get("expires_in")).intValue()
             );
         } catch (RestClientException e) {
+            if (e instanceof HttpClientErrorException) {
+                HttpClientErrorException httpError = (HttpClientErrorException) e;
+                logger.error("HTTP {} error: {}", httpError.getStatusCode(), httpError.getResponseBodyAsString());
+            }
             throw new RuntimeException("Network error during token refresh: " + e.getMessage(), e);
         } catch (Exception e) {
             throw new RuntimeException("Unexpected error during token refresh: " + e.getMessage(), e);

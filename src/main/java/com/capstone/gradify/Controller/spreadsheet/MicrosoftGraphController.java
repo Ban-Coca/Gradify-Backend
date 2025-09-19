@@ -97,7 +97,6 @@ public class MicrosoftGraphController {
     @PutMapping("/sync-excel-sheet")
     public ResponseEntity<?> syncSheet(@RequestParam int userId, @RequestParam Long sheetId) {
         UserEntity user  = userService.findById(userId);
-
         if (user == null) {
             throw new RuntimeException("User not found with ID: " + userId);
         }
