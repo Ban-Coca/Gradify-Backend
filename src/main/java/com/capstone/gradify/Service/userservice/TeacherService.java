@@ -45,11 +45,15 @@ public class TeacherService {
     public StudentEntity getStudentDetail(int classId, int studentId) {
         ClassEntity classEntity = getClassById(classId);
         if (classEntity == null) {
-            throw new RuntimeException("Class not found");
+            throw new EntityNotFoundException("Class not found");
         }
         StudentEntity studentEntity = studentRepository.findById(studentId).orElse(null);
         if (studentEntity == null) {
-            throw new RuntimeException("Student not found");
+            throw new EntityNotFoundException("Student not found");
+        }
+        Set<StudentEntity> enrolledStudents = classEntity.getStudents();
+        if (enrolledStudents == null || !enrolledStudents.contains(studentEntity)) {
+            throw new RuntimeException("Student is not enrolled in the specified class");
         }
         return studentEntity;
     }
