@@ -1,16 +1,12 @@
 package com.capstone.gradify.Entity.user;
 
-import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrimaryKeyJoinColumn;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import net.minidev.json.annotate.JsonIgnore;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +15,7 @@ import java.util.List;
 @Getter
 @Setter
 @PrimaryKeyJoinColumn(name = "user_id")
+@Table(name = "teachers")
 public class TeacherEntity extends UserEntity {
     private String institution;
     private String department;

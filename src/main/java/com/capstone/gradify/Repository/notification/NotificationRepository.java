@@ -1,6 +1,6 @@
-package com.capstone.gradify.Repository;
+package com.capstone.gradify.Repository.notification;
 
-import com.capstone.gradify.Entity.NotificationEntity;
+import com.capstone.gradify.Entity.notification.NotificationEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

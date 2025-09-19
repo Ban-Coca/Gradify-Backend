@@ -1,4 +1,4 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.academic;
 
 import com.capstone.gradify.Entity.records.*;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
@@ -14,7 +14,6 @@ import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.dto.response.StudentTableData;
 import com.capstone.gradify.dto.response.TeacherAssessmentPerformance;
 import java.util.*;
-import java.util.stream.Collectors;
 
 
 @Service

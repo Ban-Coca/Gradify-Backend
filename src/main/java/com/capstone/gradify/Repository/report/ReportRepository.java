@@ -1,6 +1,6 @@
-package com.capstone.gradify.Repository;
+package com.capstone.gradify.Repository.report;
 
-import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.report.ReportEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,4 +1,4 @@
-package com.capstone.gradify.Service;
+package com.capstone.gradify.Service.academic;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradingSchemes;
@@ -7,7 +7,6 @@ import com.capstone.gradify.Repository.records.ClassRepository;
 import com.capstone.gradify.Repository.records.GradingSchemeRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service

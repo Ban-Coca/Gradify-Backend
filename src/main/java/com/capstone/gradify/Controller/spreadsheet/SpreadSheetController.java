@@ -75,7 +75,26 @@ public class SpreadSheetController {
         return ResponseEntity.ok(response);
 
     }
+    @GetMapping("/parse")
+    public ResponseEntity<?> parseSpreadsheet(@RequestParam("file") MultipartFile file) {
+        try {
+            List<Map<String, String>> records = classSpreadsheetService.parseClassRecord(file);
+            Map<String, Integer> maxAssessmentValue = classSpreadsheetService.getMaxAssessmentValue(file);
 
+            // Pre-validate records
+            classSpreadsheetService.preValidateAllRecords(records, maxAssessmentValue);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("records", records);
+            response.put("maxAssessmentValue", maxAssessmentValue);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error parsing spreadsheet: " + e.getMessage());
+        }
+    }
+    
     @PutMapping("/update/{classId}")
     public ResponseEntity<?> updateSpreadsheet(
             @PathVariable("classId") Integer classId,

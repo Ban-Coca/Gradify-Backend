@@ -17,6 +17,7 @@ import java.util.Set;
 @Entity
 @Getter
 @Setter
+@Table(name = "class_spreadsheets")
 public class ClassSpreadsheet {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,6 +34,10 @@ public class ClassSpreadsheet {
     private String folderName;
     private String folderId;
 
+    // for google drive implementation
+    private String sharedLink;
+    private String dataHash;
+    private Boolean isGoogleSheets = false;
     @ManyToOne
     @JoinColumn(name = "userId")
     @JsonBackReference

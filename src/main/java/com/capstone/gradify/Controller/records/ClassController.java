@@ -8,7 +8,8 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.user.TeacherRepository;
-import com.capstone.gradify.Service.RecordsService;
+import com.capstone.gradify.Service.academic.RecordsService;
+import com.capstone.gradify.dto.request.UpdateClassDetails;
 import com.capstone.gradify.dto.response.ClassResponse;
 import com.capstone.gradify.dto.response.StudentResponse;
 import com.capstone.gradify.mapper.ClassMapper;
@@ -20,7 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
-import com.capstone.gradify.Service.ClassService;
+import com.capstone.gradify.Service.academic.ClassService;
 import com.capstone.gradify.dto.response.StudentTableData;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +31,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+
+import javax.naming.NameNotFoundException;
 
 @RestController
 @RequestMapping("/api/classes")
@@ -109,14 +112,17 @@ public class ClassController {
             return ResponseEntity.status(404).body("Class not found");
         }
     }
-    
+
     @PutMapping("/{classId}")
-    public ResponseEntity<Object> updateClasses(@PathVariable int classId, @RequestBody ClassEntity classEntity) {
-        try{
+    public ResponseEntity<Object> updateClasses(@PathVariable int classId, @RequestBody UpdateClassDetails classEntity) {
+        try {
             ClassEntity updatedClass = classService.updateClass(classId, classEntity);
-            return ResponseEntity.status(200).body(updatedClass);
-        }catch (Exception e) {
-            return ResponseEntity.status(500).body("An error occurred while updating the task: " + e.getMessage()); // Return 500 for unexpected errors
+            ClassResponse response = classMapper.toClassResponse(updatedClass);
+            return ResponseEntity.ok(response);
+        } catch (NameNotFoundException e) {
+            return ResponseEntity.status(404).body("Class not found: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Error updating class: " + e.getMessage());
         }
     }
 

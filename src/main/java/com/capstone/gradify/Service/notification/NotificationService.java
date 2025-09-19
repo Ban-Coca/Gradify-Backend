@@ -1,32 +1,53 @@
 package com.capstone.gradify.Service.notification;
 
-import com.capstone.gradify.Entity.NotificationEntity;
-import com.capstone.gradify.Entity.ReportEntity;
+import com.capstone.gradify.Entity.notification.NotificationEntity;
+import com.capstone.gradify.Entity.records.ClassEntity;
+import com.capstone.gradify.Entity.records.GradeRecordsEntity;
+import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.user.UserEntity;
-import com.capstone.gradify.Repository.NotificationRepository;
+import com.capstone.gradify.Repository.notification.NotificationRepository;
+import com.capstone.gradify.Repository.records.GradeRecordRepository;
+import com.capstone.gradify.Service.academic.ClassService;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
+
+    private final TaskScheduler taskScheduler;
+    private final GradeRecordRepository gradeRecordRepository;
     private final FirebaseApp firebaseApp;
     private final NotificationRepository notificationRepository;
     private final UserService userService;
+    private final EmailService emailService;
+    private final ClassService classService;
+
+    private final Map<String, ScheduledFuture<?>> pendingTasks = new ConcurrentHashMap<>();
+    private final Duration debounceDelay = Duration.ofSeconds(5);
 
     @Transactional
     public void sendNotification(ReportEntity report) {
@@ -93,13 +114,120 @@ public class NotificationService {
         return notificationRepository.markAllAsRead(user);
     }
 
-    // Create a general notification (not related to tasks)
-//    @Transactional
-//    public NotificationEntity createNotification(String title, String message, UserEntity user,
-//                                                 String notificationType) {
-//        NotificationEntity notification = new NotificationEntity(
-//                title, message, user, notificationType
-//        );
-//        return notificationRepository.save(notification);
-//    }
+    public void scheduleVisibilityChange(int classSpreadsheetId, String assessmentName, String notificationType, String title, String body) {
+        String key = buildKey(classSpreadsheetId, assessmentName);
+
+        // cancel existing pending task if present
+        ScheduledFuture<?> existing = pendingTasks.get(key);
+        if (existing != null && !existing.isDone()) {
+            existing.cancel(false);
+        }
+
+        // schedule a new task
+        ScheduledFuture<?> future = taskScheduler.schedule(() -> {
+            try {
+                pendingTasks.remove(key);
+                sendNotificationsForVisibilityChange(classSpreadsheetId, assessmentName, notificationType, title, body);
+            } catch (Exception e) {
+                log.error("Error processing visibility notifications for key {}: {}", key, e.getMessage(), e);
+            }
+        }, java.util.Date.from(java.time.Instant.now().plus(debounceDelay)));
+
+        pendingTasks.put(key, future);
+    }
+
+    public void flushNow(int classSpreadsheetId, String assessmentName, String notificationType, String title, String body) {
+        String key = buildKey(classSpreadsheetId, assessmentName);
+        ScheduledFuture<?> existing = pendingTasks.remove(key);
+        if (existing != null && !existing.isDone()) {
+            existing.cancel(false);
+        }
+        // run immediately
+        taskScheduler.schedule(() -> {
+            try {
+                sendNotificationsForVisibilityChange(classSpreadsheetId, assessmentName, notificationType, title, body);
+            } catch (Exception e) {
+                log.error("Error flushing notifications for key {}: {}", key, e.getMessage(), e);
+            }
+        }, java.util.Date.from(java.time.Instant.now()));
+    }
+
+    private void sendNotificationsForVisibilityChange(int classSpreadsheetId, String assessmentName, String notificationType, String title, String body) {
+        log.info("Processing visibility notifications for classSpreadsheetId={} assessment={} ", classSpreadsheetId, assessmentName);
+
+        // Fetch grade records for this class to find enrolled students (assumes repo method exists)
+        List<GradeRecordsEntity> records = gradeRecordRepository.findByClassRecord_ClassEntity_ClassId(classSpreadsheetId);
+        ClassEntity classEntity = classService.getClassById(classSpreadsheetId);
+        if (records == null || records.isEmpty()) {
+            log.info("No student records found for classSpreadsheetId={}", classSpreadsheetId);
+            return;
+        }
+
+        // Collect unique users and tokens
+        List<UserEntity> users = records.stream()
+                .map(GradeRecordsEntity::getStudent)
+                .filter(u -> u != null)
+                .distinct()
+                .collect(Collectors.toList());
+
+        List<Message> messages = new ArrayList<>();
+        List<NotificationEntity> savedNotifications = new ArrayList<>();
+
+        for (UserEntity user : users) {
+            String token = user.getFCMToken();
+            // persist notification record
+            NotificationEntity notification = new NotificationEntity(notificationType, title, body, user, 0);
+            savedNotifications.add(notification);
+
+            if (token != null && !token.isBlank()) {
+                Message msg = Message.builder()
+                        .setToken(token)
+                        .setNotification(Notification.builder().setTitle(title).setBody(body).build())
+                        .putData("assessment", assessmentName)
+                        .putData("classSpreadsheetId", String.valueOf(classSpreadsheetId))
+                        .build();
+                messages.add(msg);
+            }
+
+            // Send email notification if user has email
+            try {
+                String toEmail = null;
+
+                toEmail = user.getEmail();
+
+                if (toEmail != null && !toEmail.isBlank()) {
+                    String reportDate = LocalDate.now().toString();
+                    // grade param is assessmentName (may be null)
+                    emailService.sendGradeUpdate(toEmail, assessmentName, classEntity.getClassName(), user.getFirstName(), null, reportDate);
+                }
+            } catch (MessagingException me) {
+                log.error("Failed to send email to user: {}", me.getMessage(), me);
+            } catch (Exception ex) {
+                // guard against reflection or unexpected errors
+                log.debug("Skipping email send due to error when resolving user email: {}", ex.getMessage());
+            }
+        }
+
+        // Save all notification entities in a batch (transactional repository behavior assumed)
+        if (!savedNotifications.isEmpty()) {
+            notificationRepository.saveAll(savedNotifications);
+        }
+
+        // Send FCM messages in chunks of up to 500
+        final int CHUNK = 500;
+        for (int i = 0; i < messages.size(); i += CHUNK) {
+            int end = Math.min(messages.size(), i + CHUNK);
+            List<Message> chunk = messages.subList(i, end);
+            try {
+                var batchResponse = FirebaseMessaging.getInstance(firebaseApp).sendAll(chunk);
+                log.info("FCM sendAll result: success={}, failure={}", batchResponse.getSuccessCount(), batchResponse.getFailureCount());
+            } catch (Exception e) {
+                log.error("FCM sendAll failed for chunk starting at {}: {}", i, e.getMessage(), e);
+            }
+        }
+    }
+
+    private String buildKey(int classSpreadsheetId, String assessmentName) {
+        return classSpreadsheetId + ":" + (assessmentName == null ? "<all>" : assessmentName);
+    }
 }

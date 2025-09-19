@@ -1,8 +1,7 @@
 package com.capstone.gradify.Controller.records;
 
-import com.capstone.gradify.Service.RecordsService;
+import com.capstone.gradify.Service.academic.RecordsService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

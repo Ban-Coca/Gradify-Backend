@@ -1,17 +1,15 @@
 package com.capstone.gradify.Service.AiServices;
 
-import com.anthropic.models.messages.ContentBlock;
 import com.anthropic.models.messages.Message;
 import com.anthropic.models.messages.MessageCreateParams;
 import com.anthropic.models.messages.TextBlock;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.records.GradingSchemes;
-import com.capstone.gradify.Service.GradingSchemeService;
-import com.capstone.gradify.Service.RecordsService;
+import com.capstone.gradify.Service.academic.GradingSchemeService;
+import com.capstone.gradify.Service.academic.RecordsService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.anthropic.client.AnthropicClient;

@@ -1,4 +1,4 @@
-package com.capstone.gradify.Entity;
+package com.capstone.gradify.Entity.report;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
@@ -16,6 +16,7 @@ import lombok.Setter;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "reports")
 public class ReportEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

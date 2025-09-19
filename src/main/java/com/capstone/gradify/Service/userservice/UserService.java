@@ -1,8 +1,15 @@
 package com.capstone.gradify.Service.userservice;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import com.azure.storage.blob.BlobClient;
+import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobServiceClient;
+import com.azure.storage.blob.models.BlobHttpHeaders;
 import com.capstone.gradify.Entity.user.Role;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
@@ -10,17 +17,7 @@ import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.dto.request.RegisterRequest;
 import com.capstone.gradify.dto.request.UserUpdateRequest;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.persistence.PersistenceContext;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -31,11 +28,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.microsoft.graph.models.User;
-import org.springframework.http.MediaType;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.user.UserRepository;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @Transactional
@@ -47,12 +43,10 @@ public class UserService {
 	private final UserRepository userRepository;
 	private final TeacherRepository teacherRepository;
 	private final StudentRepository studentRepository;
+	private final BlobServiceClient blobServiceClient;
+	@Value("${azure.storage.container.profile-pictures}")
+	private String profilePicturesContainer;
 
-
-  	// Directory for file uploads, injected from application properties
-  	// This is used to store user profile pictures or other uploaded files
-	@Value("${app.upload.dir}")
-  	private String uploadDir;
 
 	public UserEntity findByEmail(String email) {
 		return userRepository.findByEmail(email);
@@ -175,18 +169,64 @@ public class UserService {
 	public List<UserEntity> getAllUsers(){
 		return userRepository.findAll();
 	}
-	
-	// public List<UserEntity> getUsersByRole(String role) {
-	//     return urepo.findByRole(role);
-	// }
 
-	@Transactional
-	public UserEntity putUserDetails(int userId, UserUpdateRequest request) {
+
+	public UserEntity putUserDetails(int userId, UserUpdateRequest request) throws IOException {
 		UserEntity user = findById(userId);
-		if (request.getRole() != null) {
+
+		// Handle role conversion if role is being changed
+		if (request.getRole() != null && request.getRole() != user.getRole()) {
 			return handleRoleConversion(userId, request);
 		}
-		return user;
+		if(request.getProfilePicture() != null) {
+			user.setProfilePictureUrl(uploadProfilePicture(request.getProfilePicture(), userId));
+		}
+		// Update basic user fields
+		if (request.getFirstName() != null) {
+			user.setFirstName(request.getFirstName());
+		}
+		if (request.getLastName() != null) {
+			user.setLastName(request.getLastName());
+		}
+		if (request.getEmail() != null) {
+			user.setEmail(request.getEmail());
+		}
+		if (request.getPhoneNumber() != null) {
+			user.setPhoneNumber(request.getPhoneNumber());
+		}
+		if (request.getBio() != null) {
+			user.setBio(request.getBio());
+		}
+
+		// Update isActive field
+		user.setActive(request.isActive());
+
+		// Handle role-specific updates
+		if (user instanceof TeacherEntity && user.getRole() == Role.TEACHER) {
+			TeacherEntity teacher = (TeacherEntity) user;
+			if (request.getInstitution() != null) {
+				teacher.setInstitution(request.getInstitution());
+			}
+			if (request.getDepartment() != null) {
+				teacher.setDepartment(request.getDepartment());
+			}
+			return teacherRepository.save(teacher);
+		} else if (user instanceof StudentEntity && user.getRole() == Role.STUDENT) {
+			StudentEntity student = (StudentEntity) user;
+			if (request.getStudentNumber() != null) {
+				student.setStudentNumber(request.getStudentNumber());
+			}
+			if (request.getMajor() != null) {
+				student.setMajor(request.getMajor());
+			}
+			if (request.getYearLevel() != null) {
+				student.setYearLevel(request.getYearLevel());
+			}
+			return studentRepository.save(student);
+		}
+
+		// Save and return updated user
+		return userRepository.save(user);
 	}
 
 	@Transactional
@@ -221,10 +261,6 @@ public class UserService {
 		userRepository.save(user);
 	}
 
-	public UserEntity updateUser(UserEntity user) {
-		return userRepository.save(user);
-	}
-
 	//Delete of CRUD
 	public String deleteUser(int userId) {
 		String msg = "";
@@ -238,45 +274,6 @@ public class UserService {
 		return msg;
 	}
 
-	public UserEntity findOrCreateFromAzure(User azureUser) {
-		String azureId = azureUser.getId();
-		String email = azureUser.getMail() != null ? azureUser.getMail() : azureUser.getUserPrincipalName();
-
-		// Check if user exists by Azure ID
-		Optional<UserEntity> existingByAzureId = userRepository.findByAzureId(azureId);
-		if (existingByAzureId.isPresent()) {
-			UserEntity user = existingByAzureId.get();
-			// Update user info if needed
-			user.setEmail(email);
-			if(!user.isActive()){
-				user.setActive(true); // Reactivate if previously inactive
-			}
-			return userRepository.save(user);
-		}
-
-		// Check if user exists by email (manual registration)
-		Optional<UserEntity> existingByEmail = Optional.ofNullable(userRepository.findByEmail(email));
-		if (existingByEmail.isPresent()) {
-			// Link Azure account to existing manual account
-			UserEntity user = existingByEmail.get();
-			user.setAzureId(azureId);
-			return userRepository.save(user);
-		}
-
-		// Create new Azure user
-		UserEntity newUser = new UserEntity();
-		newUser.setEmail(email);
-		newUser.setAzureId(azureId);
-		newUser.setFirstName(azureUser.getGivenName());
-		newUser.setLastName(azureUser.getSurname());
-		newUser.setRole(Role.PENDING);
-		newUser.setActive(true); // Activate new users by default
-		newUser.setCreatedAt(new Date());
-		newUser.setProvider("Microsoft");
-		// Password is null for Azure users
-		return userRepository.save(newUser);
-	}
-
     public TeacherEntity createTeacherFromOAuth(RegisterRequest request){
         TeacherEntity newUser = new TeacherEntity();
         newUser.setEmail(request.getEmail());
@@ -286,7 +283,7 @@ public class UserService {
         newUser.setRole(Role.TEACHER);
         newUser.setActive(true);
         newUser.setCreatedAt(new Date());
-        newUser.setProvider("Microsoft");
+        newUser.setProvider(request.getProvider());
 
 		newUser.setDepartment(request.getDepartment());
 		newUser.setInstitution(request.getInstitution());
@@ -306,7 +303,7 @@ public class UserService {
 			student.setRole(Role.STUDENT);
 			student.setActive(true);
 			student.setCreatedAt(new Date());
-			student.setProvider("Microsoft");
+			student.setProvider(request.getProvider());
 			student.setMajor(request.getMajor());
 			student.setYearLevel(request.getYearLevel());
 			student.setStudentNumber(request.getStudentNumber());
@@ -323,7 +320,7 @@ public class UserService {
 		newUser.setRole(Role.STUDENT);
 		newUser.setActive(true);
 		newUser.setCreatedAt(new Date());
-		newUser.setProvider("Microsoft");
+		newUser.setProvider(request.getProvider());
 
 		newUser.setMajor(request.getMajor());
 		newUser.setYearLevel(request.getYearLevel());
@@ -334,34 +331,6 @@ public class UserService {
     public Optional<UserEntity> findByAzureId(String azureId) {
         return userRepository.findByAzureId(azureId);
     }
-	public UserEntity findOrCreateUserFromGoogle(OAuth2User googleUser) {
-		String email = googleUser.getAttribute("email");
-		String firstName = googleUser.getAttribute("given_name");
-		String lastName = googleUser.getAttribute("family_name");
-		String provider = "Google";
-
-		// Try to find existing user
-		UserEntity existingUser = findByEmail(email);
-
-		if (existingUser != null) {
-			// Update last login for existing user
-			existingUser.setLastLogin(new Date());
-			return postUserRecord(existingUser);
-		} else {
-			// Create new user
-			UserEntity newUser = new UserEntity();
-			newUser.setEmail(email);
-			newUser.setFirstName(firstName);
-			newUser.setLastName(lastName);
-			newUser.setRole(Role.PENDING); // Default role
-			newUser.setActive(true);
-			newUser.setCreatedAt(new Date());
-			newUser.setLastLogin(new Date());
-			newUser.setProvider("Google");
-
-			return postUserRecord(newUser);
-		}
-	}
 
 	@Scheduled(cron = "0 0 0 * * ?") // Runs daily at midnight
     public void deactivateInactiveUsers() {
@@ -380,6 +349,28 @@ public class UserService {
             }
         }
     }
+
+	public String uploadProfilePicture(MultipartFile file, int userId) throws IOException {
+		// Validate file
+		validateImageFile(file);
+
+		// Generate unique blob name
+		String blobName = generateBlobName(userId, file.getOriginalFilename());
+
+		// Get container client
+		BlobContainerClient containerClient = blobServiceClient
+				.getBlobContainerClient(profilePicturesContainer);
+
+		// Upload file
+		BlobClient blobClient = containerClient.getBlobClient(blobName);
+		BlobHttpHeaders headers = new BlobHttpHeaders()
+				.setContentType(file.getContentType());
+
+		blobClient.upload(file.getInputStream(), file.getSize(), true);
+		blobClient.setHttpHeaders(headers);
+		// Return blob URL
+		return blobClient.getBlobUrl();
+	}
 
 	private UserEntity handleRoleConversion(int userId, UserUpdateRequest request) {
 		Role targetRole = request.getRole();
@@ -426,32 +417,33 @@ public class UserService {
 	}
 
 
+	private void validateImageFile(MultipartFile file) {
+		if (file.isEmpty()) {
+			throw new IllegalArgumentException("File is empty");
+		}
 
-//	private StudentEntity convertToStudent(int userId, UserUpdateRequest request) {
-//		// Validate required fields
-//		if (request.getStudentNumber() == null || request.getMajor() == null ||
-//				request.getYearLevel() == null || request.getInstitution() == null) {
-//			throw new IllegalArgumentException("Student number, major, year level, and institution are required for student role");
-//		}
-//
-//		// Check if student number is unique
-//		if (studentRepository.isStudentNumberTaken(request.getStudentNumber(), userId) > 0) {
-//			throw new IllegalArgumentException("Student number already exists");
-//		}
-//
-//		// Update role in users table
-//		int updatedRows = userRepository.updateUserRoleToStudent(userId);
-//		if (updatedRows == 0) {
-//			throw new EntityNotFoundException("User with ID " + userId + " not found");
-//		}
-//
-//		// Create student record
-//		studentRepository.createStudentRecord(userId, request.getStudentNumber(),
-//				request.getMajor(), request.getYearLevel(),
-//				request.getInstitution());
-//
-//		// Return the complete student entity
-//		return studentRepository.findById(userId)
-//				.orElseThrow(() -> new EntityNotFoundException("Student entity not created properly"));
-//	}
+		if (file.getSize() > 10 * 1024 * 1024) { // 5MB limit
+			throw new IllegalArgumentException("File size exceeds 5MB limit");
+		}
+
+		String contentType = file.getContentType();
+		if (contentType == null || (!contentType.equals("image/jpeg") &&
+				!contentType.equals("image/png") && !contentType.equals("image/gif"))) {
+			throw new IllegalArgumentException("Invalid file type. Only JPEG, PNG, and GIF are allowed");
+		}
+	}
+
+	private String generateBlobName(int userId, String originalFilename) {
+		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+		String uniqueId = UUID.randomUUID().toString().substring(0, 8);
+		String extension = getFileExtension(originalFilename);
+		return String.format("%s/%s-%s-%s%s", userId, "profile", timestamp, uniqueId, extension);
+	}
+
+	private String getFileExtension(String filename) {
+		if (filename == null || !filename.contains(".")) {
+			return "";
+		}
+		return filename.substring(filename.lastIndexOf(".")).toLowerCase();
+	}
 }

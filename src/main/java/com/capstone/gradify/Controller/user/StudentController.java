@@ -5,21 +5,19 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.records.GradeRecordsEntity;
 import com.capstone.gradify.Entity.records.GradingSchemes;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
-import com.capstone.gradify.Service.GradeService;
-import com.capstone.gradify.Service.GradingSchemeService;
-import com.capstone.gradify.Service.RecordsService;
-import com.capstone.gradify.Service.ReportService;
+import com.capstone.gradify.Service.academic.GradeService;
+import com.capstone.gradify.Service.academic.GradingSchemeService;
+import com.capstone.gradify.Service.academic.RecordsService;
+import com.capstone.gradify.Service.report.ReportService;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.userservice.TeacherService;
 import com.capstone.gradify.dto.response.GradeVisibilityResponse;
 import com.capstone.gradify.dto.response.ReportResponse;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;

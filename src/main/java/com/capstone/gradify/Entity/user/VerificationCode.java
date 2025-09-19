@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
+@Table(name = "verification_codes")
 public class VerificationCode {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

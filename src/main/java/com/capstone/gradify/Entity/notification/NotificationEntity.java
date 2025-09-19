@@ -1,4 +1,4 @@
-package com.capstone.gradify.Entity;
+package com.capstone.gradify.Entity.notification;
 
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Entity
 @Data
 @AllArgsConstructor
+@Table(name = "notifications")
 public class NotificationEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
