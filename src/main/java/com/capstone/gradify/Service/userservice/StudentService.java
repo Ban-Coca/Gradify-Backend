@@ -16,28 +16,6 @@ import java.util.Optional;
 public class StudentService {
     private final StudentRepository studentRepository;
 
-//    @Transactional
-//    public StudentEntity registerStudentAccount(String studentNumber, String major, String yearLevel) {
-//        Optional<StudentEntity> existingStudent = studentRepository.findByStudentNumber(studentNumber);
-//        if (existingStudent.isPresent()) {
-//            // Update existing student with account details
-//            StudentEntity student = existingStudent.get();
-//            student.setEmail(email);
-//            student.setPassword(passwordEncoder.encode(password));
-//            student.setName(name);
-//            // Set other account fields as needed
-//            return studentRepository.save(student);
-//        } else {
-//            // Create new student account
-//            StudentEntity newStudent = new StudentEntity();
-//            newStudent.setEmail(email);
-//            newStudent.setPassword(passwordEncoder.encode(password));
-//            newStudent.setName(name);
-//            newStudent.setStudentNumber(studentNumber);
-//            // Set other required fields
-//            return studentRepository.save(newStudent);
-//        }
-//    }
     public StudentEntity save(StudentEntity teacher) {
         return studentRepository.save(teacher);
     }

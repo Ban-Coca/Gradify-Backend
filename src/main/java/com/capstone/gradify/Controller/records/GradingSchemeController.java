@@ -46,14 +46,8 @@ public class GradingSchemeController {
             GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
 
             if (gradingScheme == null) {
-                // If no scheme is found, return an empty map or null with a 200 OK status.
-                // This allows the frontend to differentiate "not found" from an actual server error.
-                // Option 1: Return an empty map
-                // return ResponseEntity.ok(Collections.emptyMap());
-                // Option 2: Return null body (React Query will typically treat this as data: null)
+
                 return ResponseEntity.ok(null);
-                // Option 3: Return a 404 Not Found (more semantically correct, but frontend might need adjustment)
-                // return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Grading scheme not found for class ID: " + classId));
             }
 
             // If scheme exists, build the response as before
