@@ -23,7 +23,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(GradeValidationException.class)
     public ResponseEntity<ErrorResponse> handleGradeValidationException(GradeValidationException ex) {
-        log.error("Grade validation failed: {}", ex.getMessage());
+        if (ex.getValidationErrors() != null && !ex.getValidationErrors().isEmpty()) {
+            // Log detailed message for each error
+            ex.getValidationErrors().forEach(error -> {
+                log.error("Grade validation failed: Grade {} exceeds maximum of {}. The invalid grade was not saved.", error.getActualValue(), error.getMaxValue());
+            });
+        } else {
+            log.error("Grade validation failed: {}. The invalid grade was not saved.", ex.getMessage());
+        }
+
 
         ErrorResponse errorResponse = new ErrorResponse();
         errorResponse.setErrorCode(ex.getErrorCode());

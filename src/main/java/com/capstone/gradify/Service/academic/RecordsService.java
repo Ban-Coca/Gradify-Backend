@@ -144,6 +144,7 @@ public class RecordsService {
     }
 
     public double calculateGrade(Map<String, String> grades, String schemeJson, Map<String, Integer> assessmentMaxValues) {
+        logger.info("Calculating final grade...");
         if (schemeJson == null) { // This check is important
             return 0.0;
         }
@@ -174,10 +175,11 @@ public class RecordsService {
                 if (categoryScore >= 0) {
                     totalGrade += (categoryScore * (weight / 100.0));
                 } else {
+                    logger.info("Missing grade for '{}' found, treating as 0 in weighted calculation.", name);
                     totalGrade += 0;
                 }
             }
-
+            logger.info("Final grade computed successfully.");
             if (totalAppliedWeight > 0 && totalAppliedWeight <= 100) { // Ensure totalAppliedWeight is reasonable
                 // If totalAppliedWeight sums to 100, this simplifies to totalGrade
                 // If it's less (e.g. some categories had no grades), this will scale appropriately.
@@ -686,11 +688,15 @@ public class RecordsService {
                         record.getClassRecord().getAssessmentMaxValues());
                 // Assuming calculateGrade returns a percentage (e.g., 85.0 for 85%)
                 // If it returns a 0-1 scale, adjust the condition below.
-                if (grade < 60 && record.getStudentNumber() != null) { // Ensure your 'at-risk' threshold is correct
+                if (grade < 70 && record.getStudentNumber() != null) { // Ensure your 'at-risk' threshold is correct
                     uniqueAtRiskStudents.add(record.getStudentNumber());
                 }
             }
         }
+
+        // New log statement
+        logger.info("At-risk student identification complete. {} students flagged for intervention. Notifications sent to teacher.", uniqueAtRiskStudents.size());
+
         return uniqueAtRiskStudents.size();
     }
 

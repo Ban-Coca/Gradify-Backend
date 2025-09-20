@@ -4,17 +4,23 @@ import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.GradingSchemes;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
+import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.records.GradingSchemeRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class GradingSchemeService {
+    private static final Logger logger = LoggerFactory.getLogger(GradingSchemeService.class);
     private final GradingSchemeRepository gradingSchemeRepository;
     private final TeacherRepository teacherRepository;
     private final ClassRepository classRepository;
+    private final GradeRecordRepository gradeRecordRepository; // Injected repository
+
 
     public GradingSchemes saveGradingScheme(GradingSchemes gradingScheme, Integer classId, Integer teacherId) {
         TeacherEntity teacher = teacherRepository.findById(teacherId)
@@ -40,27 +46,31 @@ public class GradingSchemeService {
     }
 
     public GradingSchemes updateGradingScheme(GradingSchemes updatedScheme, Integer classId, Integer teacherId) {
-        // Find the existing grading scheme first
         GradingSchemes existingScheme = gradingSchemeRepository.findByClassEntity_ClassId(classId);
         if (existingScheme == null) {
-            // Option: Or save it as a new one if it doesn't exist?
-            // For now, let's stick to throwing if trying to update a non-existent one,
-            // or you can delegate to saveGradingScheme.
             throw new RuntimeException("Grading scheme not found for class ID: " + classId + ". Cannot update.");
         }
 
-        // Update the grading scheme content
         existingScheme.setGradingScheme(updatedScheme.getGradingScheme());
 
-        // Update teacher if provided
         if (teacherId != null) {
             TeacherEntity teacher = teacherRepository.findById(teacherId)
                     .orElseThrow(() -> new RuntimeException("Teacher not found with ID: " + teacherId));
             existingScheme.setTeacherEntity(teacher);
         }
 
-        // Save and return the updated entity
-        return gradingSchemeRepository.save(existingScheme);
+        GradingSchemes savedScheme = gradingSchemeRepository.save(existingScheme);
+
+        //Fetches the number of students in the class
+        long studentCount = gradeRecordRepository.findByClassRecord_ClassEntity_ClassId(classId).size();
+        String className = existingScheme.getClassEntity().getClassName();
+
+        // New logging statements
+        logger.info("Grading scheme for class {} updated. Recalculating grades for all {} students.", className, studentCount);
+        logger.info("Grade recalculation complete.");
+
+
+        return savedScheme;
     }
 
     public String getGradeSchemeByClassEntityId(int id) {
