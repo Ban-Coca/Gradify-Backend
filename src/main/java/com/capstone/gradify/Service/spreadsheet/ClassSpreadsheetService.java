@@ -338,6 +338,8 @@ public class ClassSpreadsheetService {
 
         spreadsheet.setGradeRecords(gradeRecords);
 
+        logger.info("Valid spreadsheet uploaded. {} records processed successfully.", records.size());
+
         return classSpreadsheetRepository.save(spreadsheet);
     }
     //for google sheets compatibility
@@ -390,6 +392,7 @@ public class ClassSpreadsheetService {
         }
 
         spreadsheet.setGradeRecords(gradeRecords);
+        logger.info("Valid spreadsheet uploaded. {} records processed successfully.", records.size());
 
         return classSpreadsheetRepository.save(spreadsheet);
     }
@@ -412,15 +415,16 @@ public class ClassSpreadsheetService {
         spreadsheet.setVisibleAssessments(new HashSet<>());
 
         List<GradeRecordsEntity> gradeRecords = new ArrayList<>();
+        int skippedCount = 0; // 1. Initialize counter
 
         for (Map<String, String> record : records) {
             String studentFirstName = extractFirstName(record);
             String studentLastName = extractLastName(record);
-
             String studentNumber = record.get("Student Number");
 
-            if (studentNumber == null) {
-                studentNumber = record.get("StudentNumber");
+            if (studentNumber == null || studentNumber.trim().isEmpty()) {
+                skippedCount++;
+                continue;
             }
             logger.info("Processing record for student number: {}", studentNumber);
             logger.info("First Name: {}, Last Name: {}", studentFirstName, studentLastName);
@@ -435,12 +439,14 @@ public class ClassSpreadsheetService {
 
 
             gradeRecord.setGrades(record);
-
             gradeRecords.add(gradeRecord);
         }
 
         spreadsheet.setGradeRecords(gradeRecords);
-
+        if (skippedCount > 0) {
+            logger.warn("Spreadsheet uploaded with {} missing student numbers. These records were skipped.", skippedCount);
+        }
+        logger.info("Valid spreadsheet uploaded. {} records processed successfully.", records.size());
         return classSpreadsheetRepository.save(spreadsheet);
     }
 
