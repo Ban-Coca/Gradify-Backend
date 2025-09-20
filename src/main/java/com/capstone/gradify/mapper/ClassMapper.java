@@ -1,4 +1,4 @@
-    package com.capstone.gradify.mapper;
+package com.capstone.gradify.mapper;
 
 import com.capstone.gradify.Entity.records.ClassEntity;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
