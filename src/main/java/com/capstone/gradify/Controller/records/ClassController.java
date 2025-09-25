@@ -139,6 +139,9 @@ public class ClassController {
             return ResponseEntity.status(404).body("Class not found");
         }
         List<ClassSpreadsheet> spreadsheets = classService.getSpreadsheetsByClassId(classId);
+        if (spreadsheets == null || spreadsheets.isEmpty()) {
+            return ResponseEntity.status(404).body("No spreadsheets found for this class");
+        }
         SpreadsheetResponse response = spreadsheetMapper.toSpreadsheetResponse(spreadsheets.get(0));
         return ResponseEntity.ok(response);
     }
