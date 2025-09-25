@@ -139,7 +139,7 @@ public class ClassController {
             return ResponseEntity.status(404).body("Class not found");
         }
         List<ClassSpreadsheet> spreadsheets = classService.getSpreadsheetsByClassId(classId);
-        List<SpreadsheetResponse> response = spreadsheetMapper.toSpreadsheetResponseList(spreadsheets);
+        SpreadsheetResponse response = spreadsheetMapper.toSpreadsheetResponse(spreadsheets.get(0));
         return ResponseEntity.ok(response);
     }
 
