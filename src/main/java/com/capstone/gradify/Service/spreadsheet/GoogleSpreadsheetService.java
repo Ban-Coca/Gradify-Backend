@@ -5,6 +5,7 @@ import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
+import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,9 +24,7 @@ import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +51,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
     private String googleCredentialsPath;
 
     private final ClassSpreadsheetService classSpreadsheetService;
+    private final ClassSpreadsheetRepository classSpreadsheetRepository;
     private final ClassRepository classRepository;
 
     @Override
@@ -70,19 +70,22 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
         // Get spreadsheet metadata to determine sheet names and title
         Spreadsheet spreadsheet = sheetsService.spreadsheets().get(spreadsheetId).execute();
         String spreadsheetName = spreadsheet.getProperties().getTitle();
+        log.debug("The spreadsheet name is {}", spreadsheetName);
+
+        List<ClassSpreadsheet> exists = classSpreadsheetRepository.findByUploadedBy_UserIdAndFileName(teacher.getUserId(), spreadsheetName + ".sheet");
+
+        if(exists.get(0).getFileName().equals(spreadsheetName + ".sheet")) {
+            throw new IllegalArgumentException(String.format("Spreadsheet with the name %s already exists", spreadsheetName));
+        }
 
         List<Sheet> sheets = spreadsheet.getSheets();
         if (sheets == null || sheets.isEmpty()) {
             throw new IOException("Spreadsheet has no sheets");
         }
 
-        // Process the first sheet (can be modified to process all sheets if needed)
-        String sheetName = sheets.get(0).getProperties().getTitle();
-        String range = sheetName; // This gets all data from the sheet
-
         // Get the values from the sheet
         ValueRange response = sheetsService.spreadsheets().values()
-                .get(spreadsheetId, range)
+                .get(spreadsheetId, sheets.get(0).getProperties().getTitle())
                 .execute();
 
         List<List<Object>> values = response.getValues();
