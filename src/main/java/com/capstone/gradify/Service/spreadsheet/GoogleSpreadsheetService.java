@@ -74,7 +74,7 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
 
         List<ClassSpreadsheet> exists = classSpreadsheetRepository.findByUploadedBy_UserIdAndFileName(teacher.getUserId(), spreadsheetName + ".sheet");
 
-        if(exists.get(0).getFileName().equals(spreadsheetName + ".sheet")) {
+        if (!exists.isEmpty() && exists.get(0).getFileName().equals(spreadsheetName + ".sheet")) {
             throw new IllegalArgumentException(String.format("Spreadsheet with the name %s already exists", spreadsheetName));
         }
 
