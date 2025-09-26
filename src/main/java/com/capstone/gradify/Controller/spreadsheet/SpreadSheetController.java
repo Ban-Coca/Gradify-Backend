@@ -10,6 +10,7 @@ import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.Service.spreadsheet.ClassSpreadsheetService;
 import com.capstone.gradify.Service.spreadsheet.CloudSpreadsheetManager;
 import com.capstone.gradify.dto.response.ClassDetailResponse;
+import com.capstone.gradify.dto.response.ErrorResponse;
 import com.capstone.gradify.mapper.ClassMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
@@ -148,7 +149,7 @@ public class SpreadSheetController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error processing spreadsheet URL: " + e.getMessage());
+            return ResponseEntity.status(500).body(new ErrorResponse("SPREADSHEET_ERROR", e.getMessage()));
         }
     }
 
