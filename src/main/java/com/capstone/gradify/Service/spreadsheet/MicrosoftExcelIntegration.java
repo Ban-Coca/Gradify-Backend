@@ -179,17 +179,21 @@ public class MicrosoftExcelIntegration {
 
         Map<String, Integer> maxAssessmentValues = new HashMap<>();
         List<Object> maxRow = values.get(1);
+        List<String> maxRowValues = new ArrayList<>();
         for (int i = 0; i < headers.size(); i++) {
             Object val = i < maxRow.size() ? maxRow.get(i) : null;
             if (val instanceof Number) {
+                maxRowValues.add(val.toString());
                 maxAssessmentValues.put(headers.get(i), ((Number) val).intValue());
             } else if (val != null) {
                 try {
+                    maxRowValues.add(val.toString());
                     maxAssessmentValues.put(headers.get(i), Integer.parseInt(val.toString()));
                 } catch (NumberFormatException ignored) {}
             }
         }
-
+        //THROWS ERROR IF THE SPREADSHEET DOES NOT CONFORM TO THE TEMPLATE
+        classSpreadsheetService.validateHeadersAndMaxValues(headers, maxRowValues);
 
         List<Map<String, String>> records = new ArrayList<>();
         for (int i = 2; i < values.size(); i++) {
