@@ -10,7 +10,10 @@ import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Repository.user.StudentRepository;
 import com.capstone.gradify.dto.response.GradeErrorDetail;
+import com.capstone.gradify.dto.response.SpreadsheetValidationResult;
 import com.capstone.gradify.exceptions.GradeException.GradeValidationException;
+import com.capstone.gradify.exceptions.TemplateException.InvalidHeaderException;
+import com.capstone.gradify.exceptions.TemplateException.MaxAssessmentMissingException;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
@@ -31,6 +34,11 @@ public class ClassSpreadsheetService {
     private final StudentRepository studentRepository;
     private final GradeRecordRepository gradeRecordRepository;
     private final ClassRepository classRepository;
+
+    //CONSTANT LIST OF REQUIRED HEADERS
+    private static final List<String> REQUIRED_FIXED_HEADERS = Arrays.asList(
+            "Student Number", "First Name", "Last Name"
+    );
 
     public Optional<ClassSpreadsheet> getClassSpreadsheetById(Long id){
         Optional<ClassSpreadsheet> classSpreadsheet = classSpreadsheetRepository.findById(id);
@@ -55,7 +63,7 @@ public class ClassSpreadsheetService {
                 headers.add(cell.getStringCellValue());
             }
         }
-
+        List<String> maxRows = new ArrayList<>();
         if (rowIterator.hasNext()) {
             Row maxValueRow = rowIterator.next();
             for (int i = 0; i < headers.size(); i++) {
@@ -63,13 +71,25 @@ public class ClassSpreadsheetService {
                 Cell cell = maxValueRow.getCell(i);
 
                 // Only process assessment columns (those with numeric values)
-                if (cell != null && cell.getCellType() == CellType.NUMERIC) {
+                if (cell == null || cell.getCellType() == CellType.BLANK) {
+                    // Add empty string for blank cells (columns A, B, C)
+                    maxRows.add("");
+                } else if (cell.getCellType() == CellType.NUMERIC) {
+                    // Add numeric value for assessment columns
                     int maxValue = (int) cell.getNumericCellValue();
+                    maxRows.add(String.valueOf(maxValue));
                     maxAssessmentValues.put(header, maxValue);
+                } else if (cell.getCellType() == CellType.STRING) {
+                    // Handle string values (in case someone types text)
+                    maxRows.add(cell.getStringCellValue().trim());
+                } else {
+                    // Handle other cell types
+                    maxRows.add("");
                 }
             }
         }
-
+        logger.info("Max assessment values: {}", maxRows);
+        validateHeadersAndMaxValues(headers, maxRows);
         while (rowIterator.hasNext()) {
             Row row = rowIterator.next();
             Map<String, String> record = new java.util.HashMap<>();
@@ -80,6 +100,8 @@ public class ClassSpreadsheetService {
             }
             records.add(record);
         }
+
+
         workbook.close();
         return records;
     }
@@ -857,5 +879,81 @@ public class ClassSpreadsheetService {
             dataBuilder.append(record.toString());
         }
         return String.valueOf(dataBuilder.toString().hashCode());
+    }
+
+    //VALIDATION
+    public void validateHeadersAndMaxValues(List<String> headers, List<String> maxValueRow) {
+        if (headers == null || headers.isEmpty()) {
+            throw new InvalidHeaderException("Headers are missing");
+        }
+
+        if (maxValueRow == null || maxValueRow.isEmpty()) {
+            throw new InvalidHeaderException("Max value row is missing");
+        }
+
+        List<String> assessmentHeaders = new ArrayList<>();
+        Map<String, Integer> maxAssessmentValues = new LinkedHashMap<>();
+
+        for (int i = 0; i < headers.size(); i++) {
+            String headerValue = headers.get(i);
+            if (headerValue == null || headerValue.trim().isEmpty()) {
+                continue;
+            }
+            headerValue = headerValue.trim();
+
+            // Validate required fixed headers (first 3 columns)
+            if (i < REQUIRED_FIXED_HEADERS.size()) {
+                String expectedHeader = REQUIRED_FIXED_HEADERS.get(i);
+                if (!headerValue.equalsIgnoreCase(expectedHeader)) {
+                    throw new InvalidHeaderException(expectedHeader, headerValue, i + 1);
+                }
+
+                // Validate that columns A, B, C are empty in row 2
+                String maxValueCell = maxValueRow.get(i);
+                if (maxValueCell != null && !maxValueCell.trim().isEmpty()) {
+                    throw new MaxAssessmentMissingException(
+                            String.format("Column %d (%s) must be empty in row 2, but contains '%s'",
+                                    i + 1, headerValue, maxValueCell)
+                    );
+                }
+            } else {
+                // Assessment columns
+                assessmentHeaders.add(headerValue);
+
+                String maxValueCell = maxValueRow.get(i);
+                if (maxValueCell == null || maxValueCell.trim().isEmpty()) {
+                    throw new MaxAssessmentMissingException(
+                            String.format("Assessment '%s' at column %d is missing max value in row 2",
+                                    headerValue, i + 1)
+                    );
+                }
+
+                // Parse and validate the max value
+                int maxValue;
+                try {
+                    maxValue = Integer.parseInt(maxValueCell.trim());
+                } catch (NumberFormatException e) {
+                    throw new MaxAssessmentMissingException(
+                            String.format("Assessment '%s' at column %d has invalid max value '%s' in row 2. Must be a number.",
+                                    headerValue, i + 1, maxValueCell)
+                    );
+                }
+
+                if (maxValue <= 0) {
+                    throw new MaxAssessmentMissingException(
+                            String.format("Assessment '%s' at column %d has invalid max value %d (must be greater than 0)",
+                                    headerValue, i + 1, maxValue)
+                    );
+                }
+
+                maxAssessmentValues.put(headerValue, maxValue);
+            }
+        }
+
+        if (assessmentHeaders.isEmpty()) {
+            throw new InvalidHeaderException(
+                    "No assessment columns found. Spreadsheet must have at least one assessment column."
+            );
+        }
     }
 }

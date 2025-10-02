@@ -5,4 +5,8 @@ public class InvalidHeaderException extends ExcelTemplateException{
         super(String.format("Invalid header at column %d. Expected: '%s', Found: '%s'",
                 column, expected, actual));
     }
+
+    public InvalidHeaderException(String message) {
+        super(String.format(message));
+    }
 }
