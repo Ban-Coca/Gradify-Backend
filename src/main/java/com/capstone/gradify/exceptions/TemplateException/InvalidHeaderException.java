@@ -7,6 +7,6 @@ public class InvalidHeaderException extends ExcelTemplateException{
     }
 
     public InvalidHeaderException(String message) {
-        super(String.format(message));
+        super(message);
     }
 }

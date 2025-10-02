@@ -192,6 +192,7 @@ public class MicrosoftExcelIntegration {
                 } catch (NumberFormatException ignored) {}
             }
         }
+        //THROWS ERROR IF THE SPREADSHEET DOES NOT CONFORM TO THE TEMPLATE
         classSpreadsheetService.validateHeadersAndMaxValues(headers, maxRowValues);
 
         List<Map<String, String>> records = new ArrayList<>();
