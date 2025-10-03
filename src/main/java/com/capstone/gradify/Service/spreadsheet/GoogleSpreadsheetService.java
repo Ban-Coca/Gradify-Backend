@@ -99,20 +99,24 @@ public class GoogleSpreadsheetService implements CloudSpreadsheetInterface {
         }
 
         Map<String, Integer> maxAssessmentValues = new HashMap<>();
+        List<String> maxRows = new ArrayList<>();
         if (values.size() > 1) {
             List<Object> maxRow = values.get(1);
             for (int i = 0; i < headers.size(); i++) {
                 Object val = i < maxRow.size() ? maxRow.get(i) : null;
                 if (val instanceof Number) {
+                    maxRows.add(val.toString());
                     maxAssessmentValues.put(headers.get(i), ((Number) val).intValue());
                 } else if (val != null) {
                     try {
+                        maxRows.add(val.toString());
                         maxAssessmentValues.put(headers.get(i), Integer.parseInt(val.toString()));
                     } catch (NumberFormatException ignored) {}
                 }
             }
         }
 
+        classSpreadsheetService.validateHeadersAndMaxValues(headers, maxRows);
         // Convert Google Sheets data to the format expected by ClassSpreadsheetService
         List<Map<String, String>> records = convertToRecords(values);
         classSpreadsheetService.preValidateAllRecords(records, maxAssessmentValues);

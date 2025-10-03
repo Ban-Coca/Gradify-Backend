@@ -7,10 +7,12 @@ import javax.naming.NameNotFoundException;
 
 import com.capstone.gradify.Entity.report.ReportEntity;
 import com.capstone.gradify.Entity.records.*;
+import com.capstone.gradify.Entity.subscription.TrackedFiles;
 import com.capstone.gradify.Entity.user.StudentEntity;
 import com.capstone.gradify.Repository.report.ReportRepository;
 import com.capstone.gradify.Repository.records.ClassSpreadsheetRepository;
 import com.capstone.gradify.Repository.records.GradingSchemeRepository;
+import com.capstone.gradify.Repository.subscription.TrackedFileRepository;
 import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.dto.request.UpdateClassDetails;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 import com.capstone.gradify.Entity.records.ClassSpreadsheet;
 import com.capstone.gradify.Entity.user.TeacherEntity;
 import com.capstone.gradify.Repository.records.ClassRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -31,6 +34,7 @@ public class ClassService {
     private final TeacherRepository teacherRepository;
     private final ReportRepository reportRepository;
     private final GradingSchemeRepository gradingSchemeRepository;
+    private final TrackedFileRepository trackedFileRepository;
 
     public ClassEntity createClass(ClassEntity classEntity) {
         return classRepository.save(classEntity);
@@ -71,27 +75,29 @@ public class ClassService {
         existingClass.setUpdatedAt(new Date());
         return classRepository.save(existingClass);
     }
+    @Transactional
     public String deleteClass(int classId) {
         if (classRepository.findById(classId).isEmpty()) {
             return "Class ID " + classId + " NOT FOUND!";
         }
 
         try{
+            reportRepository.deleteByRelatedClass_ClassId(classId);
             ClassEntity existingClass = classRepository.findById(classId).orElse(null);
 
             List<ClassSpreadsheet> spreadsheets = classSpreadsheetRepository.findByClassEntity(existingClass);
             if(!spreadsheets.isEmpty()){
+                List<TrackedFiles> tracked = trackedFileRepository.findBySpreadsheetIn(spreadsheets);
+                if(!tracked.isEmpty()){
+                    trackedFileRepository.deleteAll(tracked);
+                }
+
                 classSpreadsheetRepository.deleteAll(spreadsheets);
             }
 
             GradingSchemes gradingSchemes = gradingSchemeRepository.findByClassEntity_ClassId(classId);
             if(gradingSchemes != null){
                 gradingSchemeRepository.delete(gradingSchemes);
-            }
-
-            List<ReportEntity> reports = reportRepository.findByRelatedClassClassId(classId);
-            if (!reports.isEmpty()) {
-                reportRepository.deleteAll(reports);
             }
 
             classRepository.deleteById(classId);

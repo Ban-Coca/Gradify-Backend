@@ -18,7 +18,6 @@ import com.capstone.gradify.Repository.user.TeacherRepository;
 import com.capstone.gradify.dto.request.RegisterRequest;
 import com.capstone.gradify.dto.request.UserUpdateRequest;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -27,8 +26,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import com.microsoft.graph.models.User;
-
 import com.capstone.gradify.Entity.user.UserEntity;
 import com.capstone.gradify.Repository.user.UserRepository;
 import org.springframework.web.multipart.MultipartFile;
@@ -298,8 +295,6 @@ public class UserService {
 			StudentEntity student = existingStudent.get();
 			student.setEmail(request.getEmail());
 			student.setAzureId(request.getAzureId());
-			student.setFirstName(request.getFirstName());
-			student.setLastName(request.getLastName());
 			student.setRole(Role.STUDENT);
 			student.setActive(true);
 			student.setCreatedAt(new Date());

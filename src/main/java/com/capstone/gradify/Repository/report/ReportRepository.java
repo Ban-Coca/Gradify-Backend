@@ -21,4 +21,5 @@ public interface ReportRepository extends JpaRepository<ReportEntity, Integer> {
 
     // Find reports linked to a specific grade record
     List<ReportEntity> findByGradeRecordId(Long gradeRecordId);
+    void deleteByRelatedClass_ClassId(int classId);
 }
