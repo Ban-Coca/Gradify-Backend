@@ -214,18 +214,44 @@ public class MicrosoftExcelIntegration {
             String className = cleanSpreadsheetName(fileName);
             String[] parts = className.split("-");
 
-            if (parts.length >= 2) {
+            if (parts.length >= 2) { // At least className and section
                 classEntity.setClassName(parts[0].trim());
                 classEntity.setSection(parts[1].trim());
+
+                // Fallback for semester
+                if (parts.length >= 3) {
+                    classEntity.setSemester(parts[2].trim());
+                } else {
+                    classEntity.setSemester(classSpreadsheetService.determineCurrentSemester());
+                }
+
+                // Fallback for school year
+                if (parts.length >= 5) {
+                    String schoolYear = parts[3] + "-" + parts[4];
+                    classEntity.setSchoolYear(schoolYear.trim());
+                } else if (parts.length >= 4) {
+                    classEntity.setSchoolYear(parts[3].trim());
+                } else {
+                    classEntity.setSchoolYear(classSpreadsheetService.determineCurrentSchoolYear());
+                }
+
+                classEntity.setClassCode(classSpreadsheetService.generateClassCode(
+                        classEntity.getClassName(),
+                        classEntity.getSection(),
+                        classEntity.getSemester(),
+                        classEntity.getSchoolYear()
+                ));
             } else {
-                classEntity.setClassName(className);
+                classEntity.setClassName(parts[0].trim());
+                classEntity.setSection("Default Section");
+                classEntity.setSemester(classSpreadsheetService.determineCurrentSemester());
+                classEntity.setSchoolYear(classSpreadsheetService.determineCurrentSchoolYear());
+                classEntity.setClassCode(classSpreadsheetService.generateRandomClassCode());
             }
-            classEntity.setClassCode(classSpreadsheetService.generateRandomClassCode());
+
             Date now = new Date();
             classEntity.setCreatedAt(now);
             classEntity.setUpdatedAt(now);
-            classEntity.setSemester(classSpreadsheetService.determineCurrentSemester());
-            classEntity.setSchoolYear(classSpreadsheetService.determineCurrentSchoolYear());
             classRepository.save(classEntity);
 
 
