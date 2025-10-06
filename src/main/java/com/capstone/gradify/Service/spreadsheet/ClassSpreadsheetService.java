@@ -218,8 +218,8 @@ public class ClassSpreadsheetService {
             }
 
         } else {
-            classEntity.setClassName(determineCurrentSemester());
-            classEntity.setSection(determineCurrentSchoolYear());
+            classEntity.setClassName("Untitled Class");
+            classEntity.setSection("Default Section");
             classEntity.setClassCode(generateRandomClassCode());
         }
 
