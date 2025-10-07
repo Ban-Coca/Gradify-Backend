@@ -31,7 +31,7 @@ public class GenerateFeedbackAIService {
     private AnthropicClient client;
 
     @PostConstruct
-    public void init(){
+    public void init() {
         // Initialize the Anthropic client with the API key
         client = new AnthropicOkHttpClient.Builder()
                 .apiKey(anthropicApiKey)
@@ -59,15 +59,34 @@ public class GenerateFeedbackAIService {
         double overallGrade = recordsService.calculateGrade(grades, gradingScheme.getGradingScheme(), maxValues);
 
         // Format the prompt with all data
-        String formattedPrompt = String.format(
-                "Student Information:\n" +
-                        "Student ID: %s\n" +
-                        "Class: %s\n\n" +
-                        "Grades:\n%s\n\n" +
-                        "Assessment Maximum Values:\n%s\n\n" +
-                        "Grading Scheme:\n%s\n\n" +
-                        "Overall Grade: %.2f%%\n\n" +
-                        "Please generate personalized feedback for this student based on their performance.",
+        String formattedPrompt = String.format("""
+                        Student Performance Data
+                        ------------------------
+                        Student ID: %s
+                        Class: %s
+                        
+                        Grades by Assessment:
+                        %s
+                        
+                        Assessment Maximum Scores:
+                        %s
+                        
+                        Grading Scheme:
+                        %s
+                        
+                        Calculated Overall Grade: %.2f%%
+                        
+                        Instructions:
+                        Based on the information above, write personalized feedback addressed to the student.
+                        
+                        The feedback should:
+                        - Begin with an **overview** of their performance level in this class.
+                        - Highlight their **strongest areas or improvements**.
+                        - Discuss **specific areas where they can improve**.
+                        - Provide **clear, actionable advice** to help them make progress.
+                        - Use the **60%% passing mark** to contextualize their results (e.g., "You are performing above the passing mark, but...").
+                        - Maintain a **professional, supportive tone** that motivates growth and reflection.
+                        """,
                 record.getStudentNumber(),
                 classSpreadsheet.getClassName(),
                 formatMap(grades),
@@ -76,7 +95,24 @@ public class GenerateFeedbackAIService {
                 overallGrade
         );
 
-        String systemPrompt = "You are an educational assistant. Generate clear, concise, and constructive feedback or reports based on the provided student data or assignment. Focus on actionable suggestions, highlight strengths and areas for improvement, and maintain a professional, supportive tone. Ensure all information is accurate and relevant to the context.  Be more human on the feedback. Tone should be casual but professional. PASSING percentage is 60%";
+
+        String systemPrompt = """
+                You are an educational feedback assistant. Generate personalized, constructive feedback for students based on their performance data.
+                
+                Guidelines:
+                - Address the feedback **directly to the student**.
+                - Maintain a **professional, supportive, and clear tone** — not overly formal, but not casual either.
+                - Focus on performance interpretation and growth, not just praise or criticism.
+                - Organize feedback into clear sections or paragraphs:
+                  1. **Overview** – Brief summary of the student's performance.
+                  2. **Strengths** – Highlight what they did well.
+                  3. **Areas for Improvement** – Point out specific gaps or inconsistencies.
+                  4. **Suggestions** – Offer practical, actionable advice for improvement.
+                - Avoid restating raw scores or repeating data from the input.
+                - Use the **60% passing mark** as a reference point for interpreting results.
+                - Keep the length concise (around 3–5 short paragraphs).
+                """;
+
 
         MessageCreateParams params = MessageCreateParams.builder()
                 .model("claude-3-5-haiku-20241022")
