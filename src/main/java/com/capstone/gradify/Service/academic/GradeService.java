@@ -7,6 +7,7 @@ import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Service.notification.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GradeService {
     private final GradeRecordRepository gradeRecordsRepository;
     private final ClassSpreadsheetRepository classSpreadsheetRepository;
@@ -140,6 +142,8 @@ public class GradeService {
             }
             visibleAssessments.add(assessmentName);
         }
+        log.info("Updating visible assessments for {}", classSpreadsheetId);
+        log.info("New visible assessments for {}", visibleAssessments);
 
         spreadsheet.setVisibleAssessments(visibleAssessments);
         classSpreadsheetRepository.save(spreadsheet);
