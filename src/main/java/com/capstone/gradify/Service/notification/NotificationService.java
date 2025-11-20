@@ -189,23 +189,23 @@ public class NotificationService {
                 messages.add(msg);
             }
 
-            // Send email notification if user has email
-            try {
-                String toEmail = null;
-
-                toEmail = user.getEmail();
-
-                if (toEmail != null && !toEmail.isBlank()) {
-                    String reportDate = LocalDate.now().toString();
-                    // grade param is assessmentName (may be null)
-                    emailService.sendGradeUpdate(toEmail, assessmentName, classEntity.getClassName(), user.getFirstName(), null, reportDate);
-                }
-            } catch (MessagingException me) {
-                log.error("Failed to send email to user: {}", me.getMessage(), me);
-            } catch (Exception ex) {
-                // guard against reflection or unexpected errors
-                log.debug("Skipping email send due to error when resolving user email: {}", ex.getMessage());
-            }
+//            // Send email notification if user has email
+//            try {
+//                String toEmail = null;
+//
+//                toEmail = user.getEmail();
+//
+//                if (toEmail != null && !toEmail.isBlank()) {
+//                    String reportDate = LocalDate.now().toString();
+//                    // grade param is assessmentName (may be null)
+//                    emailService.sendGradeUpdate(toEmail, assessmentName, classEntity.getClassName(), user.getFirstName(), null, reportDate);
+//                }
+//            } catch (MessagingException me) {
+//                log.error("Failed to send email to user: {}", me.getMessage(), me);
+//            } catch (Exception ex) {
+//                // guard against reflection or unexpected errors
+//                log.debug("Skipping email send due to error when resolving user email: {}", ex.getMessage());
+//            }
         }
 
         // Save all notification entities in a batch (transactional repository behavior assumed)

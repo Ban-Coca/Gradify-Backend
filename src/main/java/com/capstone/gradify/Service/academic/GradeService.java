@@ -115,11 +115,11 @@ public class GradeService {
         spreadsheet.setVisibleAssessments(visibleAssessments);
         classSpreadsheetRepository.save(spreadsheet);
 
-        notificationService.scheduleVisibilityChange(spreadsheet.getClassEntity().getClassId(),
-                null, // pass assessmentName or null if change affects multiple assessments
-                "ASSESSMENT_VISIBILITY_CHANGED",
-                "Grade visibility updated",
-                "Some grades have been made visible by your teacher.");
+//        notificationService.scheduleVisibilityChange(spreadsheet.getClassEntity().getClassId(),
+//                null, // pass assessmentName or null if change affects multiple assessments
+//                "ASSESSMENT_VISIBILITY_CHANGED",
+//                "Grade visibility updated",
+//                "Some grades have been made visible by your teacher.");
     }
 
     public void toggleAssessmentVisibility(Long classSpreadsheetId, String assessmentName) {
@@ -144,11 +144,11 @@ public class GradeService {
         spreadsheet.setVisibleAssessments(visibleAssessments);
         classSpreadsheetRepository.save(spreadsheet);
 
-        notificationService.scheduleVisibilityChange(spreadsheet.getClassEntity().getClassId(),
-                assessmentName,
-                "ASSESSMENT_VISIBILITY_CHANGED",
-                "A grade was made visible",
-                String.format("The assessment \"%s\" was made visible.", assessmentName));
+//        notificationService.scheduleVisibilityChange(spreadsheet.getClassEntity().getClassId(),
+//                assessmentName,
+//                "ASSESSMENT_VISIBILITY_CHANGED",
+//                "A grade was made visible",
+//                String.format("The assessment \"%s\" was made visible.", assessmentName));
     }
 
 }
