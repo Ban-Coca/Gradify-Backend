@@ -8,6 +8,7 @@ import com.capstone.gradify.Service.notification.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
@@ -148,11 +149,10 @@ public class GradeService {
         spreadsheet.setVisibleAssessments(visibleAssessments);
         classSpreadsheetRepository.save(spreadsheet);
 
-//        notificationService.scheduleVisibilityChange(spreadsheet.getClassEntity().getClassId(),
-//                assessmentName,
-//                "ASSESSMENT_VISIBILITY_CHANGED",
-//                "A grade was made visible",
-//                String.format("The assessment \"%s\" was made visible.", assessmentName));
+        notificationService.scheduleVisibilityChange(spreadsheet.getClassEntity().getClassId(),
+                assessmentName,
+                "ASSESSMENT_VISIBILITY_CHANGED",
+                "A grade was made visible",
+                String.format("The assessment \"%s\" was made visible.", assessmentName));
     }
-
 }
