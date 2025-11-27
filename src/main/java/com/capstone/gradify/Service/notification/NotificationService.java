@@ -11,6 +11,7 @@ import com.capstone.gradify.Service.academic.ClassService;
 import com.capstone.gradify.Service.userservice.UserService;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
 import jakarta.mail.MessagingException;
@@ -80,8 +81,10 @@ public class NotificationService {
 
             String response = FirebaseMessaging.getInstance(firebaseApp).send(message);
             log.info("Successfully sent notification: " + response);
-        }catch (Exception e){
-            log.error("Unexpected error in notification service: " + e.getMessage(), e);
+        }catch (FirebaseMessagingException fme) {
+            log.error("FCM error (code: {}): {}", fme.getErrorCode(), fme.getMessage(), fme);
+        } catch (Exception e){
+            log.error("Unexpected error in notification service: {}", e.getMessage(), e);
         }
     }
 
