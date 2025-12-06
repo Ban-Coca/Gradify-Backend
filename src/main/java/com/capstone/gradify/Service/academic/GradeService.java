@@ -7,6 +7,8 @@ import com.capstone.gradify.Repository.records.GradeRecordRepository;
 import com.capstone.gradify.Service.notification.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GradeService {
     private final GradeRecordRepository gradeRecordsRepository;
     private final ClassSpreadsheetRepository classSpreadsheetRepository;
@@ -115,11 +118,11 @@ public class GradeService {
         spreadsheet.setVisibleAssessments(visibleAssessments);
         classSpreadsheetRepository.save(spreadsheet);
 
-        notificationService.scheduleVisibilityChange(spreadsheet.getClassEntity().getClassId(),
-                null, // pass assessmentName or null if change affects multiple assessments
-                "ASSESSMENT_VISIBILITY_CHANGED",
-                "Grade visibility updated",
-                "Some grades have been made visible by your teacher.");
+//        notificationService.scheduleVisibilityChange(spreadsheet.getClassEntity().getClassId(),
+//                null, // pass assessmentName or null if change affects multiple assessments
+//                "ASSESSMENT_VISIBILITY_CHANGED",
+//                "Grade visibility updated",
+//                "Some grades have been made visible by your teacher.");
     }
 
     public void toggleAssessmentVisibility(Long classSpreadsheetId, String assessmentName) {
@@ -140,6 +143,8 @@ public class GradeService {
             }
             visibleAssessments.add(assessmentName);
         }
+        log.info("Updating visible assessments for {}", classSpreadsheetId);
+        log.info("New visible assessments for {}", visibleAssessments);
 
         spreadsheet.setVisibleAssessments(visibleAssessments);
         classSpreadsheetRepository.save(spreadsheet);
@@ -150,5 +155,4 @@ public class GradeService {
                 "A grade was made visible",
                 String.format("The assessment \"%s\" was made visible.", assessmentName));
     }
-
 }

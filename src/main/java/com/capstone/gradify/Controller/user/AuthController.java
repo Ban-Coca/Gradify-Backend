@@ -139,6 +139,7 @@ public class AuthController {
             if (request.getEmail() == null || request.getEmail().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
             }
+            logger.info("Teacher info: {}", request.getFirstName() + " " + request.getLastName());
             UserEntity user = userService.createTeacherFromOAuth(request);
             if (user == null) {
                 return ResponseEntity.status(500).body(Map.of("error", "Failed to create user"));

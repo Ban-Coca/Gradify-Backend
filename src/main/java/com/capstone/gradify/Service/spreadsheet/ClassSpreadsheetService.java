@@ -176,13 +176,39 @@ public class ClassSpreadsheetService {
             String baseName = filename.contains(".") ? filename.substring(0, filename.lastIndexOf('.')) : filename;
             String[] parts = baseName.split("-");
 
-            if (parts.length >= 2 && customClassName == null) { // Only use parts if not custom named for section
+            if (parts.length >= 2 && customClassName == null) { // At least className and section
                 classEntity.setClassName(parts[0].trim());
                 classEntity.setSection(parts[1].trim());
+
+                // Fallback for semester
+                if (parts.length >= 3) {
+                    classEntity.setSemester(parts[2].trim());
+                } else {
+                    classEntity.setSemester(determineCurrentSemester());
+                }
+
+                // Fallback for school year
+                if (parts.length >= 5) {
+                    String schoolYear = parts[3] + "-" + parts[4];
+                    classEntity.setSchoolYear(schoolYear.trim());
+                } else if (parts.length >= 4) {
+                    classEntity.setSchoolYear(parts[3].trim());
+                } else {
+                    classEntity.setSchoolYear(determineCurrentSchoolYear());
+                }
+
+                classEntity.setClassCode(generateClassCode(
+                        classEntity.getClassName(),
+                        classEntity.getSection(),
+                        classEntity.getSemester(),
+                        classEntity.getSchoolYear()
+                ));
             } else {
                 classEntity.setClassName(baseName.trim());
-                // If section is not in filename or it's a custom name, it might need to be set differently or default
-                classEntity.setSection(parts.length > 1 && customClassName == null ? parts[1].trim() : "Default Section");
+                classEntity.setSection("Default Section");
+                classEntity.setSemester(determineCurrentSemester());
+                classEntity.setSchoolYear(determineCurrentSchoolYear());
+                classEntity.setClassCode(generateRandomClassCode());
             }
 
             if (parts.length >= 4 && customClassName == null) {
@@ -196,10 +222,6 @@ public class ClassSpreadsheetService {
             classEntity.setSection("Default Section");
             classEntity.setClassCode(generateRandomClassCode());
         }
-
-        // Default Semester and School Year if not derivable
-        classEntity.setSemester(determineCurrentSemester());
-        classEntity.setSchoolYear(determineCurrentSchoolYear());
 
         Date now = new Date();
         classEntity.setCreatedAt(now);
@@ -448,8 +470,7 @@ public class ClassSpreadsheetService {
                 skippedCount++;
                 continue;
             }
-            logger.info("Processing record for student number: {}", studentNumber);
-            logger.info("First Name: {}, Last Name: {}", studentFirstName, studentLastName);
+
             // Create the grade record with student association
             GradeRecordsEntity gradeRecord = createGradeRecordWithStudentAssociation(
                     studentNumber,
@@ -585,8 +606,6 @@ public class ClassSpreadsheetService {
     }
 
     public List<ClassSpreadsheet> getClassSpreadsheetsByClassId(Integer classId) {
-        // Assuming you have a repository method for this
-        // If not, you'll need to add one to your repository
         return classSpreadsheetRepository.findByClassEntity_ClassId(classId);
     }
 

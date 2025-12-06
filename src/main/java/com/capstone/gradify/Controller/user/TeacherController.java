@@ -15,7 +15,9 @@ import com.capstone.gradify.dto.response.StudentDetails;
 import com.capstone.gradify.dto.response.TeacherAssessmentPerformance;
 import com.capstone.gradify.mapper.ClassMapper;
 import com.capstone.gradify.mapper.StudentMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/teacher")
 @RequiredArgsConstructor
+@Slf4j
 public class TeacherController {
     private final ClassSpreadsheetService classSpreadsheetService;
     private final  ClassService classService;
@@ -192,6 +195,7 @@ public class TeacherController {
             @PathVariable String assessmentName) {
 
         gradeService.toggleAssessmentVisibility(classSpreadsheetId, assessmentName);
+
         return ResponseEntity.ok().build();
     }
 
@@ -223,5 +227,10 @@ public class TeacherController {
         return ResponseEntity.ok().body(studentDetails);
     }
 
+    @GetMapping("/class/{classId}/student/{studentId}/breakdown")
+    public ResponseEntity<?> getStudentBreakDown(@PathVariable int classId, @PathVariable int studentId) throws JsonProcessingException {
+        Map<String, Object> breakdown = recordsService.getStudentGradeBreakdown(studentId, classId);
+        return ResponseEntity.ok(breakdown);
+    }
 
 }

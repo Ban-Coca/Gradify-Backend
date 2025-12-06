@@ -183,7 +183,10 @@ public class RecordsService {
             if (totalAppliedWeight > 0 && totalAppliedWeight <= 100) { // Ensure totalAppliedWeight is reasonable
                 // If totalAppliedWeight sums to 100, this simplifies to totalGrade
                 // If it's less (e.g. some categories had no grades), this will scale appropriately.
-                return (totalGrade / (totalAppliedWeight / 100.0));
+//                return (totalGrade / (totalAppliedWeight / 100.0));
+                logger.info("Total applied weight: {}", totalAppliedWeight);
+                logger.info("Total applied category score: {}", totalGrade);
+                return totalGrade;
             } else if (totalAppliedWeight == 0) {
                 return 0.0;
             } else {
@@ -202,6 +205,8 @@ public class RecordsService {
 
     private double getCategoryScore(Map<String, String> grades, String category, Map<String, Integer> assessmentMaxValues) {
         // Map category names to potential keys in the grade records
+        logger.info("Assessment category: {}", category);
+        logger.info("Assessment max score: {}", assessmentMaxValues.get(category));
         category = category.trim();
         Map<String, Integer> maxValues = assessmentMaxValues != null ? assessmentMaxValues : new HashMap<>();
 
@@ -933,9 +938,9 @@ public class RecordsService {
             return "Assignments";
         } else if (key.matches("P\\d+")) {
             return "Projects";
-        } else if (key.equalsIgnoreCase("ME") || key.equalsIgnoreCase("Midterm")) {
+        } else if (key.equalsIgnoreCase("ME") || key.equalsIgnoreCase("Midterm") || key.equalsIgnoreCase("Midterm Exam")) {
             return "Midterm Exams";
-        } else if (key.equalsIgnoreCase("FE") || key.equalsIgnoreCase("Final")) {
+        } else if (key.equalsIgnoreCase("FE") || key.equalsIgnoreCase("Final") || key.equalsIgnoreCase("Final Exam")) {
             return "Final Exams";
         } else {
             return "Other";
@@ -954,5 +959,116 @@ public class RecordsService {
             default: return 6;
         }
     }
+    private double getCategoryWeight(String category, List<Map<String, Object>> schemeItems) {
+        for (Map<String, Object> schemeItem : schemeItems) {
+            String schemeName = (String) schemeItem.get("name");
+
+            // Use existing category matching logic (from getCategoryScore)
+            if (categoryMatchesScheme(category, schemeName)) {
+                Object weightObj = schemeItem.get("weight");
+                if (weightObj != null) {
+                    try {
+                        return Double.parseDouble(weightObj.toString());
+                    } catch (NumberFormatException e) {
+                        return 0.0;
+                    }
+                }
+            }
+        }
+        return 0.0;
+    }
+
+    /**
+     * Check if assessment category matches scheme category name
+     * (Simplified version of getCategoryScore logic)
+     */
+    private boolean categoryMatchesScheme(String assessmentCategory, String schemeName) {
+        String catLower = assessmentCategory.toLowerCase().trim();
+        String schemeLower = schemeName.toLowerCase().trim();
+
+        // Direct match or contains match
+        return catLower.equals(schemeLower) ||
+                catLower.contains(schemeLower) ||
+                schemeLower.contains(catLower);
+    }
+
+    private boolean isActualAssessment(String key) {
+        String keyLower = key.toLowerCase();
+
+        // Exclude metadata fields
+        if (keyLower.equals("first name") || keyLower.equals("firstname") ||
+                keyLower.equals("last name") || keyLower.equals("lastname") ||
+                keyLower.equals("student number") || keyLower.equals("studentnumber") ||
+                keyLower.equals("student id") || keyLower.equals("studentid") ||
+                keyLower.equals("name") || keyLower.equals("email")) {
+            return false;
+        }
+
+        // Only include if it has a valid numeric score
+        return true;
+    }
+
+    public Map<String, Object> getStudentGradeBreakdown(int studentId, int classId) throws JsonProcessingException {
+        List<GradeRecordsEntity> records = gradeRecordsRepository
+                .findByStudent_UserIdAndClassRecord_ClassEntity_ClassId(studentId, classId);
+
+        GradeRecordsEntity record = records.get(0);
+        GradingSchemes gradingScheme = gradingSchemeService.getGradingSchemeByClassEntityId(classId);
+
+        List<Map<String, Object>> schemeItems = mapper.readValue(
+                gradingScheme.getGradingScheme(), new TypeReference<List<Map<String, Object>>>() {});
+
+        Map<String, String> grades = record.getGrades();
+        Map<String, Integer> maxValues = record.getClassRecord().getAssessmentMaxValues();
+
+        List<Map<String, Object>> gradeBreakdown = new ArrayList<>();
+        double totalGrade = 0.0;
+
+        for (Map.Entry<String, String> entry : grades.entrySet()) {
+            String assessmentKey = entry.getKey();
+
+            // 🔥 ADD THIS CHECK - Skip metadata fields
+            if (!isActualAssessment(assessmentKey)) {
+                continue;
+            }
+
+            double score = parseGradeValue(entry.getValue());
+
+            // 🔥 ADD THIS CHECK - Skip invalid scores (like -1 for missing values)
+            if (score < 0) {
+                continue;
+            }
+
+            int maxPoints = maxValues.getOrDefault(assessmentKey, 100);
+            String category = getAssessmentType(assessmentKey);
+            double categoryWeight = getCategoryWeight(category, schemeItems);
+
+            long countInCategory = grades.keySet().stream()
+                    .filter(k -> isActualAssessment(k)) // 🔥 Filter here too
+                    .filter(k -> parseGradeValue(grades.get(k)) >= 0) // 🔥 And here
+                    .filter(k -> getAssessmentType(k).equals(category))
+                    .count();
+
+            double percentage = (score / maxPoints) * 100.0;
+            double weightedContribution = (percentage / 100.0) * (categoryWeight / countInCategory);
+
+            Map<String, Object> detail = new HashMap<>();
+            detail.put("assessment", assessmentKey);
+            detail.put("score", score);
+            detail.put("maxPoints", maxPoints);
+            detail.put("category", category);
+            detail.put("weight", categoryWeight);
+            detail.put("weightedContribution", weightedContribution);
+
+            gradeBreakdown.add(detail);
+            totalGrade += weightedContribution;
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("gradeBreakdown", gradeBreakdown);
+        result.put("totalGrade", totalGrade);
+        return result;
+    }
+
 
 }
